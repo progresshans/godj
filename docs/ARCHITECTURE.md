@@ -196,9 +196,9 @@ limit·오류·DDL 의미는 그대로 분리한다. History의 정렬·canonica
 PostgreSQL은 detached intent 전체를 preflight와 완료 시 검증하고, SQL 직전에는 transition과 현재 operation 전체의 seal을
 검증한다. 최종 physical 검사와 전체 seal 검증이 끝나기 전에는 recorder 성공을 기록하지 않는다.
 
-`sqlmigrate`는 target 직전 historical state의 forward intent를 pure renderer로 projection한다. Preview SQL을 실행 plan으로
-재사용하지 않으며 renderer가 DB opener, recorder, transaction 또는 credential을 갖지 않는다. 실제 migration 실행은 backend
-capability와 fresh history를 다시 검증한다.
+`sqlmigrate`는 정확히 한 migration의 의존 이력을 복원한다. 정방향은 적용 직전 상태에서 정의 순서로, `--backwards`는
+적용 직후 상태에서 역순으로 SQL을 만든다. `RunData`는 원래 연산 위치에 주석을 남기며, 역함수가 없는 작업을 만나면
+SQL 출력 전에 오류를 반환한다. 내장 renderer는 DB 연결이나 적용 이력을 읽지 않는다. 실제 실행기는 backend capability와 현재 이력을 다시 검증한다.
 Backend renderer는 operation마다 ordered statement group을 반환한다. Root는 metadata-only의 빈 group과 필수 물리 SQL을
 구분하고 group 수·전체 statement 수·총 byte 한도를 검사한 뒤 flat SQL 목록으로 복사한다. Group의 일부가 잘못되거나 취소되면
 출력 전체가 실패한다. [SQL projection 계약](adr/0055-project-linked-deterministic-migration-sql-projection.md)을 따른다.

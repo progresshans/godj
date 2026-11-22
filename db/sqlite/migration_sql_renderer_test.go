@@ -17,12 +17,12 @@ func TestSQLiteMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 
 	target, source, sourceField := sqliteRelationTestModels()
 	intent := sqliteRelationApplyIntent(target, source, sourceField)
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "news", Name: "0001_models", Intent: intent,
 	}
-	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
+	statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(context.Background(), request)
 	if err != nil {
-		t.Fatalf("RenderForwardMigrationSQL() error = %v", err)
+		t.Fatalf("RenderMigrationSQL() error = %v", err)
 	}
 	targetSQL, err := compileSQLiteRelationCreateModel(target, nil)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestSQLiteMigrationSQLRendererScalarAddAndEmptyIntent(t *testing.T) {
 	after.Fields = append(after.Fields, ir.Field{
 		Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, MaxLength: 120, Nullable: true,
 	})
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_summary",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
@@ -75,7 +75,7 @@ func TestSQLiteMigrationSQLRendererScalarAddAndEmptyIntent(t *testing.T) {
 			After:          after,
 		}}},
 	}
-	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
+	statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,9 +87,9 @@ func TestSQLiteMigrationSQLRendererScalarAddAndEmptyIntent(t *testing.T) {
 		t.Fatalf("scalar AddField SQL = %#v, want %q", statements, want)
 	}
 
-	empty, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(
+	empty, err := NewMigrationSQLRenderer().RenderMigrationSQL(
 		context.Background(),
-		migrationbackend.ForwardMigrationSQLRequest{
+		migrationbackend.MigrationSQLRequest{
 			App: "blog", Name: "0003_noop",
 			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}},
 		},
@@ -115,9 +115,9 @@ func TestSQLiteMigrationSQLRendererRejectsUnsupportedOperation(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(
+			statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(
 				context.Background(),
-				migrationbackend.ForwardMigrationSQLRequest{
+				migrationbackend.MigrationSQLRequest{
 					App: "news", Name: "0002_unsupported",
 					Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 						OperationIndex: 0,
@@ -158,9 +158,9 @@ func TestSQLiteMigrationSQLRendererPreservesCompleteForeignKeyAuthority(t *testi
 		Targets:        sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, changedTarget),
 	}}}
 	original := intent.Clone()
-	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(
+	statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(
 		context.Background(),
-		migrationbackend.ForwardMigrationSQLRequest{App: "news", Name: "0002_editor", Intent: intent},
+		migrationbackend.MigrationSQLRequest{App: "news", Name: "0002_editor", Intent: intent},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +194,7 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 	featured := ir.Field{Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: logicalDefault}
 	withDefault := withRequired.Clone()
 	withDefault.Fields = append(withDefault.Fields, featured)
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_live_preflight",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 			{OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: base, After: withRequired},
@@ -202,7 +202,7 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 		}},
 	}
 	renderer := NewMigrationSQLRenderer()
-	want, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+	want, err := renderer.RenderMigrationSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			got, renderErr := renderer.RenderForwardMigrationSQL(context.Background(), request)
+			got, renderErr := renderer.RenderMigrationSQL(context.Background(), request)
 			results <- got
 			errors <- renderErr
 		}()
@@ -252,7 +252,7 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 		}
 	}
 	want[0][0] = "mutated"
-	again, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+	again, err := renderer.RenderMigrationSQL(context.Background(), request)
 	if err != nil || again[0][0] == "mutated" {
 		t.Fatalf("repeat render retained returned-slice mutation: %#v, %v", again, err)
 	}
@@ -271,27 +271,27 @@ func TestSQLiteMigrationSQLRendererPreservesLoaderIdentityAuthority(t *testing.T
 		After:          model,
 	}}}
 	renderer := NewMigrationSQLRenderer()
-	valid := []migrationbackend.ForwardMigrationSQLRequest{
+	valid := []migrationbackend.MigrationSQLRequest{
 		{App: strings.Repeat("a", 256), Name: "0001_article", Intent: intent},
 		{App: "blog", Name: strings.Repeat("n", 256), Intent: intent},
 		{App: "blog", Name: strings.Repeat("😀", 256), Intent: intent},
 		{App: "blog", Name: "0001\x00still-loader-valid", Intent: intent},
 	}
 	for index, request := range valid {
-		statements, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+		statements, err := renderer.RenderMigrationSQL(context.Background(), request)
 		if err != nil || len(statements) != 1 {
 			t.Fatalf("case %d loader-valid identity render = %#v, %v; want one statement", index, statements, err)
 		}
 	}
 
-	invalid := []migrationbackend.ForwardMigrationSQLRequest{
+	invalid := []migrationbackend.MigrationSQLRequest{
 		{App: "", Name: "0001", Intent: intent},
 		{App: "Blog", Name: "0001", Intent: intent},
 		{App: "blog", Name: "", Intent: intent},
 		{App: "blog", Name: string([]byte{0xff}), Intent: intent},
 	}
 	for index, request := range invalid {
-		if statements, err := renderer.RenderForwardMigrationSQL(context.Background(), request); err == nil || statements != nil {
+		if statements, err := renderer.RenderMigrationSQL(context.Background(), request); err == nil || statements != nil {
 			t.Fatalf("invalid identity case %d = %#v, %v; want nil/error", index, statements, err)
 		}
 	}
@@ -308,7 +308,7 @@ func TestSQLiteMigrationSQLRendererChecksCancellationAtBoundedCheckpoints(t *tes
 	withSummary.Fields = append(withSummary.Fields, ir.Field{
 		Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, MaxLength: 120, Nullable: true,
 	})
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_summary",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 			{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: base},
@@ -329,7 +329,7 @@ func TestSQLiteMigrationSQLRendererChecksCancellationAtBoundedCheckpoints(t *tes
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := newSQLiteMigrationSQLCheckpointContext(test.cancelAt)
-			statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(ctx, request)
+			statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(ctx, request)
 			if statements != nil || !errors.Is(err, context.Canceled) {
 				t.Fatalf("render = %#v, %v; want nil/context.Canceled", statements, err)
 			}

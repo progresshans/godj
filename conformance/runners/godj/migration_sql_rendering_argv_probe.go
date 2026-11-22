@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	migrationSQLRenderingArgvProbeCases       = 3
-	migrationSQLRenderingArgvProbeMaxArgs     = 5
+	migrationSQLRenderingArgvProbeCases       = 6
+	migrationSQLRenderingArgvProbeMaxArgs     = 6
 	migrationSQLRenderingArgvProbeStatement   = "SELECT 1"
 	migrationSQLRenderingArgvProbeOutput      = migrationSQLRenderingArgvProbeStatement + ";\n"
 	migrationSQLRenderingArgvProbeDefault     = "discovered_default"
@@ -69,6 +69,7 @@ type migrationSQLRenderingArgvProbeCase struct {
 	form                string
 	args                []string
 	literalZero         bool
+	backwards           bool
 	ancestorInspections int
 }
 
@@ -104,6 +105,18 @@ func migrationSQLRenderingProbeAcceptedArgv(
 		{
 			caseName: "explicit", form: "explicit",
 			args: []string{"sqlmigrate", "blog", "0002_render_sql", "--project", migrationSQLRenderingArgvProbeExplicit},
+		},
+		{
+			caseName: "backwards", form: "implicit", backwards: true,
+			args: []string{"sqlmigrate", "blog", "0002_render_sql", "--backwards"}, ancestorInspections: 1,
+		},
+		{
+			caseName: "backwards_project", form: "explicit", backwards: true,
+			args: []string{"sqlmigrate", "blog", "0002_render_sql", "--backwards", "--project", migrationSQLRenderingArgvProbeExplicit},
+		},
+		{
+			caseName: "project_backwards", form: "explicit", backwards: true,
+			args: []string{"sqlmigrate", "blog", "0002_render_sql", "--project", migrationSQLRenderingArgvProbeExplicit, "--backwards"},
 		},
 		{
 			caseName: "literal_zero", form: "implicit", literalZero: true,
@@ -394,7 +407,7 @@ func migrationSQLRenderingValidateArgvProbeCommands(
 		childEnvironment["GOENV"] != "off" {
 		return errors.New("migration SQL argv probe runner environment was not isolated")
 	}
-	if backend.requestReads != 1 || backend.request != (sqlmigrateprotocol.Request{App: probeCase.args[1], Name: probeCase.args[2]}) {
+	if backend.requestReads != 1 || backend.request != (sqlmigrateprotocol.Request{App: probeCase.args[1], Name: probeCase.args[2], Backwards: probeCase.backwards}) {
 		return errors.New("migration SQL argv probe runner request did not match public argv")
 	}
 	return nil
@@ -418,6 +431,9 @@ func migrationSQLRenderingDeriveArgvProbeProject(
 ) (string, error) {
 	if runner.Dir != fixture.project {
 		return "", errors.New("migration SQL argv probe selected an unexpected project")
+	}
+	if i := slices.Index(args, "--backwards"); i >= 3 {
+		args = slices.Delete(slices.Clone(args), i, i+1)
 	}
 	switch len(args) {
 	case 3:

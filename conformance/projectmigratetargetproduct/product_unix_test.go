@@ -67,6 +67,10 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		after := dbstate.CaptureSQLite(t, database)
 		const reversePlan = "{\"plan\":[{\"app\":\"blog\",\"name\":\"0002_freeze\",\"direction\":\"backward\",\"irreversible_operation\":0}]}\n"
 		targetAssertSuccess(t, command("migrate", "blog", targetBlog1, "--plan"), reversePlan, sensitive...)
+		targetResetMarker(t, marker)
+		targetAssertFailure(t, command("sqlmigrate", "blog", "0002_freeze", "--backwards"), 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, after)
 		targetAssertFailure(t, command("migrate", "blog", targetBlog1), 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
 		targetAssertSQLiteUnchanged(t, database, after)
 	})
@@ -84,6 +88,7 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		targetAssertSuccess(t, run("migrate", "--plan"), targetPlanOutput(t, targetPlanRow{App: "blog", Name: "0002_rename", Direction: "forward"}), sensitive...)
 		targetResetMarker(t, marker)
 		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_rename"), `ALTER TABLE "main"."target_blog_initial" RENAME COLUMN "value" TO "label";`+"\n", sensitive...)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_rename", "--backwards"), `ALTER TABLE "main"."target_blog_initial" RENAME COLUMN "label" TO "value";`+"\n", sensitive...)
 		targetAssertPathAbsent(t, marker)
 		targetAssertSQLiteUnchanged(t, database, before)
 		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)

@@ -4913,3 +4913,5 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/authenti
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/authentication_http/relogin
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/authentication_http/inactive
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/authentication_http/reactivation
+github.com/progresshans/godj/migrations|TestRenderMigrationSQLReversesOnlyTheExactTarget
+github.com/progresshans/godj/migrations|TestBackwardSQLStopsAtLastIrreversibleOperationBeforeRendering

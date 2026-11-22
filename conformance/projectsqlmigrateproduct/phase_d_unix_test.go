@@ -71,9 +71,16 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 		enrichAttempts := project.assertNoPostgresConnectionAttempts(t)
 		sqlProductAssertMarker(t, enrichState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, enrichState.rendererMarker, "render")
-		observed := [3]int64{baselineAttempts, authorAttempts, enrichAttempts}
-		if observed != ([3]int64{}) {
-			t.Fatalf("PostgreSQL connection-attempt observations = %v, want [0 0 0]", observed)
+		reverseState := project.state(t, "postgres-reverse-fields")
+		reverse := project.run(t, reverseState, project.postgresEnvironment(reverseState),
+			"sqlmigrate", "blog", "0002_enrich", "--project", project.descriptor, "--backwards")
+		sqlProductAssertSuccess(t, reverse, `ALTER TABLE "sql_product_schema"."blog_article" DROP COLUMN "published" RESTRICT;
+ALTER TABLE "sql_product_schema"."blog_article" DROP COLUMN "summary" RESTRICT;
+`, project.sensitive(reverseState)...)
+		sqlProductAssertMarker(t, reverseState.rendererMarker, "render")
+		observed := [4]int64{baselineAttempts, authorAttempts, enrichAttempts, project.assertNoPostgresConnectionAttempts(t)}
+		if observed != ([4]int64{}) {
+			t.Fatalf("PostgreSQL connection-attempt observations = %v, want all zero", observed)
 		}
 		t.Logf("PostgreSQL connection-attempt observations = %v", observed)
 
@@ -168,8 +175,8 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 		// public calls. Its split literal passes the narrow source audit; the
 		// changed-input execution must detect the discarded renderer result.
 		body := strings.TrimPrefix(strings.TrimSuffix(sqlProductAuthorOutput, ";\n"), "CREATE ")
-		stub := sqlProductMutateRunner(t, "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			"_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n\treturn [][]string{{\"CREATE \" + "+strconv.Quote(body)+"}}, nil", "")
+		stub := sqlProductMutateRunner(t, "return renderer.delegate.RenderMigrationSQL(ctx, request)",
+			"_, _ = renderer.delegate.RenderMigrationSQL(ctx, request)\n\treturn [][]string{{\"CREATE \" + "+strconv.Quote(body)+"}}, nil", "")
 		if err := sqlProductAuditRunnerPipeline([]byte(stub)); err != nil {
 			t.Fatalf("control must reach execution after the source audit: %v", err)
 		}
@@ -212,8 +219,8 @@ func TestGlobalSQLMigrateExternalOperationGroups(t *testing.T) {
 			name, second = "malformed later body", extra+";"
 		}
 		t.Run(name, func(t *testing.T) {
-			source := sqlProductMutateRunner(t, "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-				"groups, err := renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n"+
+			source := sqlProductMutateRunner(t, "return renderer.delegate.RenderMigrationSQL(ctx, request)",
+				"groups, err := renderer.delegate.RenderMigrationSQL(ctx, request)\n"+
 					"\tif err != nil { return nil, err }\n"+
 					"\tgroups[0] = append(groups[0], "+strconv.Quote(second)+")\n"+
 					"\treturn groups, nil", "")
@@ -271,7 +278,7 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 		},
 		{
 			name: "hardcoded renderer output",
-			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
+			old:  "return renderer.delegate.RenderMigrationSQL(ctx, request)",
 			new:  `return [][]string{{"CREATE TABLE hardcoded_stub"}}, nil`,
 		},
 		{
@@ -293,8 +300,8 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 		},
 		{
 			name: "delegate result discarded for concatenated hardcoded SQL",
-			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			new: `_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)
+			old:  "return renderer.delegate.RenderMigrationSQL(ctx, request)",
+			new: `_, _ = renderer.delegate.RenderMigrationSQL(ctx, request)
 	return [][]string{{"CREATE " + "TABLE hardcoded_stub"}}, nil`,
 		},
 		{
@@ -314,7 +321,7 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 			new:  "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn hardcodedRenderer{}",
 			suffix: `
 type hardcodedRenderer struct{}
-func (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+func (hardcodedRenderer) RenderMigrationSQL(context.Context, backend.MigrationSQLRequest) ([][]string, error) {
 	return [][]string{{"CREATE " + "TABLE hardcoded_stub"}}, nil
 }
 `,
@@ -355,7 +362,7 @@ func TestSQLProductRunnerSourceBoundaries(t *testing.T) {
 		{"direct output", "fmt.Fprintln(os.Stderr,", "fmt.Fprintln(os.Stdout,", ""},
 		{"implicit output", "fmt.Fprintln(os.Stderr,", "fmt.Println(", ""},
 		{"database opener", "sqlite.NewMigrationSQLRenderer()", "sqlite.Open()", ""},
-		{"hardcoded SQL", "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)", `return [][]string{{"CREATE TABLE fixture"}}, nil`, ""},
+		{"hardcoded SQL", "return renderer.delegate.RenderMigrationSQL(ctx, request)", `return [][]string{{"CREATE TABLE fixture"}}, nil`, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if err := sqlProductAuditRunnerPipeline([]byte(sqlProductMutateRunner(t, test.old, test.new, test.suffix))); err == nil {

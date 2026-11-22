@@ -45,22 +45,26 @@ func (e *MigrationSQLError) Error() string {
 	return fmt.Sprintf("%s/%s", e.Category, e.Code)
 }
 
-// RenderMigrationSQL reconstructs the target's dependency-before historical
-// state from one complete loader publication, materializes exactly that
-// migration's forward intent, and invokes renderer exactly once. It performs
+// RenderMigrationSQL reconstructs the exact target's historical state from
+// one loader publication, materializes its operations in execution order
+// for the requested direction, and invokes renderer exactly once. It performs
 // no database, history, recorder, transaction, or schema-editor I/O.
 func RenderMigrationSQL(
 	ctx context.Context,
 	loaded LoadedDefinitionSet,
 	target MigrationKey,
+	direction Direction,
 	renderer backend.MigrationSQLRenderer,
 ) ([]string, error) {
-	step := PlanStep{Key: target, Direction: DirectionForward}
+	step := PlanStep{Key: target, Direction: direction}
 	if ctx == nil {
 		return nil, executionContextError(step, fmt.Errorf("context is nil"))
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
+	}
+	if direction != DirectionForward && direction != DirectionBackward {
+		return nil, executionPlanError(CodeInvalidExecutionPlan, step, fmt.Errorf("invalid migration SQL direction"))
 	}
 
 	view, ok := loaded.view()
@@ -113,8 +117,7 @@ func RenderMigrationSQL(
 		return nil, executionContextError(step, err)
 	}
 
-	// Replay only the target's dependency closure. The target itself is then
-	// materialized once against that exact before-state builder.
+	// Only the target and its dependencies contribute to its historical state.
 	builder := newLoadedStateBuilder()
 	for _, dependency := range withoutExplicitTargets(projection, []MigrationKey{target}) {
 		if err := ctx.Err(); err != nil {
@@ -128,6 +131,18 @@ func RenderMigrationSQL(
 				"",
 				fmt.Errorf("target-before projection has no migration definition"),
 			)
+		}
+		if err := reconstructor.applyLoadedMigrationContext(ctx, builder, migration, DirectionForward); err != nil {
+			return nil, err
+		}
+	}
+	if direction == DirectionBackward {
+		if err := ctx.Err(); err != nil {
+			return nil, executionContextError(step, err)
+		}
+		migration := reconstructor.definitions[target]
+		if index := irreversibleDataOperation(migration); index != NoOperation {
+			return nil, irreversibleDataError(migration, index)
 		}
 		if err := reconstructor.applyLoadedMigrationContext(ctx, builder, migration, DirectionForward); err != nil {
 			return nil, err
@@ -181,10 +196,11 @@ func RenderMigrationSQL(
 			}
 		}
 	}
-	request := backend.ForwardMigrationSQLRequest{
-		App:    strings.Clone(target.App),
-		Name:   strings.Clone(target.Name),
-		Intent: intent,
+	request := backend.MigrationSQLRequest{
+		App:       strings.Clone(target.App),
+		Name:      strings.Clone(target.Name),
+		Backwards: direction == DirectionBackward,
+		Intent:    intent,
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
@@ -195,7 +211,7 @@ func RenderMigrationSQL(
 	if isNilInterface(renderer) {
 		return nil, newMigrationSQLError(CategorySQLRender, CodeRendererUnavailable)
 	}
-	groups, renderErr := renderer.RenderForwardMigrationSQL(ctx, request)
+	groups, renderErr := renderer.RenderMigrationSQL(ctx, request)
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
 	}

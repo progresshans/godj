@@ -23,7 +23,7 @@
 | Populated scalar AddField | 명시적 상수 default의 sealed remake·1회 backfill, incoming FK·행·index·sequence 보존 | ADD COLUMN의 임시 DEFAULT 뒤 같은 transaction의 DROP DEFAULT, 관계·행·sequence 보존 |
 | Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
 | Automatic ManyToMany migration | 소유 table Create/Add/Remove/Rename·reverse, link PK·sqlite_sequence·rootpage 보존, managed pair index 이름 변경 | 같은 logical operation, link PK·table/sequence OID·last_value/is_called 보존, managed PK/FK/unique/sequence 이름 변경 |
-| SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
+| SQL projection | 이력 정의로 정방향·역방향 SQL과 테이블 재구성 순서 생성 | 지정 schema의 정방향·역방향 DDL과 제약·인덱스 순서 생성 |
 | 일반 column index | DBIndex의 BINARY/ASC 단일 index·Create/Add/Alter/Remove·reverse·remake 보존·namespace/catalog 소유권 | column collation·default B-tree opclass의 단일 index·같은 lifecycle/소유권; Django pattern-opclass 추가 최적화는 별도 |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |

@@ -14,6 +14,22 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 	databaseURL := targetPostgresTestURL(t)
 	project := newTargetExternalProject(t)
 
+	t.Run("historical_reverse_sql_uses_project_schema_without_opening_database", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "reverse-sql")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_rename")
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		before := targetCapturePostgres(t, databaseURL, schema)
+		result := project.run(t, env, "sqlmigrate", "blog", "0002_rename", "--backwards", "--project", project.descriptor)
+		targetAssertSuccess(t, result, `ALTER TABLE "`+schema+`"."target_blog_initial" RENAME COLUMN "label" TO "value";`+"\n", targetPostgresSensitive(t, project, databaseURL, "")...)
+		targetAssertPathAbsent(t, marker)
+		env = project.postgresEnvironment(t, databaseURL, schema, marker, "historical_data")
+		result = project.run(t, env, "sqlmigrate", "blog", "0002_freeze", "--project", project.descriptor, "--backwards")
+		targetAssertFailure(t, result, 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+	})
+
 	t.Run("MIG-120_named_forward_plan_and_exact_state", func(t *testing.T) {
 		schema := targetCreatePostgresSchema(t, databaseURL)
 		marker := project.postgresMarker(t, "named-forward")

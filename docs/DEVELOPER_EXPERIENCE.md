@@ -240,7 +240,9 @@ README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사
 - `makemigrations`는 지원하는 schema difference에서 migration을 작성한다. Destructive/general custom operation을 임의로 추론하지 않는다.
 - `showmigrations`는 현재 DB history의 한 snapshot이다.
 - `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
-- `sqlmigrate`는 명명된 migration의 forward SQL을 DB 없이 render한다. 데이터 실행 결과나 runtime history를 보여 주는 명령이 아니다.
+- `godj sqlmigrate APP EXACT_NAME`은 적용 SQL을 표시한다. `--backwards`를 붙이면 같은 migration의 역작업 SQL을 표시한다.
+  `--project PATH`와 `--backwards`는 이름 뒤에서 어느 순서로든 지정할 수 있다. 내장 renderer는 DB 연결 없이 동작한다.
+  데이터 함수는 주석으로 표시한다. 역함수가 없는 migration을 역방향으로 요청하면 stdout은 비어 있고 종료 코드는 1이다.
 - `createsuperuser`는 선택 모델의 필드·생략/default·choice를 터미널에서 읽고, 명시적으로 설치한 빈 계정 domain에 첫 active/staff/superuser를 만든다.
   `commands_package`의 `command.Config.FirstAccount`가 실제 typed policy·DB 연결을 소유한다. 선언 runner는 migration과 Schema IR만 읽는다.
   결과의 `operation_id`, `status`, `code`, `cleanup_failed`를 함께 보관한다. `unknown`·응답 유실·정리 실패를 재시도 허가로 사용하지 않는다.

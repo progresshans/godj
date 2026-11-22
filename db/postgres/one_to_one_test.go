@@ -125,7 +125,7 @@ func TestPostgresOneToOneAlterFailureRetryReverseAndReopen(t *testing.T) {
 			exec("INSERT INTO " + ownerTable + " DEFAULT VALUES")
 			exec("INSERT INTO " + childTable + " (owner_id) VALUES (1)")
 			renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace})
-			sql, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), renderer)
+			sql, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), migrations.DirectionForward, renderer)
 			wantSQL := 1
 			if unique {
 				wantSQL = 0

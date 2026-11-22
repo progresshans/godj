@@ -142,7 +142,13 @@ func main() {
 	}
 	var registry migrations.DataRegistry
 	var renderer backend.MigrationSQLRenderer
-	if catalog == "historical_rename" { renderer = sqlite.NewMigrationSQLRenderer() }
+	if catalog == "historical_rename" || catalog == "historical_data" {
+		if os.Getenv(backendEnvironment) == "postgres" {
+			renderer = postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: os.Getenv(postgresSchemaEnvironment)})
+		} else {
+			renderer = sqlite.NewMigrationSQLRenderer()
+		}
+	}
 	if catalog == "historical_data" {
 		registry, err = migrations.NewDataRegistry(migrations.DataRegistration{Key: freezeKey(), Forward: freeze})
 		if err != nil { fatal() }

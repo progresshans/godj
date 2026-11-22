@@ -3,6 +3,14 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## M1 역방향 SQL 표시
+
+`godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)
+
+CI 도구의 Python 검사 119개와 고정 원본 체크섬 24개가 통과했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
+
 ## M1 필드 이름 변경과 역사 데이터 대조
 
 명시적인 필드 이름 변경을 definition 저장·해시, 역사 모델 복원, 양 DB의 트랜잭션, 정방향 SQL 및 외부 프로젝트 명령에 연결했다. 양 DB에서 다른 앱이 참조하는 기본 키, 명시적 중간 모델의 외래 키, 인덱스·고유 제약, 물리 열을 유지한 필드, 미등록 참조 거부, 후속 제약 실패·롤백과 재접속·역적용을 검사한다. [양 DB 검사](../../internal/migrationdefaulttest/rename.go) · [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go)

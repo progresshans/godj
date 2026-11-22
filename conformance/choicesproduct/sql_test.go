@@ -27,12 +27,12 @@ func TestChoicesSQLRendersZeroStatementsAndMixedStepOnlyPhysicalSQL(t *testing.T
 				migration  string
 				statements int
 			}{{"0001_initial", 2}, {"0002_choices", 0}, {"0003_labels", 0}, {"0004_mixed", 1}} {
-				sql, err := migrations.RenderMigrationSQL(context.Background(), loaded, migrations.MigrationKey{App: "choices", Name: test.migration}, renderer)
+				sql, err := migrations.RenderMigrationSQL(context.Background(), loaded, migrations.MigrationKey{App: "choices", Name: test.migration}, migrations.DirectionForward, renderer)
 				if err != nil || len(sql) != test.statements {
 					t.Fatalf("%s: %v %v", test.migration, sql, err)
 				}
 			}
-			if _, err := migrations.RenderMigrationSQL(context.Background(), loaded, migrations.MigrationKey{App: "choices", Name: "0002_choices"}, forgedChoiceTarget{renderer}); err == nil {
+			if _, err := migrations.RenderMigrationSQL(context.Background(), loaded, migrations.MigrationKey{App: "choices", Name: "0002_choices"}, migrations.DirectionForward, forgedChoiceTarget{renderer}); err == nil {
 				t.Fatal("metadata-only target forgery retained SQL-rendering authority")
 			}
 		})
@@ -41,7 +41,7 @@ func TestChoicesSQLRendersZeroStatementsAndMixedStepOnlyPhysicalSQL(t *testing.T
 
 type forgedChoiceTarget struct{ backend.MigrationSQLRenderer }
 
-func (renderer forgedChoiceTarget) RenderForwardMigrationSQL(ctx context.Context, request backend.ForwardMigrationSQLRequest) ([][]string, error) {
+func (renderer forgedChoiceTarget) RenderMigrationSQL(ctx context.Context, request backend.MigrationSQLRequest) ([][]string, error) {
 	request.Intent.Operations[1].Targets[0].TargetModel.Fields[1].Choices[0].Label = "Forged label"
-	return renderer.MigrationSQLRenderer.RenderForwardMigrationSQL(ctx, request)
+	return renderer.MigrationSQLRenderer.RenderMigrationSQL(ctx, request)
 }

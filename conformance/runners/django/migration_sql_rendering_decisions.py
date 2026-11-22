@@ -60,6 +60,17 @@ def argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             "project": "./godj.toml",
         },
     ]
+    for flags, project in (
+        (["--backwards"], "discovered_default"),
+        (["--backwards", "--project", "./godj.toml"], "./godj.toml"),
+        (["--project", "./godj.toml", "--backwards"], "./godj.toml"),
+    ):
+        accepted.append({
+            "app": "blog",
+            "argv": ["sqlmigrate", "blog", "0002_render_sql", *flags],
+            "migration_name": "0002_render_sql",
+            "project": project,
+        })
     rejected = [
         _pre_io_rejection("app_only", ["sqlmigrate", "blog"]),
         _pre_io_rejection(
@@ -75,8 +86,8 @@ def argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             ["sqlmigrate", "blog", "latest"],
         ),
         _pre_io_rejection(
-            "backwards_option",
-            ["sqlmigrate", "blog", "0002_render_sql", "--backwards"],
+            "duplicate_backwards",
+            ["sqlmigrate", "blog", "0002_render_sql", "--backwards", "--backwards"],
         ),
         _pre_io_rejection(
             "reverse_option",
@@ -100,7 +111,7 @@ def argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
         phase="environment",
         result={
             "accepted": accepted,
-            "exact_public_forms": 2,
+            "exact_public_forms": len(accepted),
             "migration_name_resolution": "exact_only",
             "rejected": rejected,
             "zero_name_policy": "literal_exact_name",

@@ -99,8 +99,8 @@ func TestPostgresUniqueSQLProjectionRequiresPhysicalChanges(t *testing.T) {
 		{Kind: migrationbackend.MigrationAlterField, Before: plain, After: unique},
 		{Kind: migrationbackend.MigrationAlterField, Before: unique, After: plain},
 	} {
-		request := migrationbackend.ForwardMigrationSQLRequest{App: "blog", Name: "0002_unique", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{operation}}}
-		statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "public"}).RenderForwardMigrationSQL(t.Context(), request)
+		request := migrationbackend.MigrationSQLRequest{App: "blog", Name: "0002_unique", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{operation}}}
+		statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "public"}).RenderMigrationSQL(t.Context(), request)
 		if err != nil || len(statements) != 1 || len(statements[0]) != 1 || statements[0][0] == "" {
 			t.Fatalf("unique produced incomplete SQL: %v %v", statements, err)
 		}
