@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/dbstate"
@@ -15,6 +16,53 @@ import (
 func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 	databaseURL := targetPostgresTestURL(t)
 	project := newTargetExternalProject(t)
+
+	t.Run("public_model_rename_preserves_rows", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "model-rename")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_model_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "before"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := targetCapturePostgres(t, databaseURL, schema)
+		targetResetMarker(t, marker)
+		const next = "target_blog_publication"
+		for _, reverse := range []bool{false, true} {
+			from, to := targetBlog1Table, next
+			args := []string{"sqlmigrate", "blog", "0002_model_rename"}
+			if reverse {
+				from, to = to, from
+				args = append(args, "--backwards")
+			}
+			out := run(args...)
+			lines := strings.Split(strings.TrimSuffix(out.Stdout, "\n"), "\n")
+			if len(lines) != 3 || lines[0] != "ALTER TABLE \""+schema+"\".\""+from+"\" RENAME TO \""+to+"\";" ||
+				!strings.HasPrefix(lines[1], "ALTER SEQUENCE \""+schema+"\".") || !strings.HasPrefix(lines[2], "ALTER TABLE \""+schema+"\".\""+to+"\" RENAME CONSTRAINT ") {
+				t.Fatal("rename SQL", lines)
+			}
+			targetAssertSuccess(t, out, strings.Join(lines, "\n")+"\n", targetPostgresSensitive(t, project, databaseURL, "")...)
+		}
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		renamed := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(renamed, targetBlog1Table) || !reflect.DeepEqual(renamed.values[next], before.values[targetBlog1Table]) {
+			t.Fatal("renamed rows", renamed.values)
+		}
+		if id := targetInsertPostgresValue(t, databaseURL, schema, next, "after"); id != 2 {
+			t.Fatal("renamed key", id)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		restored := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(restored, next) || !reflect.DeepEqual(restored.values[targetBlog1Table], []targetPostgresValue{{1, "before"}, {2, "after"}}) {
+			t.Fatal("restored rows", restored.values)
+		}
+	})
 
 	t.Run("public_delete_model_recreates_empty_storage", func(t *testing.T) {
 		schema := targetCreatePostgresSchema(t, databaseURL)

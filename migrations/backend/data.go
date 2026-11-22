@@ -25,7 +25,7 @@ type HistoricalDataTransaction interface {
 // data callback, field rename or authored model deletion can execute.
 func ValidateRequiredHistory(intent MigrationIntent, transition HistoryTransition) error {
 	for _, op := range intent.Operations {
-		if op.Kind == MigrationRunData || op.Kind == MigrationRenameField ||
+		if op.Kind == MigrationRunData || op.Kind == MigrationRenameField || op.Kind == MigrationRenameModel ||
 			op.Kind == MigrationDeleteModel && transition.Kind == HistoryTransitionApply ||
 			op.Kind == MigrationCreateModel && transition.Kind == HistoryTransitionUnapply {
 			_, err := ParseDefinitionHistoryDigest(transition.Migration.HistoryDigest)

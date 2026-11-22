@@ -37,6 +37,8 @@ func collectAutomaticCreators(graph *plannerGraph, definitions map[MigrationKey]
 			app, name := operationSourceModel(operation)
 			var fields []ir.ManyToManyField
 			switch op := operation.(type) {
+			case RenameModel:
+				name, fields = op.After.Name, op.After.ManyToMany
 			case CreateModel:
 				fields = op.Model.ManyToMany
 			case AddManyToMany:

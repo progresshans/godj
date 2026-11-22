@@ -87,6 +87,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		HistoricalData:                    true,
 		RenameField:                       true,
 		DeleteModel:                       true,
+		RenameModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,

@@ -36,7 +36,7 @@ func (migrationSQLRenderer) RenderMigrationSQL(
 	}
 	for _, operation := range request.Intent.Operations {
 		switch operation.Kind {
-		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
+		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationRenameModel, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
 			migrationbackend.MigrationAddField, migrationbackend.MigrationRemoveField, migrationbackend.MigrationAlterField,
 			migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint, migrationbackend.MigrationAlterManyToMany:
 			continue
@@ -61,7 +61,7 @@ func (migrationSQLRenderer) RenderMigrationSQL(
 		case migrationbackend.MigrationRunData:
 			groups[index] = []string{migrationbackend.RunDataSQLComment}
 			continue
-		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany:
+		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany, migrationbackend.MigrationRenameModel:
 			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 			constraint, deltaErr := operation.ChangedConstraint()

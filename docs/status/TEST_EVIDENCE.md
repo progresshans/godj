@@ -3,6 +3,16 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## M1 모델 이름 변경과 관계 보존
+
+Django 6.1과 Python 3.14.3의 실제 migration을 실행했다. SQLite 3.50.4와 별도 로컬 PostgreSQL 17.5·psycopg 3.3.6에서 기본 테이블 9개, 고정 테이블 8개 항목이 일치했다. 두 경우 모두 PK·자기 FK·다른 앱의 OneToOne·양 방향에서 참조되는 다대다 행과 링크 키를 대조했다. 명시적 through 모델을 따로 바꿨다가 되돌리고 재접속해 관계와 가중치도 확인했다. 뒤 제약이 실패하면 기존 행과 테이블이 남았고, 기본 테이블의 목적 이름이 이미 사용 중이면 기존 목적 행도 보존됐다. 이름 변경 뒤 추가한 행은 역적용과 재적용 뒤에도 같은 키로 남았다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_rename.py) · [공통 기준](../../internal/migrationdefaulttest/testdata/model-rename-django61.json) · [고정 소스와 라이선스](../SOURCES.md)
+
+이름 변경 공통 기준 SHA-256은 `87cd4229a94a2c7741fa431d54c9eb07fc89aa5ef0e80f884f206fa36388c0f9`다. 로컬 SQLite 전체 비교기는 기존 역사 관측 15개와 모델 제거 관측 8개도 대조했다. 입력 파일 14개의 해시를 포함한 전체 원본의 SHA-256은 `5fbb7849b55bb6e05771c64be8a5a79edb4dc81d99fc8b30529b5ed127eb8ebb`다. PostgreSQL 17.5에서 어댑터의 실제 catalog 조회문을 실행해 허용된 자기·외부 PK 참조와 대체 고유 키를 참조하는 외부 FK, 의존 뷰를 구분하는 것도 확인했다. [비교기](../../scripts/ci/migration_data_reference.py) · [catalog 조회](../../db/postgres/migration_rename.go)
+
+GoDj의 양 DB 검사는 동일 관측과 함께 자동 중간 모델을 직접 참조하는 외부 행, 삭제된 마지막 키 이후의 sequence, 고정 테이블의 외부 뷰·FK, 저장된 이력과 달라진 정의의 역적용 거부를 확인한다. 공개 명령은 양방향 SQL·실행·역적용을 수행한다. 외부 프로젝트는 기존 순환 FK가 있는 상태에서 `makemigrations`가 추가 변경을 만들지 않는지 확인한 뒤 새 생성 모델로 옛 행을 읽고 저장한다. 이 소스의 Go·고정 PostgreSQL 17.10·전체 원격 CI 수용은 대기 중이다. [양 DB 소비자](../../internal/migrationdefaulttest/model_rename.go) · [생성 프로젝트](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+같은 migration에서 이름 변경 뒤 필수 열을 추가하는 경우도 양 DB 회귀 검사에 넣었다. 빈 원본에서는 적용·역적용 후 열을 실제 조회한다. 행이 있는 원본에서는 DDL 전 오류와 기존 행·관계·이력을 확인한다. PostgreSQL은 같은 물리 테이블에 이미 사용한 열 슬롯과 이후 추가할 열을 함께 계산한다. [양 DB 시나리오](../../internal/migrationdefaulttest/model_rename.go) · [테이블 추적](../../internal/migrationgraph/graph.go)
+
 ## M1 모델 삭제와 빈 테이블 복원
 
 고정 Django 6.1에서 선언 중간의 모델에 고유 열과 자동 다대다 관계를 만들고, 행을 넣은 뒤 삭제·역적용했다. Python 3.14.3과 SQLite 3.50.4에서 기존 역사 관측 15개와 새 관측 8개가 기대값에 일치했다. 새 관측은 초기 행, 삭제·복원 DDL 순서, 뒤 연산 실패 후 롤백, 재접속 뒤 남은 테이블, 빈 테이블 복원, 재삽입, 고유 제약이다. 원본 JSON의 SHA-256은 `93d85750b76e15fe3c45fc55a9cfb8ebfd5f0ad210740774e6e454bf151352de`다. 별도 로컬 PostgreSQL 17.5와 psycopg 3.3.6에서 같은 8개 관측이 일치했다. 공통 기대값의 SHA-256은 `822b2ea71a7061032ba299040e1b5eaa30bcc2dcb14d834707518ae52d0290b4`다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_deletion.py) · [관측값](../../internal/migrationdefaulttest/testdata/model-deletion-django61.json) · [고정 소스·라이선스](../SOURCES.md)

@@ -75,6 +75,39 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		targetAssertSQLiteUnchanged(t, database, after)
 	})
 
+	t.Run("public_model_rename_preserves_rows", func(t *testing.T) {
+		database, marker := project.paths(t, "model-rename")
+		env := project.environment(database, marker, "historical_model_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := project.sensitive(database)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertSQLiteValue(t, database, targetBlog1Table, "before"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := dbstate.CaptureSQLite(t, database)
+		targetResetMarker(t, marker)
+		const next = "target_blog_publication"
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_model_rename"), "ALTER TABLE \"target_blog_initial\" RENAME TO \"target_blog_publication\";\n", sensitive...)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_model_rename", "--backwards"), "ALTER TABLE \"target_blog_publication\" RENAME TO \"target_blog_initial\";\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		targetAssertSQLiteTables(t, database, next)
+		if got := targetSQLiteValues(t, database, next); !reflect.DeepEqual(got, []string{"before"}) {
+			t.Fatal("renamed values", got)
+		}
+		if id := targetInsertSQLiteValue(t, database, next, "after"); id != 2 {
+			t.Fatal("renamed key", id)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		targetAssertSQLiteTables(t, database, targetBlog1Table)
+		if got := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(got, []string{"before", "after"}) {
+			t.Fatal("restored values", got)
+		}
+	})
+
 	t.Run("public_field_rename_preserves_rows", func(t *testing.T) {
 		database, marker := project.paths(t, "historical-rename")
 		env := project.environment(database, marker, "historical_rename")
