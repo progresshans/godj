@@ -1323,8 +1323,7 @@ field를 `unsupported_delta`, noncanonical applied leaf를 `noncanonical_leaf`�
 self/cyclic 관계를 거부 case에서 제외하고 backfill 없는 required field 추가로 교체했습니다. 현재 독립 Python decision을
 실행하여 MIG-107 관찰만 다시 기록했으며 같은 artifact의 나머지 11개 관찰과 Django profile은 그대로 보존합니다.
 GDJ-0138은 non-PK field removal을 지원하므로 해당 거부 사례를 `primary_key_replacement`로 교체했습니다. 독립 Python
-decision에서 이 관찰만 재생성하고 나머지 관찰·profile이 같음을 확인했습니다. 새 제품 본문과 환경별 대조는 현재
-source의 원격 CI 대상이며, 위 Verified 상태는 앞선 baseline의 결과입니다.
+decision에서 이 관찰만 재생성하고 나머지 관찰·profile이 같음을 확인했습니다. `512c17f1`의 원격 실행에서 이 거부 사례를 포함한 writer 계약 12건이 DEV-0010의 기대와 일치했다. [현재 계약 검증](status/TEST_EVIDENCE.md#512c17f1-생성물과-공통-호환성)
 
 ### GoDj에서 채택한 동작
 

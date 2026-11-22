@@ -4,6 +4,7 @@
 - 통합: [PR #8](https://github.com/progresshans/godj/pull/8)은 merge `86c4ce01`로
   [PR #1](https://github.com/progresshans/godj/pull/1) 작업 브랜치에 합쳤다. 관리 JSON `11349e45`도 통합 브랜치에 포함됐다.
   후속 변경은 완성된 코드 묶음 단위로 #1에 계속 반영하며, 최신 통합 source의 원격 CI와 미완료 수용을 추적한다.
+  macOS Intel race 작업 중단으로 드러난 부분 재실행 문제는 #1을 대상으로 한 초안에서 검증한다. [PR #10](https://github.com/progresshans/godj/pull/10) · [생산자별 원본과 검증 범위](../docs/status/TEST_EVIDENCE.md#프로젝트-비교-작업의-부분-재실행)
 - 시작: 2026-10-24
 - 출발 source: `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`
 - 선행: A1·F1·C1의 완료 근거는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
