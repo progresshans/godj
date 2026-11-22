@@ -328,12 +328,7 @@ func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
 	t.Parallel()
 
 	definitions := lifecycleLoadedRelationCreateDefinitions()
-	allCapabilities := backend.MigrationCapabilities{
-		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKey:                  true,
-	}
+	allCapabilities := lifecycleAllRelationCapabilities()
 	tests := []struct {
 		name                      string
 		records                   []backend.AppliedMigration
@@ -507,12 +502,7 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 	t.Parallel()
 
 	definitions := lifecycleLoadedCompleteIntentDefinitions()
-	allCapabilities := backend.MigrationCapabilities{
-		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKey:                  true,
-	}
+	allCapabilities := lifecycleAllRelationCapabilities()
 
 	t.Run("forward", func(t *testing.T) {
 		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(2))
