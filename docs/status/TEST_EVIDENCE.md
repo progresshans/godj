@@ -17,6 +17,8 @@ Django 6.1·Python 3.14.3·SQLite 3.50.4에서 비교 앱을 실행해 15개 관
 
 로컬에서 독립 Python 계산으로 함수 키·버전·양방향·모델 루트를 포함한 정의의 이력 SHA-256 `164244875a7b2d6939c034141bb2d0088657e68b1a67da5736626b28a6a0fa67`을 얻었다. 고정 Django의 target-plan 기준을 재생성해 Go 전용 프로토콜 버전과 runner 인자 두 값의 변경을 확인했다. 기준 재실행, 비교 결정 검사 6개, 저장한 원본 체크섬 24개와 PostgreSQL 세 모드의 필수 실행 배정을 확인했다. 이 제품 변경의 Go·양 DB·프로젝트 명령 실행은 원격 검증 대상이다. 비교 앱의 필드 이름 변경까지 포함한 15개 관측에 대한 GoDj 대조는 필드 이름 변경 구현 뒤에 완료한다. [정의 고정값](../../migrations/definition/encode_test.go) · [독립 비교 근거](#m1-준비--과거-모델을-사용한-데이터-변환)
 
+고정 비교기를 다시 실행해 MIG-128의 runner 인자와 버전 두 값만 달라진 것을 확인했다. 재생성한 원본과 체크섬 목록을 읽는 Go 검사의 바이트 고정값도 대조했다. [Go 원본 검사](../../conformance/internal/protocol/artifact_catalog_test.go) · [대상 계획 원본](../../conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json)
+
 ## M1 적용한 migration의 정의 대조
 
 PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조를 추가했다. 새 형식은 nullable 변경과 기본값이 있는 필드 추가·제거의 적용 트랜잭션에 migration별 선행 정의 해시를 저장한다. 일반 이력 조회는 앱·이름을 반환하고, 실행기는 revision으로 보호되는 세션에서 해시까지 읽는다. [실행기](../../migrations/lifecycle.go) · [이력 해시](../../db/internal/migrationhistory/history.go) · [M1 PR](https://github.com/progresshans/godj/pull/9)
