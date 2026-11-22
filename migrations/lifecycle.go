@@ -200,8 +200,8 @@ func (e Executor) prepareLoadedLifecycle(
 		key := MigrationKey{App: record.App, Name: record.Name}
 		keys[index] = key
 		if record.HistoryDigest == "" {
-			if definition, exists := reconstructor.definitions[key]; exists && containsRunData(definition) {
-				return prepared, resultState, migrationError(CategoryHistory, CodeDefinitionHistoryMismatch, "", definition, NoOperation, "", errors.New("a data migration requires a binding recorded at apply time"))
+			if definition, exists := reconstructor.definitions[key]; exists && needsNewOperationReceipt(definition) {
+				return prepared, resultState, migrationError(CategoryHistory, CodeDefinitionHistoryMismatch, "", definition, NoOperation, "", errors.New("this migration requires a definition binding recorded at apply time"))
 			}
 			continue
 		}
@@ -316,10 +316,20 @@ func (e Executor) prepareLoadedLifecycle(
 // These field operations can use historical declarations to rewrite existing
 // values on apply or reverse. The loader has normalized operation pointers
 // to values in the invocation-owned reconstructor.
+func needsNewOperationReceipt(migration Migration) bool {
+	for _, op := range migration.Operations {
+		switch op.(type) {
+		case RunData, RenameField:
+			return true
+		}
+	}
+	return false
+}
+
 func needsDefinitionHistory(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch op := operation.(type) {
-		case RunData:
+		case RunData, RenameField:
 			return true
 		case AlterField:
 			if op.Before.Nullable != op.After.Nullable {
@@ -480,6 +490,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresAlterFieldNullability, capabilities.AlterFieldNullability, "AlterFieldNullability"},
 		{loadedRequiresHistoricalData, capabilities.HistoricalData, "HistoricalData"},
+		{loadedRequiresRenameField, capabilities.RenameField, "RenameField"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
 		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},

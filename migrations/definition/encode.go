@@ -84,6 +84,8 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 			document.Migration.Operations[index] = constraintDocument{Kind: "add_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
 		case migrations.RemoveConstraint:
 			document.Migration.Operations[index] = constraintDocument{Kind: "remove_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
+		case migrations.RenameField:
+			document.Migration.Operations[index] = alterFieldDocument{Kind: "rename_field", AppLabel: value.AppLabel, ModelName: value.ModelName, Before: encodeField(value.Before), After: encodeField(value.After)}
 		case migrations.AlterField:
 			document.Migration.Operations[index] = alterFieldDocument{
 				Kind: "alter_field", AppLabel: value.AppLabel, ModelName: value.ModelName,
@@ -228,6 +230,16 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 		case migrations.RemoveConstraint:
 			if value.AppLabel != migration.App || !validConstraintDefinition(value.ModelName, value.Constraint) {
 				return encodeFailure(path, "RemoveConstraint requires the complete historical unique constraint")
+			}
+		case migrations.RenameField:
+			if value.AppLabel != migration.App || !identifiers.SQL(value.ModelName) || ir.ValidateFieldRename(value.Before, value.After) != nil {
+				return encodeFailure(path, "RenameField requires the same normalized field under a new identity")
+			}
+			if err := validateFieldWireRange(value.Before, path+".before"); err != nil {
+				return err
+			}
+			if err := validateFieldWireRange(value.After, path+".after"); err != nil {
+				return err
 			}
 		case migrations.AlterField:
 			if value.AppLabel != migration.App || !validAlterFieldDefinition(value) {

@@ -254,7 +254,7 @@ func validatePostgresMigrationIntent(
 			transition.Kind == migrationbackend.HistoryTransitionUnapply && operation.Kind == migrationbackend.MigrationCreateModel {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("operation kind does not match history transition", nil)
 		}
-		if _, _, _, err := validatePostgresMigrationOperation(operation); err != nil {
+		if _, _, _, err := validatePostgresMigrationOperation(transition.Migration.App, operation); err != nil {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 		}
 		graph, exists := graphPlan.Operation(position)
@@ -293,10 +293,23 @@ func validatePostgresMigrationIntent(
 	return initial, final, nil
 }
 
-func validatePostgresMigrationOperation(operation migrationbackend.MigrationOperation) (ir.Model, ir.Model, ir.Field, error) {
+func validatePostgresMigrationOperation(app string, operation migrationbackend.MigrationOperation) (ir.Model, ir.Model, ir.Field, error) {
 	var before, after ir.Model
 	var changed ir.Field
 	switch operation.Kind {
+	case migrationbackend.MigrationRenameField:
+		before, after = operation.Before, operation.After
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
+		_, field, err := operation.RenamedField(app)
+		if err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid RenameField delta", err)
+		}
+		changed = field
 	case migrationbackend.MigrationRunData:
 		// ResolveMigrationGraphPlan validated the full row-access scope.
 	case migrationbackend.MigrationCreateModel:

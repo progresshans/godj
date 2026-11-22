@@ -41,6 +41,9 @@ func (operation MigrationOperation) AutomaticStorageChanges(app string) ([]Model
 		return model, nil
 	}
 	switch operation.Kind {
+	case MigrationRenameField:
+		_, _, err := operation.RenamedField(app)
+		return nil, err
 	case MigrationAlterManyToMany:
 		before, after, err := operation.ChangedManyToMany()
 		if err != nil {

@@ -13,6 +13,7 @@ from project_reference import decode, digest, same
 
 ROOT = Path(__file__).resolve().parents[2]
 BLANK_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/blank-tightening-django61.json"
+HISTORICAL_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/historical-data-django61.json"
 VARIABLE = "GODJ_MIGRATION_DATA_REFERENCE_DATABASE"
 PHASES = {
     "base", "forward_plan", "forward_error", "after_failure", "contracted", "retry_calls",
@@ -40,6 +41,8 @@ def capture(env, directory, vendor, version):
     if (set(report["observations"]) != PHASES or set(report["command_output"]) != {"forward", "reverse", "barrier"}
             or not report["input_sha256"] or not report["upstream_sha256"]):
         raise ValueError(f"{vendor} migration capture is incomplete")
+    if not same(report["observations"], decode(HISTORICAL_REFERENCE.read_bytes())):
+        raise ValueError(f"{vendor} historical migration observations differ from the Go consumer reference")
     profile = decode((ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json").read_bytes())
     if (report["input_sha256"] != input_digests()
             or report["django_commit"] != profile["fingerprint"]["django_commit"]):

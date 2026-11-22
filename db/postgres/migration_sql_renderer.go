@@ -53,7 +53,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
+		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationRenameField && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",
 				"current SQL projection supports forward model, field and named constraint changes",
@@ -99,6 +99,16 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 				return nil, postgresMigrationIntentIntegrity("invalid constraint delta", deltaErr)
 			}
 			statement, err = compilePostgresNamedUniqueAlter(renderer.schema, operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
+		case migrationbackend.MigrationRenameField:
+			before, after, deltaErr := operation.RenamedField(request.App)
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid field rename", deltaErr)
+			}
+			groups[index], err = compilePostgresFieldRename(renderer.schema, operation.Before, before, after)
+			if err != nil {
+				return nil, err
+			}
+			continue
 		case migrationbackend.MigrationAlterField:
 			before, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {

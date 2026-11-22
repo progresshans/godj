@@ -74,6 +74,25 @@ func TestDetectInitializedEmptyProjectIsNoOp(t *testing.T) {
 	}
 }
 
+func TestDetectReplaysAuthoredFieldRenameWithoutDroppingData(t *testing.T) {
+	t.Parallel()
+	previous := mustProjectState(t, testSchema("content", testModel("article", testChar("legacy", false, nil))))
+	desired := mustProjectState(t, testSchema("content", testModel("article", testChar("label", false, nil))))
+	initial := mustDetect(t, Request{Definitions: mustLoadDefinitions(t), Desired: previous}).Migrations()[0]
+	if _, err := Detect(Request{Definitions: mustLoadDefinitions(t, initial), Desired: desired}); err == nil {
+		t.Fatal("guessed the meaning of a removed and added field")
+	}
+	oldModel, _ := previous.Model("content", "article")
+	newModel, _ := desired.Model("content", "article")
+	rename := migrations.Migration{App: "content", Name: "0002_label", Dependencies: []migrations.MigrationKey{initial.Key()},
+		Operations: []migrations.Operation{migrations.RenameField{AppLabel: "content", ModelName: "article", Before: oldModel.Fields[1], After: newModel.Fields[1]}}}
+	loaded := mustLoadDefinitions(t, initial, rename)
+	plan := mustDetect(t, Request{Definitions: loaded, Desired: desired})
+	if !plan.Empty() {
+		t.Fatal("writer emitted another schema change after authored rename", plan.Migrations())
+	}
+}
+
 func TestDetectAdditiveNullableCharField(t *testing.T) {
 	t.Parallel()
 

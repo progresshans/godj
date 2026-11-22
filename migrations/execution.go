@@ -238,6 +238,9 @@ func cloneMigrationOperation(operation Operation) Operation {
 	case RemoveConstraint:
 		operation.Constraint = operation.Constraint.Clone()
 		return operation
+	case RenameField:
+		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
+		return operation
 	case AlterField:
 		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
 		return operation
@@ -289,6 +292,10 @@ func operationValue(operation Operation) Operation {
 			return *value
 		}
 	case *RemoveConstraint:
+		if value != nil {
+			return *value
+		}
+	case *RenameField:
 		if value != nil {
 			return *value
 		}

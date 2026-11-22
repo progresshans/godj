@@ -125,13 +125,20 @@ func targetInsertSQLiteValue(t *testing.T, path, table, value string) int64 {
 
 func targetSQLiteValues(t *testing.T, path, table string) []string {
 	t.Helper()
+	return targetSQLiteColumnValues(t, path, table, "value")
+}
+
+func targetSQLiteColumnValues(t *testing.T, path, table, column string) []string {
+	t.Helper()
 	database, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	rows, err := database.QueryContext(ctx, `SELECT "value" FROM `+dbstate.QuoteSQLiteIdentifier(table)+` ORDER BY "id"`)
+	// Qualifying the column prevents SQLite's double-quoted string fallback
+	// from making a missing historical column appear to contain a value.
+	rows, err := database.QueryContext(ctx, "SELECT t."+dbstate.QuoteSQLiteIdentifier(column)+" FROM "+dbstate.QuoteSQLiteIdentifier(table)+` AS t ORDER BY t."id"`)
 	if err != nil {
 		_ = database.Close()
 		t.Fatal(err)

@@ -48,6 +48,9 @@ func historicalChanges(t *testing.T) []migrations.Migration {
 	ticket.Fields = slices.Delete(ticket.Fields, index, index+1)
 	required := external.Clone()
 	required.Nullable, required.Unique = false, true
+	legacy := category.Fields[slices.IndexFunc(category.Fields, func(field ir.Field) bool { return field.Name == "legacy_code" })]
+	label := legacy.Clone()
+	label.Name, label.GoName, label.Column = "label", "Label", "label"
 	changes := []migrations.Migration{
 		{App: dataApp, Name: "0001_initial", Operations: []migrations.Operation{
 			migrations.CreateModel{AppLabel: dataApp, Model: category}, migrations.CreateModel{AppLabel: dataApp, Model: ticket}}},
@@ -56,6 +59,7 @@ func historicalChanges(t *testing.T) []migrations.Migration {
 		{App: dataApp, Name: "0003_backfill", Operations: []migrations.Operation{
 			dataOp("backfill", migrations.DataCall, migrations.DataCall), dataOp("mark", migrations.DataCall, migrations.DataNoop)}},
 		{App: dataApp, Name: "0004_contract", Operations: []migrations.Operation{
+			migrations.RenameField{AppLabel: dataApp, ModelName: "category", Before: legacy, After: label},
 			migrations.AlterField{AppLabel: dataApp, ModelName: "ticket", Before: external, After: required}}},
 		{App: dataApp, Name: "0005_freeze", Operations: []migrations.Operation{
 			dataOp("freeze", migrations.DataCall, migrations.DataIrreversible), dataOp("later", migrations.DataNoop, migrations.DataCall)}},
@@ -124,6 +128,7 @@ func historicalTickets(t *testing.T, f Fixture) []ticketRow {
 }
 
 func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, constraint func(error) string) {
+	t.Run("renamed_keys_indexes_and_fixed_columns", func(t *testing.T) { checkFieldRename(t, database(t), constraint) })
 	t.Run("mixed_transaction_and_scope", func(t *testing.T) { checkHistoricalTransaction(t, database(t)) })
 	t.Run("backfill_restart_and_reverse", func(t *testing.T) {
 		open := database(t)
@@ -132,6 +137,9 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		loaded := loadChanges(t, changes...)
 		var retained orm.RecordSet
 		var calls []string
+		oracle := loadHistoricalOracle(t)
+		events := [][]any{}
+		var failedKey int64
 		missingCode := errors.New("missing historical category code")
 		transform := func(clear bool) migrations.DataCallback {
 			return func(ctx context.Context, models migrations.HistoricalModels) error {
@@ -148,12 +156,16 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 					return errors.New("undeclared model visible")
 				}
 				var cursor *int64
+				updated := 0
 				for {
 					page, err := tickets.Page(ctx, cursor, 2)
 					if err != nil {
 						return err
 					}
 					if len(page) == 0 {
+						if clear {
+							events = append(events, []any{"clear_backfill", updated})
+						}
 						return nil
 					}
 					if len(page) > 2 {
@@ -174,6 +186,7 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 						}
 						code, ok := category["legacy_code"].String()
 						if !ok || code == "" {
+							failedKey = id
 							return missingCode
 						}
 						value := query.String(fmt.Sprintf("%s/%d", code, id))
@@ -187,6 +200,10 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 						if err != nil || !reflect.DeepEqual(changed["external_id"], value) {
 							return fmt.Errorf("own update not visible for %d: %v", id, err)
 						}
+						updated++
+						if !clear {
+							events = append(events, []any{"backfill", id})
+						}
 						calls = append(calls, fmt.Sprintf("row/%t/%d", clear, id))
 						cursor = &id
 					}
@@ -199,6 +216,7 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 				if err != nil {
 					return err
 				}
+				events = append(events, []any{"note", id, value})
 				calls = append(calls, fmt.Sprintf("note/%d/%s", id, value))
 				return updateHistorical(ctx, tickets, id, "note", query.String(value))
 			}
@@ -247,19 +265,47 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 				t.Fatal(err)
 			}
 		}
-		apply(1)
+		apply(0)
 		categories, tickets := f.table("m1_category"), f.table("m1_ticket")
-		execSQL("INSERT INTO " + categories + " (id,legacy_code) VALUES (1,'한''글'),(2,'')")
-		execSQL("INSERT INTO " + tickets + " (id,category_id,note) VALUES (11,1,''),(17,1,''),(23,2,'')")
+		execSQL("INSERT INTO " + categories + " (id,legacy_code) VALUES (2,'한''글'),(9,'')")
+		execSQL("INSERT INTO " + tickets + " (id,category_id,note) VALUES (11,2,''),(17,2,''),(23,9,'')")
+		oracle.check(t, "base", nativeHistoricalSnapshot(t, f))
 		rowsBefore := dataState(t, f)
-		steps, err := executor().Plan(t.Context(), loaded, dataRequest(changes[2]))
-		if err != nil || len(steps) != 1 || len(calls) != 0 || !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
+		steps, err := executor().Plan(t.Context(), loaded, dataRequest(changes[3]))
+		if err != nil || len(steps) != 3 || len(calls) != 0 || !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
 			t.Fatal("plan side effects or wrong number of steps", steps, err)
 		}
 		statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, changes[2].Key(), f.Renderer)
 		if err != nil || strings.Count(strings.Join(statements, "\n"), mb.RunDataSQLComment) != 2 || len(calls) != 0 {
 			t.Fatal("SQL projection of two callbacks", statements, err)
 		}
+		oracle.plan(t, "forward_plan", steps, changes[2].Name, strings.Count(strings.Join(statements, "\n"), mb.RunDataSQLComment))
+		revision := func() int64 {
+			t.Helper()
+			var value int64
+			if err := f.SQL.QueryRowContext(t.Context(), "SELECT revision FROM "+f.table("godj_migration_revision")).Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			return value
+		}
+		initialRevision := revision()
+		err = run(3)
+		checkError(err, migrations.CodeOperationFailed, 2, 0)
+		if !errors.Is(err, missingCode) || !slices.Equal(calls, []string{"row/false/11", "row/false/17"}) {
+			t.Fatal("callback failure lost writes or cause", calls, err)
+		}
+		oracle.check(t, "forward_error", map[string]any{"calls": events, "error": "MissingLegacyCode", "key": failedKey})
+		if _, err := retained.Get(t.Context(), 11); err == nil {
+			t.Fatal("callback record set survived rollback")
+		}
+		reopen()
+		if revision() != initialRevision+1 {
+			t.Fatal("failure did not retain exactly the committed expansion")
+		}
+		oracle.check(t, "after_failure", nativeHistoricalSnapshot(t, f))
+		rowsBefore = dataState(t, f)
+		calls = nil
+		events = [][]any{}
 		// A user trigger on a reachable history model can run unregistered
 		// writes on this connection. Both native catalogs must reject it.
 		dropHook := "DROP TRIGGER m1_data_hook ON " + categories
@@ -273,29 +319,24 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 			t.Fatal("data callback ran with an unexpected native trigger", err, calls)
 		}
 		execSQL(dropHook)
-		err = run(2)
-		checkError(err, migrations.CodeOperationFailed, 2, 0)
-		if !errors.Is(err, missingCode) || !slices.Equal(calls, []string{"row/false/11", "row/false/17"}) {
-			t.Fatal("callback failure lost writes or cause", calls, err)
+		if err := run(3); !errors.Is(err, missingCode) || !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
+			t.Fatal("retry with invalid source changed the durable prefix", err)
 		}
-		if _, err := retained.Get(t.Context(), 11); err == nil {
-			t.Fatal("callback record set survived rollback")
-		}
-		reopen()
-		if !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
-			t.Fatal("failed callback changed durable data, schema history or revision")
-		}
-		execSQL("UPDATE " + categories + " SET legacy_code='β' WHERE id=2")
+		execSQL("UPDATE " + categories + " SET legacy_code='β' WHERE id=9")
 		calls = nil
+		events = [][]any{}
 		apply(3)
 		if !slices.Equal(calls, []string{"row/false/11", "row/false/17", "row/false/23", "note/11/reviewed"}) {
 			t.Fatal("forward callback order", calls)
 		}
-		want := []ticketRow{{11, 1, "reviewed", sql.NullString{String: "한'글/11", Valid: true}}, {17, 1, "", sql.NullString{String: "한'글/17", Valid: true}}, {23, 2, "", sql.NullString{String: "β/23", Valid: true}}}
+		oracle.check(t, "retry_calls", events)
+		oracle.check(t, "contracted", nativeHistoricalSnapshot(t, f))
+		want := []ticketRow{{11, 2, "reviewed", sql.NullString{String: "한'글/11", Valid: true}}, {17, 2, "", sql.NullString{String: "한'글/17", Valid: true}}, {23, 9, "", sql.NullString{String: "β/23", Valid: true}}}
 		if got := historicalTickets(t, f); !slices.Equal(got, want) {
 			t.Fatalf("persisted rows = %v, want %v", got, want)
 		}
 		state := dataState(t, f)
+		observedErrors := map[string]string{}
 		for statement, kind := range map[string]string{
 			"UPDATE " + tickets + " SET external_id=NULL WHERE id=11":   "not_null",
 			"UPDATE " + tickets + " SET external_id='β/23' WHERE id=11": "unique",
@@ -303,9 +344,16 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 			if _, err := f.SQL.ExecContext(t.Context(), statement); constraint(err) != kind {
 				t.Fatal("missing native constraint", kind, err)
 			}
+			if kind == "unique" {
+				observedErrors["duplicate"] = "IntegrityError"
+			} else {
+				observedErrors["null"] = "IntegrityError"
+			}
 		}
+		oracle.check(t, "constraint_errors", observedErrors)
 		reopen()
 		calls = nil
+		events = [][]any{}
 		apply(3)
 		if len(calls) != 0 || !reflect.DeepEqual(state, dataState(t, f)) {
 			t.Fatal("reapplying changed data or revision")
@@ -313,7 +361,14 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		if _, err := retained.Update(t.Context(), 11, orm.Record{"note": query.String("leaked")}); err == nil {
 			t.Fatal("committed record set remained writable")
 		}
+		steps, err = executor().Plan(t.Context(), loaded, dataRequest(changes[1]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		oracle.plan(t, "reverse_plan", steps, "", 0)
 		apply(1)
+		oracle.check(t, "reverse_calls", events)
+		oracle.check(t, "reversed", nativeHistoricalSnapshot(t, f))
 		cleared := slices.Clone(want)
 		for i := range cleared {
 			cleared[i].external = sql.NullString{}
@@ -323,16 +378,19 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		}
 		apply(5)
 		calls = nil
+		events = [][]any{}
+		oracle.check(t, "before_barrier", nativeHistoricalSnapshot(t, f))
 		beforePlan := dataState(t, f)
-		steps, err = executor().Plan(t.Context(), loaded, dataRequest(changes[2]))
-		if err != nil || len(steps) != 3 ||
-			steps[0].Key != changes[5].Key() || steps[0].Irreversible ||
+		steps, err = executor().Plan(t.Context(), loaded, dataRequest(changes[1]))
+		if err != nil || len(steps) != 4 ||
+			steps[3].Key != changes[2].Key() || steps[3].Irreversible || steps[0].Key != changes[5].Key() || steps[0].Irreversible ||
 			steps[1].Key != changes[4].Key() || !steps[1].Irreversible || steps[1].IrreversibleOperation != 0 ||
 			steps[2].Key != changes[3].Key() || steps[2].Irreversible ||
 			len(calls) != 0 || !reflect.DeepEqual(beforePlan, dataState(t, f)) {
 			t.Fatal("reverse plan", steps, err)
 		}
-		checkError(run(2), migrations.CodeIrreversibleData, 4, 0)
+		oracle.plan(t, "barrier_plan", steps, "", 0)
+		checkError(run(1), migrations.CodeIrreversibleData, 4, 0)
 		if !slices.Equal(calls, []string{"note/23/"}) {
 			t.Fatal("irreversible migration partly executed", calls)
 		}
@@ -345,13 +403,17 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		if got := historicalTickets(t, f); !slices.Equal(got, want) {
 			t.Fatal("durable reverse prefix rows", got)
 		}
+		oracle.check(t, "first_reverse", map[string]any{"error": "IrreversibleError", "calls": events, "database": nativeHistoricalSnapshot(t, f)})
 		state = dataState(t, f)
 		calls = nil
-		checkError(run(2), migrations.CodeIrreversibleData, 4, 0)
+		events = [][]any{}
+		checkError(run(1), migrations.CodeIrreversibleData, 4, 0)
 		if len(calls) != 0 || !reflect.DeepEqual(state, dataState(t, f)) {
 			t.Fatal("irreversible retry changed state")
 		}
+		oracle.check(t, "reopened_reverse", map[string]any{"error": "IrreversibleError", "calls": events, "database": nativeHistoricalSnapshot(t, f)})
 		apply(5)
+		oracle.check(t, "resumed", nativeHistoricalSnapshot(t, f))
 		state = dataState(t, f)
 		_, err = (migrations.Executor{Backend: f.Backend}).Plan(t.Context(), loaded, migrations.LatestLifecycleRequest())
 		checkError(err, migrations.CodeMissingDataCallback, 2, 0)

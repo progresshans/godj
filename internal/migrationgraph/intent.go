@@ -19,6 +19,7 @@ const (
 	MigrationRemoveConstraint
 	MigrationAlterManyToMany
 	MigrationRunData
+	MigrationRenameField
 )
 
 // MigrationIntent carries a complete, ordered migration step. Scalar

@@ -484,7 +484,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_operation"))
 	}
-	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "remove_field" && kind.string != "alter_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
+	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "remove_field" && kind.string != "alter_field" && kind.string != "rename_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
 		return append(candidates, semanticFailure(CodeUnsupportedOperation, sourceID, pointer+"/kind", app, name, operationIndex, "unsupported_operation"))
 	}
 
@@ -494,7 +494,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 		fields = []string{"app_label", "field", "kind", "model_name"}
 		optional = []string{"before_field"}
 	}
-	if kind.string == "alter_field" || kind.string == "rename_many_to_many" || kind.string == "alter_many_to_many" {
+	if kind.string == "alter_field" || kind.string == "rename_field" || kind.string == "rename_many_to_many" || kind.string == "alter_many_to_many" {
 		fields = []string{"after", "app_label", "before", "kind", "model_name"}
 	}
 	if kind.string == "add_constraint" || kind.string == "remove_constraint" {
@@ -532,13 +532,13 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			}
 			return candidates
 		}
-		if kind.string == "alter_field" || kind.string == "rename_many_to_many" || kind.string == "alter_many_to_many" {
+		if kind.string == "alter_field" || kind.string == "rename_field" || kind.string == "rename_many_to_many" || kind.string == "alter_many_to_many" {
 			for _, member := range []string{"before", "after"} {
 				if field, present := object.member(member); present {
 					candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/"+member, app, name, operationIndex)...)
 				}
 			}
-			if _, valid := materializeAlterField(object, app); !valid {
+			if _, valid := materializeFieldTransition(object, app, kind.string); !valid {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir"))
 			}
 			return candidates
@@ -1230,8 +1230,8 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		return materializeManyOperation(value, appLabel.string, kind.string)
 	case "add_constraint", "remove_constraint":
 		return materializeConstraintOperation(value, appLabel.string, kind.string)
-	case "alter_field":
-		return materializeAlterField(value, appLabel.string)
+	case "alter_field", "rename_field":
+		return materializeFieldTransition(value, appLabel.string, kind.string)
 	default:
 		return nil, false
 	}

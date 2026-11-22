@@ -71,6 +71,31 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		targetAssertSQLiteUnchanged(t, database, after)
 	})
 
+	t.Run("public_field_rename_preserves_rows", func(t *testing.T) {
+		database, marker := project.paths(t, "historical-rename")
+		env := project.environment(database, marker, "historical_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := project.sensitive(database)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		targetInsertSQLiteValue(t, database, targetBlog1Table, "history")
+		before := dbstate.CaptureSQLite(t, database)
+		targetAssertSuccess(t, run("migrate", "--plan"), targetPlanOutput(t, targetPlanRow{App: "blog", Name: "0002_rename", Direction: "forward"}), sensitive...)
+		targetResetMarker(t, marker)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_rename"), `ALTER TABLE "main"."target_blog_initial" RENAME COLUMN "value" TO "label";`+"\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		if got := targetSQLiteColumnValues(t, database, targetBlog1Table, "label"); !reflect.DeepEqual(got, []string{"history"}) {
+			t.Fatal("renamed row", got)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if got := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(got, []string{"history"}) {
+			t.Fatal("restored row", got)
+		}
+	})
+
 	t.Run("MIG-125_preview_drift_fresh_execute", func(t *testing.T) {
 		targetAssertPreviewDriftUsesFreshHistory(t, project)
 	})

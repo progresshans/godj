@@ -251,6 +251,12 @@ Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NUL
 유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 
+## 기존 열의 필드 이름 변경
+
+프로젝트가 기존 필드의 이름을 바꾸면 작성한 migration에 `RenameField`와 정규화된 이전·이후 필드를 기록한다. `Name`, `GoName`, `Column`으로 논리 이름, 생성 식별자, 물리 열을 지정한다. 이전·이후 `Column`이 같으면 행과 열을 그대로 두고 역사 상태와 적용 이력을 갱신한다. 필드 종류·기본값·NULL 허용 여부 등의 변경은 다음 연산에 기록한다. `makemigrations`는 작성한 이름 변경을 재구성한다. 삭제와 추가만으로 같은 필드인지 결정할 수 없는 선언은 명시적 migration을 요구한다. [연산](../migrations/rename_field.go) · [작성 후 감지 검사](../internal/migrationautodetect/detect_test.go)
+
+이름 변경은 필드 순서, 이름 있는 고유 제약의 열 순서, ImageField의 크기 필드, 명시적 중간 모델의 관계 필드를 보존한다. 기본 키의 열을 바꿀 때는 다른 앱에서 참조하는 외래 키도 적용 시점의 모델로 대조한다. 두 DB는 열 이름을 제자리에서 바꾼다. SQLite는 열 이름에서 파생한 인덱스를 같은 트랜잭션에서 교체하고, PostgreSQL은 연결된 인덱스·제약·identity sequence의 이름을 바꾼다. 역적용은 같은 정의의 반대 방향을 사용한다. [Schema IR](../schema/ir/field_rename.go) · [SQLite](../db/sqlite/migration_rename.go) · [PostgreSQL](../db/postgres/migration_rename.go)
+
 ## 적용 당시 모델의 데이터 변환
 
 프로젝트는 migration JSON의 `run_data`에 앱, 함수 이름, 양의 정수 버전, 정방향·역방향 동작과 접근할 모델을 선언한다. `migrations.NewDataRegistry`로 같은 키에 Go 함수를 등록하고 `project.Config.DataMigrations`에 전달한다. 각 방향은 함수 호출(`call`) 또는 명시적 무동작(`noop`)을 선택한다. 역함수를 제공할 수 없으면 `irreversible`로 기록한다. 선언한 호출에 함수가 빠지면 계획과 실행 모두 오류를 반환한다. [선언과 등록](../migrations/data.go) · [프로젝트 사용 예제](../examples/article/cmd/projectrunner/main_test.go)

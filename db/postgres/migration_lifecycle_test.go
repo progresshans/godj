@@ -27,6 +27,7 @@ func TestPostgresMigrationCapabilities(t *testing.T) {
 		AlterFieldNullability:             true,
 		DefinitionHistory:                 true,
 		HistoricalData:                    true,
+		RenameField:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,

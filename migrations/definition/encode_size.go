@@ -134,8 +134,14 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			}
 		case *migrations.AddConstraint, *migrations.RemoveConstraint:
 			return encodeFailure(path, "nil constraint operation %T", operation)
+		case migrations.RenameField:
+			if err := scanner.scanFieldTransition(path, "rename_field", migrations.AlterField(value)); err != nil {
+				return err
+			}
+		case *migrations.RenameField:
+			return encodeFailure(path, "nil *migrations.RenameField")
 		case migrations.AlterField:
-			if err := scanner.scanAlterField(path, value); err != nil {
+			if err := scanner.scanFieldTransition(path, "alter_field", value); err != nil {
 				return err
 			}
 		case *migrations.AlterField:

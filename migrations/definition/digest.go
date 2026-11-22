@@ -149,8 +149,10 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 		return appendCanonicalConstraintOperation(output, "add_constraint", value.AppLabel, value.ModelName, value.Constraint)
 	case migrations.RemoveConstraint:
 		return appendCanonicalConstraintOperation(output, "remove_constraint", value.AppLabel, value.ModelName, value.Constraint)
+	case migrations.RenameField:
+		return appendCanonicalFieldTransition(output, "rename_field", migrations.AlterField(value))
 	case migrations.AlterField:
-		return appendCanonicalAlterField(output, value)
+		return appendCanonicalFieldTransition(output, "alter_field", value)
 	default:
 		return nil, fmt.Errorf("unsupported canonical operation %T", operation)
 	}

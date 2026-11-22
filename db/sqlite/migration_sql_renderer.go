@@ -37,7 +37,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
+		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationRenameField && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
 				"current SQL projection supports forward model, field and named constraint changes",
@@ -80,6 +80,12 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			var statement string
 			statement, err = compileSQLiteNamedUniqueAlter(operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
 			groups[index] = []string{statement}
+		case migrationbackend.MigrationRenameField:
+			before, after, deltaErr := operation.RenamedField(request.App)
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid field rename: %v", deltaErr)
+			}
+			groups[index], err = compileSQLiteFieldRename(operation.Before, before, after)
 		case migrationbackend.MigrationAlterField:
 			before, field, _, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {

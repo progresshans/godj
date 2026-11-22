@@ -20,7 +20,7 @@ func validAlterFieldDefinition(value migrations.AlterField) bool {
 		fullyNormalizedAddField(value.AppLabel, value.After) && err == nil
 }
 
-func materializeAlterField(value jsonValue, app string) (migrations.Operation, bool) {
+func materializeFieldTransition(value jsonValue, app, kind string) (migrations.Operation, bool) {
 	model, hasModel := value.member("model_name")
 	before, hasBefore := value.member("before")
 	after, hasAfter := value.member("after")
@@ -30,14 +30,17 @@ func materializeAlterField(value jsonValue, app string) (migrations.Operation, b
 	oldField, validOld := materializeField(before)
 	newField, validNew := materializeField(after)
 	operation := migrations.AlterField{AppLabel: app, ModelName: model.string, Before: oldField, After: newField}
+	if kind == "rename_field" {
+		return migrations.RenameField(operation), validOld && validNew && identifiers.SQL(model.string) && ir.ValidateFieldRename(oldField, newField) == nil
+	}
 	if !validOld || !validNew || !validAlterFieldDefinition(operation) {
 		return nil, false
 	}
 	return operation, true
 }
 
-func (scanner *encodingSizeScanner) scanAlterField(path string, value migrations.AlterField) error {
-	if err := scanner.addStructural(path, uint64(len(`{"kind":"alter_field","app_label":"","model_name":"","before":,"after":}`))); err != nil {
+func (scanner *encodingSizeScanner) scanFieldTransition(path, wireKind string, value migrations.AlterField) error {
+	if err := scanner.addStructural(path, uint64(len(wireKind)+len(`{"kind":"","app_label":"","model_name":"","before":,"after":}`))); err != nil {
 		return err
 	}
 	if err := scanner.addString(path+".app_label", value.AppLabel); err != nil {
@@ -52,7 +55,7 @@ func (scanner *encodingSizeScanner) scanAlterField(path string, value migrations
 	return scanner.scanField(path+".after", value.After)
 }
 
-func appendCanonicalAlterField(output []byte, value migrations.AlterField) ([]byte, error) {
+func appendCanonicalFieldTransition(output []byte, wireKind string, value migrations.AlterField) ([]byte, error) {
 	output = append(output, `{"after":`...)
 	output, err := appendCanonicalField(output, value.After)
 	if err != nil {
@@ -68,7 +71,9 @@ func appendCanonicalAlterField(output []byte, value migrations.AlterField) ([]by
 	if err != nil {
 		return nil, err
 	}
-	output = append(output, `,"kind":"alter_field","model_name":`...)
+	output = append(output, `,"kind":"`...)
+	output = append(output, wireKind...)
+	output = append(output, `","model_name":`...)
 	output, err = appendCanonicalString(output, value.ModelName)
 	if err != nil {
 		return nil, err

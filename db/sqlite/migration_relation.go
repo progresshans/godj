@@ -50,6 +50,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldNullability:             true,
 		DefinitionHistory:                 true,
 		HistoricalData:                    true,
+		RenameField:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -168,8 +169,8 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	if err != nil {
 		return nil, err
 	}
-	if err := migrationbackend.ValidateDataHistory(seal.intent, transition.Migration.HistoryDigest); err != nil {
-		return nil, relationIntentIntegrity("invalid data operation history: %v", err)
+	if err := migrationbackend.ValidateRequiredHistory(seal.intent, transition.Migration.HistoryDigest); err != nil {
+		return nil, relationIntentIntegrity("invalid required operation history: %v", err)
 	}
 
 	session.mu.Lock()
@@ -754,6 +755,20 @@ func validateSQLiteRelationIntent(
 			}
 			if _, err := operation.ChangedConstraint(); err != nil {
 				return relationIntentIntegrity("invalid named constraint delta: %v", err)
+			}
+		case migrationbackend.MigrationRenameField:
+			if err := validateExactNormalizedRelationModel(before); err != nil {
+				return err
+			}
+			if err := validateExactNormalizedRelationModel(after); err != nil {
+				return err
+			}
+			old, next, err := operation.RenamedField(transition.Migration.App)
+			if err != nil {
+				return relationIntentIntegrity("invalid RenameField delta: %v", err)
+			}
+			if _, err := compileSQLiteFieldRename(before, old, next); err != nil {
+				return relationIntentUnsupported("cannot compile field rename: %v", err)
 			}
 		case migrationbackend.MigrationAlterField:
 			if err := validateSQLiteFieldDelta(before, after); err != nil {

@@ -215,7 +215,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData:
+	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -328,7 +328,7 @@ type loadedReverseOwner struct {
 	field  string
 }
 
-type loadedRelationRequirements uint16
+type loadedRelationRequirements uint32
 
 const (
 	loadedRequiresCreateModelForeignKeys loadedRelationRequirements = 1 << iota
@@ -347,6 +347,7 @@ const (
 	loadedRequiresAlterFieldInputPolicy
 	loadedRequiresAlterFieldNullability
 	loadedRequiresHistoricalData
+	loadedRequiresRenameField
 )
 
 const (
@@ -374,6 +375,7 @@ const (
 	loadedRelationRemoveConstraint
 	loadedRelationAlterManyToMany
 	loadedRunData
+	loadedRenameField
 )
 
 type loadedRelationIntent struct {
@@ -967,6 +969,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionForward)
 	case RemoveConstraint:
 		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionBackward)
+	case RenameField:
+		err = builder.renameField(value, direction == DirectionBackward)
 	case AlterField:
 		err = builder.alterField(value, direction == DirectionBackward)
 	default:
@@ -1653,6 +1657,8 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}
+		} else if _, ok := operation.(RenameField); ok {
+			requirements |= loadedRequiresRenameField
 		} else if _, ok := operation.(AlterManyToMany); ok {
 			requirements |= loadedRequiresAlterFieldBlank
 		} else {
@@ -1845,10 +1851,18 @@ func loadedBuilderRelationGraph(
 		fields = append(fields, field)
 		direct[field.Relation.Target] = true
 	}
-	if len(fields) == 0 && len(source.ManyToMany) == 0 {
+	roots := []migrationgraph.MigrationModel{{AppLabel: app, Model: source}}
+	if rename, ok := operation.(RenameField); ok && rename.Before.PrimaryKey {
+		var err error
+		roots, err = builder.primaryRenameRoots(ctx, roots, sourceIdentity)
+		if err != nil {
+			return fail(err)
+		}
+	}
+	if len(fields) == 0 && len(source.ManyToMany) == 0 && len(roots) == 1 {
 		return nil, nil, nil
 	}
-	models, err := historicalModelClosure(ctx, builder, []migrationgraph.MigrationModel{{AppLabel: app, Model: source}})
+	models, err := historicalModelClosure(ctx, builder, roots)
 	if err != nil {
 		return fail(err)
 	}
@@ -2070,6 +2084,8 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationRemoveConstraint, nil
 		}
 		return loadedRelationAddConstraint, nil
+	case RenameField:
+		return loadedRenameField, nil
 	case AlterField:
 		return loadedRelationAlterField, nil
 	default:
@@ -2172,6 +2188,8 @@ func operationSourceModel(operation Operation) (string, string) {
 	case AddConstraint:
 		return value.AppLabel, value.ModelName
 	case RemoveConstraint:
+		return value.AppLabel, value.ModelName
+	case RenameField:
 		return value.AppLabel, value.ModelName
 	case AlterField:
 		return value.AppLabel, value.ModelName
@@ -2344,7 +2362,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData:
+	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 	default:
 		return
 	}
@@ -2395,15 +2413,21 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
 	case RemoveConstraint:
 		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
+	case RenameField:
+		loadedScanFieldTransition(budget, migration, index, kind, AlterField(value))
 	case AlterField:
-		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
-		loadedConsumeNodes(budget, 2)
-		if budget.nodeOverflow {
-			return
-		}
-		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].before", index), value.Before)
-		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].after", index), value.After)
+		loadedScanFieldTransition(budget, migration, index, kind, value)
 	}
+}
+
+func loadedScanFieldTransition(budget *loadedResourceBudget, migration Migration, index int, kind string, value AlterField) {
+	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
+	loadedConsumeNodes(budget, 2)
+	if budget.nodeOverflow {
+		return
+	}
+	loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].before", index), value.Before)
+	loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].after", index), value.After)
 }
 
 func loadedOperationWireKind(operation Operation) string {
@@ -2428,6 +2452,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "add_constraint"
 	case RemoveConstraint, *RemoveConstraint:
 		return "remove_constraint"
+	case RenameField, *RenameField:
+		return "rename_field"
 	case AlterField, *AlterField:
 		return "alter_field"
 	default:
