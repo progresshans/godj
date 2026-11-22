@@ -130,12 +130,19 @@ func TestPostgresMigrationHistoryRecordLimitBoundary(t *testing.T) {
 func TestPostgresMigrationHistoryQueriesBoundTransport(t *testing.T) {
 	t.Parallel()
 	capture := &postgresMigrationHistoryQueryCapture{}
-	_, _ = readPostgresMigrationRecorder(context.Background(), capture, "godj_test")
+	_, _ = readPostgresMigrationRecorder(context.Background(), capture, "godj_test", false)
 	if !strings.HasSuffix(capture.statement, `ORDER BY "app", "name" LIMIT $1`) ||
 		len(capture.arguments) != 1 || capture.arguments[0] != postgresMigrationHistoryRecordLimit+1 {
 		t.Fatalf("PostgreSQL recorder query = %q args=%v", capture.statement, capture.arguments)
 	}
 
+	capture = &postgresMigrationHistoryQueryCapture{}
+	_, _ = readPostgresMigrationRecorder(context.Background(), capture, "godj_test", true)
+	if !strings.Contains(capture.statement, `WHEN "pg_catalog"."octet_length"("definition_digest") = 32 THEN "definition_digest" ELSE "pg_catalog"."decode"('00', 'hex') END`) ||
+		!strings.HasSuffix(capture.statement, `ORDER BY "app", "name" LIMIT $1`) ||
+		len(capture.arguments) != 1 || capture.arguments[0] != postgresMigrationHistoryRecordLimit+1 {
+		t.Fatalf("unbounded PostgreSQL definition history: %s %v", capture.statement, capture.arguments)
+	}
 	capture = &postgresMigrationHistoryQueryCapture{}
 	_, _ = readPostgresMigrationRevisionToken(context.Background(), capture, "godj_test")
 	if !strings.Contains(capture.statement, `"substring"("epoch", 1, 17)`) ||

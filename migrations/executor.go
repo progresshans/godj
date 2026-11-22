@@ -60,6 +60,7 @@ const (
 	CodeCommitCleanupFailed           ErrorCode = "commit_cleanup_failed"
 	CodeSessionCloseFailed            ErrorCode = "session_close_failed"
 	CodeHistoryRevisionIntegrity      ErrorCode = "history_revision_integrity"
+	CodeDefinitionHistoryMismatch     ErrorCode = "definition_history_mismatch"
 )
 
 const NoOperation = -1

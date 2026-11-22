@@ -524,6 +524,11 @@ func sourcesForCatalog(catalog string) ([]definition.Source, error) {
 		definitions = fullCatalog()[:2]
 	case "full":
 		definitions = fullCatalog()
+	case "changed_author":
+		definitions = fullCatalog()
+		author := definitions[0].Operations[0].(migrations.CreateModel)
+		author.Model.Fields[1].Blank = true
+		definitions[0].Operations[0] = author
 	case "branch":
 		definitions = branchCatalog()
 	case "unknown_seed":

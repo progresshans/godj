@@ -154,7 +154,9 @@ Definition은 실행 가능한 Python/Go plugin이 아니라 current data format
 
 각 source inventory 항목의 `HistoryDigest`는 해당 migration의 정규화한 본문과 직접 의존하는 migration들의 이력 해시를 묶는다.
 따라서 선행 정의를 수정하면 후손의 해시도 바뀌고, 후속 migration과 무관한 앱을 추가하면 기존 값은 유지된다.
-현재 DB recorder가 저장하는 값은 앱과 migration 이름이다. 데이터 작업을 역적용할 때 적용 당시의 해시를 대조하려면 같은 트랜잭션에 저장하는 기능이 필요하다.
+SQLite와 PostgreSQL은 NULL 허용 여부를 바꾸는 `AlterField`, 기본값이 있는 `AddField`·`RemoveField`를 처음 적용할 때 이 해시를 앱·migration 이름과 함께 저장한다. 이 연산들은 적용이나 역적용 때 기존 행을 과거 필드 선언에 따라 갱신할 수 있다. 열 변경, 행 갱신, 적용 기록과 revision은 같은 트랜잭션에서 확정한다.
+
+첫 해시를 기록할 때 recorder를 형식 2로 전환한다. 기존 행의 해시 열은 SQL NULL로 두고 이전 형식의 이력도 읽고 역적용할 수 있다. `Plan`과 `Migrate`는 실행할 단계가 0개여도 저장된 모든 해시를 현재 정의와 대조한다. 정의가 없거나 선행 정의가 달라지면 트랜잭션을 열기 전에 `definition_history_mismatch`를 반환한다. 해시를 새로 기록하거나 해시가 있는 행을 역적용하는 단계에는 backend의 `DefinitionHistory` 지원이 필요하다. [실행기](../migrations/lifecycle.go) · [SQLite 기록](../db/sqlite/migration_lifecycle.go) · [PostgreSQL 기록](../db/postgres/migration_lifecycle.go)
 
 Loader가 정의·source inventory를 복사하고 검증된 immutable graph를 한 번 게시한다. 내부 lifecycle과 SQL projection은
 이를 빌려 읽으며 매번 전체 정의를 복사하거나 같은 graph를 재구축하지 않는다. `Digest`는 저장된 문자열을 반환하고,

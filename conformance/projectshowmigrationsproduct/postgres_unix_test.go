@@ -610,12 +610,12 @@ func externalStatusAssertPostgresHistory(t *testing.T, snapshot externalPostgres
 	if !reflect.DeepEqual(snapshot.history, want) {
 		t.Fatalf("PostgreSQL migration history = %+v, want %+v", snapshot.history, want)
 	}
-	if len(snapshot.revisions) != 1 || snapshot.revisions[0].singleton != 1 || snapshot.revisions[0].format != 1 ||
+	format, wantFingerprint := externalStatusRevisionFor(want)
+	if len(snapshot.revisions) != 1 || snapshot.revisions[0].singleton != 1 || snapshot.revisions[0].format != format ||
 		len(snapshot.revisions[0].epoch) != 32 || snapshot.revisions[0].revision != revision ||
 		len(snapshot.revisions[0].fingerprint) != sha256.Size*2 {
 		t.Fatalf("PostgreSQL revision row is not current and bounded: %+v", snapshot.revisions)
 	}
-	wantFingerprint := dbstate.FingerprintHistory(want)
 	if snapshot.revisions[0].fingerprint != hex.EncodeToString(wantFingerprint[:]) {
 		t.Fatalf("PostgreSQL revision fingerprint = %q, want %x", snapshot.revisions[0].fingerprint, wantFingerprint)
 	}
@@ -714,7 +714,7 @@ func externalStatusInstallInconsistentPostgresHistory(t *testing.T, databaseURL,
 		history = append(history, value)
 	}
 	externalStatusClosePostgresRows(t, rows, "inconsistent history")
-	fingerprint := dbstate.FingerprintHistory(history)
+	_, fingerprint := externalStatusRevisionFor(history)
 	revisionTable := pgx.Identifier{schema, "godj_migration_revision"}.Sanitize()
 	result, err = transaction.Exec(ctx, `UPDATE `+revisionTable+` SET "history_fingerprint" = $1 WHERE "singleton" = 1`, fingerprint[:])
 	if err != nil || result.RowsAffected() != 1 {

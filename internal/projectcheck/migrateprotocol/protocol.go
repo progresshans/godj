@@ -460,7 +460,7 @@ func ExitCode(failure Failure) (int, bool) {
 		)
 	case CategoryHistory:
 		return failurecode.Exact(failure.Code, 1,
-			"invalid_applied_state", "duplicate_applied", "inconsistent_applied_history", "history_revision_integrity",
+			"invalid_applied_state", "duplicate_applied", "inconsistent_applied_history", "history_revision_integrity", "definition_history_mismatch",
 		)
 	case CategoryConflict:
 		return failurecode.Exact(failure.Code, 3, "stale_history_revision")

@@ -3,15 +3,23 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## M1 적용한 migration의 정의 대조
+
+PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조를 추가했다. 새 형식은 nullable 변경과 기본값이 있는 필드 추가·제거의 적용 트랜잭션에 migration별 선행 정의 해시를 저장한다. 일반 이력 조회는 앱·이름을 반환하고, 실행기는 revision으로 보호되는 세션에서 해시까지 읽는다. [실행기](../../migrations/lifecycle.go) · [이력 해시](../../db/internal/migrationhistory/history.go) · [M1 PR](https://github.com/progresshans/godj/pull/9)
+
+양 DB에 새 recorder의 첫 적용, 기존 형식에서의 롤백·재시도, 기록에 해시가 없는 이전 DB의 재접속·역적용, 저장된 해시의 훼손과 선행 정의 변경을 검사하는 필수 사례를 추가했다. 새 후손·무관한 앱을 추가하는 경우와 기존 정의가 사라진 경우도 대조한다. Article 명령 검사는 두 계정 migration의 저장 바이트를 확인하고, 외부 프로젝트는 `migrate --plan`과 `migrate`의 오류 및 DB 보존을 확인한다. 이 제품 소스의 Go·양 DB·명령 실행 결과는 원격 CI에서 확인한다. [공유 DB 검사](../../internal/migrationdefaulttest/history.go) · [SQLite 필수 목록](../../scripts/ci/relation-required.txt) · [PostgreSQL 필수 목록](../../scripts/ci/postgres-core-required.txt)
+
+로컬 SQLite 3.50.4의 트랜잭션에서 이력 열을 추가한 뒤 기존 행의 SQL NULL과 롤백 후 원래 두 열을 확인했다. 이 버전은 빈 BLOB을 `substr`로 자르면 SQL NULL을 반환한다. recorder는 값의 저장 타입과 길이를 먼저 검사해 빈 BLOB과 이전 이력의 NULL을 구별한다. 별도 Python 계산으로 기존 형식, 서로 다른 행에 같은 해시를 붙인 경우, 해시 값을 바꾼 경우의 SHA-256 고정값을 산출했다. CI 도구의 Python 테스트 119개가 로컬에서 통과했다. 각 DB의 필수 사례는 기존 7개와 이력 검사 3개이며 PostgreSQL normal·cgo0·race에서 각 사례의 실행 담당이 하나인지 확인했다. [고정값 검사](../../db/internal/migrationhistory/history_test.go)
+
 ## M1 채운 열의 필수·고유 전환
 
-`71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 필드 종류별 `blank` 사례를 포함해 각 DB에 필수 실행 7건이 있다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
+`71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 이 제품 커밋의 필수 실행은 필드 종류별 `blank` 사례를 포함해 각 DB에 7건이었다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
 
 로컬에서는 Django 6.1·Python 3.14.3·SQLite 3.50.4에서 명시적 기본값 없이 필드를 필수로 바꿨다. `blank=True`인 텍스트와 바이너리는 기존 NULL만 빈 값으로 바꿨고 정수는 무결성 오류 뒤 원래 두 행과 nullable 열을 보존했다. DB 기본값은 세 경우 모두 없었다. 고정 Django 모듈 11개의 해시, 관측 검증기 2건, CI 필수 실행 배정 검사 3건, gofmt·문서 링크·diff를 확인했다. GoDj의 두 DB 실행 결과와 PostgreSQL의 Django 관측은 해당 제품 소스의 원격 원본으로 확인한다. [독립 관측](../../conformance/runners/django/migration_data_fixture/field_contract.py) · [GoDj 실행 검사](../../internal/migrationdefaulttest/nullability.go)
 
 이 변경은 역사 모델을 읽고 쓰는 콜백과 필드 이름 변경을 포함하는 M1 소비자의 제약 변경 단계다. 콜백의 역방향·실패·기록까지 한 흐름으로 검증하는 일은 남아 있다. [M1 구현·수용 범위](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)
 
-후속 구현에서 loader는 전체 정의 세트의 기존 digest와 함께 각 migration의 선행 정의까지 포함한 `HistoryDigest`를 제공한다. 공유 조상이 있는 네 앱 그래프에서 후속·무관한 migration 추가, 부모 순서·source ID·producer 변경, 조상 본문 수정과 의존성 제거를 구분하는 Go 회귀 검사를 필수 실행에 넣었다. 로컬의 독립적인 canonical JSON과 SHA-256 계산으로 고정 벡터를 구하고 기존 단일 정의의 세트 해시도 대조했다. DB에 이 값을 저장하고 콜백 역적용 전에 검증하는 경로는 남아 있다. [해시 구현](../../migrations/definition/digest.go) · [고정 벡터와 대조군](../../migrations/definition/history_digest_test.go)
+커밋 `8a964a10`에서 loader에 전체 정의 세트의 기존 digest와 함께 각 migration의 선행 정의까지 포함한 `HistoryDigest`를 추가했다. 공유 조상이 있는 네 앱 그래프에서 후속·무관한 migration 추가, 부모 순서·source ID·producer 변경, 조상 본문 수정과 의존성 제거를 구분하는 Go 회귀 검사를 필수 실행에 넣었다. 로컬의 독립적인 canonical JSON과 SHA-256 계산으로 고정 벡터를 구하고 기존 단일 정의의 세트 해시도 대조했다. 후속 필드 연산의 DB 저장은 별도로 추적하며 Go 데이터 콜백은 남아 있다. [해시 구현](../../migrations/definition/digest.go) · [고정 벡터와 대조군](../../migrations/definition/history_digest_test.go) · [DB 저장과 대조](#m1-적용한-migration의-정의-대조)
 
 ## macOS relation runtime의 작업 시간
 

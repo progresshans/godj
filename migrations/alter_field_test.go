@@ -22,15 +22,19 @@ func TestNullabilityAndUniqueRequireIndependentCapabilitiesBeforeBegin(t *testin
 	initial := Migration{App: s.AppLabel, Name: "0001_initial", Operations: []Operation{CreateModel{AppLabel: s.AppLabel, Model: s.Models[0]}}}
 	change := Migration{App: s.AppLabel, Name: "0002_contract", Dependencies: []MigrationKey{initial.Key()}, Operations: []Operation{AlterField{AppLabel: s.AppLabel, ModelName: "ticket", Before: before, After: after}}}
 	loaded := testLoadedDefinitionSet(t, []Migration{initial, change})
-	for _, missing := range []string{"AlterFieldNullability", "UniqueConstraints"} {
+	for _, missing := range []string{"AlterFieldNullability", "UniqueConstraints", "DefinitionHistory"} {
 		for _, direction := range []Direction{DirectionForward, DirectionBackward} {
 			records, request := lifecycleRecords(initial.Key()), LatestLifecycleRequest()
 			if direction == DirectionBackward {
 				records, request = lifecycleRecords(initial.Key(), change.Key()), TargetedLifecycleRequest(NamedTarget(initial.Key()))
+				records[1].HistoryDigest = loaded.Sources()[1].HistoryDigest
 			}
 			session := newLifecycleTestSession(records, nil)
 			fake := newLifecycleTestBackend(session)
-			fake.capabilities = backend.MigrationCapabilities{AlterFieldNullability: missing != "AlterFieldNullability", UniqueConstraints: missing != "UniqueConstraints"}
+			fake.capabilities = backend.MigrationCapabilities{
+				AlterFieldNullability: missing != "AlterFieldNullability",
+				UniqueConstraints:     missing != "UniqueConstraints", DefinitionHistory: missing != "DefinitionHistory",
+			}
 			_, err := (Executor{Backend: fake}).Migrate(t.Context(), loaded, request)
 			var capability *backend.CapabilityError
 			if !errors.As(err, &capability) || !strings.Contains(capability.Detail, missing) || session.beginCount != 0 || fake.atomicBeginCount != 0 || session.closeCount != 1 {

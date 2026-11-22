@@ -48,6 +48,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
 		AlterFieldNullability:             true,
+		DefinitionHistory:                 true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -186,6 +187,7 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	}
 	successorToken := session.token
 	successorToken.initialized = true
+	successorToken.boundRecorder = session.token.boundRecorder || transition.Migration.HistoryDigest != ""
 	successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 	if session.token.initialized {
 		if session.token.revision == math.MaxInt64 {
@@ -1544,11 +1546,11 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 			if object.kind != "table" || !canonicalControl {
 				return relationPhysicalDrift("SQLite main %s %q aliases a migration control identifier", object.kind, object.name)
 			}
-			wantSQL := createMigrationRevisionTableSQL
+			validSQL := object.sql == createMigrationRevisionTableSQL
 			if object.name == migrationRecorderTable {
-				wantSQL = migrationRecorderTableDefinitionSQL
+				validSQL = object.sql == migrationRecorderTableDefinitionSQL || object.sql == boundMigrationRecorderTableSQL
 			}
-			if object.sql != wantSQL {
+			if !validSQL {
 				return relationPhysicalDrift("SQLite migration control table %q differs from its canonical schema", object.name)
 			}
 		}

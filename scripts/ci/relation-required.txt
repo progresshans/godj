@@ -242,6 +242,9 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationDefaultBackfill/durati
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationDefaultBackfill/datetime
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationDefaultBackfill/unique_default_failure_preserves_rows_catalog_and_revision
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/populated_contract
+github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/definition_history
+github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/bound_bootstrap
+github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/legacy_definition_history
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/replace_unique_with_default
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/unique_default_collision
 github.com/progresshans/godj/db/sqlite|TestSQLiteMigrationFieldNullability/required_foreign_key

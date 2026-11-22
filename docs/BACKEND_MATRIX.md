@@ -50,6 +50,8 @@ PK·FK 기본값, callable default와 임의 data migration은 별도 범위다.
 PostgreSQL은 같은 입력의 기존 NULL을 거부한다. 중복값이나 NULL로 실패하면 해당 migration의 행·제약·기록·revision이 함께 롤백된다.
 SQLite는 인덱스와 키 할당 상태를 보존하는 테이블 재생성을 사용한다. PostgreSQL은 잠긴 테이블에서 제약 변경과 값 갱신을 실행한다.
 
+두 DB는 이 NULL 허용 변경과 기본값을 선언한 필드 추가·제거를 적용할 때 정의의 `HistoryDigest`를 각각 BLOB·BYTEA 32바이트로 기록한다. revision과 이력 해시는 각 앱·migration 이름에 대응하는 값까지 검증한다. 마지막 해시를 역적용한 뒤에도 recorder는 형식 2를 유지한다. [기록 형식과 기존 DB 처리](ARCHITECTURE.md) · [양 DB 검증 범위](status/TEST_EVIDENCE.md#m1-적용한-migration의-정의-대조)
+
 Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Email, URL, Slug, File, Image, Text, Date, DateTime, Time, Duration, Float, Decimal, Binary, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.

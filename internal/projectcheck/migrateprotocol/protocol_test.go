@@ -580,6 +580,7 @@ func TestClosedTaxonomyLinkedBoundaryAndExitCodes(t *testing.T) {
 		{failure: Failure{Category: CategoryTransaction, Code: CodeRollbackFailed}, exit: 3, linked: true},
 		{failure: Failure{Category: CategoryPlan, Code: "invalid_execution_plan"}, exit: 1, linked: true},
 		{failure: Failure{Category: CategoryHistory, Code: "inconsistent_applied_history"}, exit: 1, linked: true},
+		{failure: Failure{Category: CategoryHistory, Code: "definition_history_mismatch"}, exit: 1, linked: true},
 		{failure: Failure{Category: CategoryConflict, Code: "stale_history_revision"}, exit: 3, linked: true},
 		{failure: Failure{Category: CategoryBackend, Code: CodeBackendOpenFailed}, exit: 3, linked: true},
 		{failure: Failure{Category: CategoryBackend, Code: CodeBackendOpenFailed, CleanupFailed: true}, exit: 3, linked: true},

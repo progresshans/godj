@@ -394,9 +394,10 @@ type loadedRelationBackendTarget struct {
 }
 
 type loadedPlanStep struct {
-	step         PlanStep
-	requirements loadedRelationRequirements
-	seal         [sha256.Size]byte
+	step          PlanStep
+	requirements  loadedRelationRequirements
+	seal          [sha256.Size]byte
+	historyDigest string
 }
 
 type loadedMaterializedStep struct {

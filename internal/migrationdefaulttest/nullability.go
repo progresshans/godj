@@ -166,6 +166,15 @@ func (m fieldMigration) column(t *testing.T, column string, required bool) {
 // RunFieldNullability uses the file or schema returned by open again to check
 // the durable result on a fresh pool. SQL writes bypass model validation.
 func RunFieldNullability(t *testing.T, database func(*testing.T) func() Fixture, constraint func(error) string) {
+	t.Run("legacy_definition_history", func(t *testing.T) {
+		checkLegacyDefinitionHistory(t, database(t), constraint)
+	})
+	t.Run("bound_bootstrap", func(t *testing.T) {
+		checkBoundBootstrap(t, database(t)())
+	})
+	t.Run("definition_history", func(t *testing.T) {
+		checkDefinitionHistory(t, database(t), constraint)
+	})
 	t.Run("populated_contract", func(t *testing.T) {
 		open := database(t)
 		m := newFieldMigration(t, open(), constraint, "external_id", false, true, nil)
