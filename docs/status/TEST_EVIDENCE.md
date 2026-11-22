@@ -3,6 +3,14 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## macOS relation runtime의 작업 시간
+
+통합 PR 소스 `512c17f1`와 비교 앱 소스 `6d8bf751`의 macOS 26 ARM64 normal runtime이 각각 90분 작업 제한으로 취소됐다. GitHub annotation이 제한 만료를 명시했다. 각 작업의 checkout, 업로드 로그의 artifact ID·SHA-256, 다운로드한 ZIP과 내부 Go 이벤트를 대조했다. 첫 실행은 5,561개 이벤트와 패키지 종료 16개, 둘째는 3,060개와 종료 14개에서 잘렸다. 둘 다 이 시점까지 실패 이벤트가 없었고 SQLite 등 필수 패키지가 남았다. [통합 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002207565) · [비교 앱 작업](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024016184)
+
+두 번째 실행은 Go cache 복원량이 7,513바이트였으며 89분 무렵에야 protocol 패키지를 실행하고 있었다. 같은 소스의 Intel race에서는 SQLite가 3,797.987초에 통과했지만 전체 90분 제한에 닿아 다른 패키지의 빌드 중 취소됐다. 세 ZIP digest는 순서대로 `ba2fa0250c51fb3485c7211c5a98d09fc0bda36772d3539a23ee29c554c2f97e`, `54db45d87b35e4fcc529dfbec9372d24c58ff1ccef7440a14aa09f1f07094676`, `5b91e14a76240fa4f8fbbcdfef24c889723a979e8bf8fd0b5d7549ad123a0ca2`다. ARM64 normal과 같은 패키지에 계측을 더하는 ARM64 race에는 총 180분, Intel race에는 135분을 배정했다. 각 패키지의 제한과 필수 실행 목록은 기존대로 검사한다. 새 제한에서의 원격 완료 여부는 해당 소스의 실행으로 확인한다. [Intel race 원본](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024016006) · [실행 범위](../TESTING.md)
+
+PR #10의 `e5b38092`에서 부분 재실행을 검증하는 CI 도구 테스트를 포함해 Python 검사 117개가 통과했다. 이 소스의 Intel normal 프로젝트 검사는 취소됐다. 여러 시도의 원본을 모으는 실제 통합 검증은 남아 있다. [CI 도구 검사](https://github.com/progresshans/godj/actions/runs/44965169167/job/137038536714) · [취소된 원본](https://github.com/progresshans/godj/actions/runs/44965169167/job/137038536498)
+
 ## M1 준비 — 과거 모델을 사용한 데이터 변환
 
 비교 앱 소스 `6d8bf75100b9f28ea449db9dbec379b4fd56f2cf`의 Django 6.1·Python 3.14.3·SQLite 3.50.4에서 정방향·역방향 실패를 재현했다. 여섯 migration과 현재 앱 모델이 일치하는지 `makemigrations --check`로 확인했다. 최신 모델에서 이름이 바뀐 필드를 과거 관계로 조회해 두 행을 쓴 뒤 세 번째 입력에서 오류가 났다. 재접속 후 세 행은 모두 원래 값이었고 앞서 커밋한 열과 적용 기록은 남아 있었다. 입력을 고친 뒤 정상 변환과 필수·고유 제약의 실제 쓰기 거부를 확인했다. [비교 앱](https://github.com/progresshans/godj/tree/6d8bf75100b9f28ea449db9dbec379b4fd56f2cf/conformance/runners/django/migration_data_fixture)

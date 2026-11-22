@@ -159,7 +159,8 @@ PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각
 생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
 계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
 
-기본 제한은 작업 45분, Go 패키지 35분이다. macOS의 0번 작업은 90분이며 macOS race는 모든 작업에 90분, 패키지에 70분을 적용한다.
+기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
+macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
 Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전체를 45분 제한으로 한 번 실행하고 나머지 패키지는 35분으로 실행한다.
 두 호출의 Go 이벤트와 stderr를 같은 원본에 보관하고 전체 필수 목록을 대조한다. [SQLite 패키지 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
 각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
