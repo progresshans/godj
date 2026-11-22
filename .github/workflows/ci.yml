@@ -1286,24 +1286,7 @@ jobs:
         run: |
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
-            python - <<'PY'
-          import hashlib
-
-          from conformance.runners.django.normalizer import canonical_json
-          from conformance.runners.django.runner import SCENARIOS
-
-          payload = b"".join(
-              name.encode("utf-8")
-              + b"\0"
-              + canonical_json(SCENARIOS[name](f"PYCOMPAT-{name}"))
-              + b"\0"
-              for name in sorted(SCENARIOS)
-          )
-          assert len(SCENARIOS) == 311, len(SCENARIOS)
-          assert len(payload) == 1082354, len(payload)
-          digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "947bdffddf0cdd9c102e37a496346ec3e614e084254b17a0dd1ed7b782801685", digest
-          PY
+            python scripts/ci/python_semantics.py
 
       - name: Seal Python project-reference evidence
         if: always() && steps.python-reference.outcome == 'success'
