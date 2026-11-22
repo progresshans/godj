@@ -6493,7 +6493,10 @@ macOS arm64 일반·CGO-disabled의 터미널 검사도 통과했다. Intel race
 
 Intel 일반 모드에서는 터미널 검사 81건과 SQLite 저장소의 계정 검사 2,219건·역사 운영자 이행 51건이 통과했다. Intel CGO-disabled의 사용자 정의 계정 명령 14건도 확인했다. [일반 터미널 `4f339281`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730009655) · [일반 SQLite `55ad31b9`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731752866) · [사용자 정의 명령 `7d079c22`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731286751)
 
+같은 `512c17f1` 소스의 macOS Intel normal·race·CGO-disabled와 ARM64 CGO-disabled 원본 네 개를 대조했다. 작업 checkout과 소스 트리, 업로드 ID·ZIP SHA-256, 소스의 필수 목록으로 재구성한 패키지 배정, 실제 Go 이벤트가 일치했다. 각 환경에서 SQLite 계정 저장소 2,219건과 과거 계정 이행 51건이 통과했다. Intel race는 68개 패키지·필수 4,516건·실행 10,818건이고 나머지 셋은 각각 68개·4,519건·10,919건이다. 네 실행 모두 skip은 0이다. ARM64 normal은 총 작업 시간 만료로 별도 기록했다. [Intel normal `55ad31b9`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731752866) · [Intel race `bd2b7cd6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14739424761) · [Intel CGO-disabled `dceb88f6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742110147) · [ARM64 CGO-disabled `6b6ea0bc`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
 ### 프로젝트 비교 작업의 부분 재실행
+
 
 `512c17f1` 실행에서 고정 Python 원본 하나와 12개 환경의 프로젝트·reload 원본 24개 중 생산 작업 24개가 성공했고 macOS Intel race 한 개가 취소돼 후속 비교 작업은 건너뛰었다. 기존 비교기는 모든 원본 이름과 내부 시도가 소비자의 시도와 같아야 했다. 시도 2의 비교 입력에 같은 소스·같은 실행의 시도 1 Python 원본을 주어 거부를 재현했다. 기존 workflow에서 이 작업만 재실행하면 앞서 성공한 원본을 소비할 수 없다. [기존 다운로드 방식](https://github.com/progresshans/godj/blob/512c17f1b69f121040ac1e9677bebfddf17e280d/.github/workflows/ci.yml) · [취소된 생산자](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002192537) · [건너뛴 비교 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137030313189)
 
