@@ -177,6 +177,8 @@ schema를 공유한다. 공개 Schema/Model/Clone과 mutable replay builder의 �
 physical ordinal의 무결성은 확인한다. 삽입·제거 과정은 이전 snapshot이 빌려 읽는 배열을 변경하지 않는다.
 `RemoveField`의 정방향은 열과 그 안의 값을 삭제한다. 역방향은 당시 선언과 논리적 위치를 복원한다. 기존 행에서 기본값 없는 nullable 열은 NULL로, 지원하는 상수 기본값을 가진 열은 그 값으로 채운다. 채운 테이블에 기본값 없는 필수 열을 복원하는 작업은 거부한다. [필드 제거](../migrations/remove_field.go) · [작성기 결정](adr/0052-project-linked-deterministic-makemigrations.md)
 
+`DeleteModel`은 삭제 당시의 모델 전체와 바로 다음 모델 이름을 정의에 저장한다. 같은 논리 이름을 다시 사용하려면 이전 모델의 생성·삭제와 새 모델의 생성이 의존 순서로 연결돼야 한다. FK와 다대다 관계, 자동 중간 테이블을 사용하는 데이터 작업도 해당 모델이 존재하는 시점의 정의에 묶인다. [모델 수명](../migrations/model_lifetime.go) · [정의와 상태 복원](../migrations/delete_model.go)
+
 Planner는 불변 identity graph를 사용하며 같은 입력에 canonical plan을 만든다. 비교 불가능한 sibling의 합법적 순서는
 Django와 다를 수 있다. [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)는 이를 명시적으로
 분류하며 final schema/history, dependency order와 durable prefix를 대신 생략하지 않는다.

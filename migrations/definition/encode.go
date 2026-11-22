@@ -59,10 +59,14 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			document.Migration.Operations[index] = manyOperationDocument(operation)
 		case migrations.CreateModel:
-			document.Migration.Operations[index] = createModelDocument{
+			document.Migration.Operations[index] = modelOperationDocument{
 				Kind:     "create_model",
 				AppLabel: value.AppLabel,
 				Model:    encodeModel(value.Model),
+			}
+		case migrations.DeleteModel:
+			document.Migration.Operations[index] = modelOperationDocument{
+				Kind: "delete_model", AppLabel: value.AppLabel, Model: encodeModel(value.Model), BeforeModel: value.BeforeModel,
 			}
 		case migrations.AddField:
 			document.Migration.Operations[index] = addFieldDocument{
@@ -180,16 +184,15 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 				return encodeFailure(path, "invalid data operation or app identity")
 			}
 		case migrations.CreateModel:
-			if value.AppLabel != migration.App {
-				return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", value.AppLabel, migration.App)
+			if err := validateModelOperation(path, migration.App, value.AppLabel, value.Model); err != nil {
+				return err
 			}
-			if !fullyNormalizedCreateModel(value.AppLabel, value.Model) {
-				return encodeFailure(path+".model", "model is not exact current normalized IR")
+		case migrations.DeleteModel:
+			if value.BeforeModel != "" && (!identifiers.SQL(value.BeforeModel) || value.BeforeModel == value.Model.Name) {
+				return encodeFailure(path+".before_model", "invalid model insertion anchor %q", value.BeforeModel)
 			}
-			for fieldIndex, field := range value.Model.Fields {
-				if err := validateFieldWireRange(field, fmt.Sprintf("%s.model.fields[%d]", path, fieldIndex)); err != nil {
-					return err
-				}
+			if err := validateModelOperation(path, migration.App, value.AppLabel, value.Model); err != nil {
+				return err
 			}
 		case migrations.AddField:
 			if value.AppLabel != migration.App {
@@ -258,6 +261,21 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 	return nil
 }
 
+func validateModelOperation(path, app, label string, model ir.Model) error {
+	if label != app {
+		return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", label, app)
+	}
+	if !fullyNormalizedCreateModel(label, model) {
+		return encodeFailure(path+".model", "model is not exact current normalized IR")
+	}
+	for fieldIndex, field := range model.Fields {
+		if err := validateFieldWireRange(field, fmt.Sprintf("%s.model.fields[%d]", path, fieldIndex)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateFieldWireRange(field ir.Field, path string) error {
 	if field.MaxLength < 0 || int64(field.MaxLength) > maximumWireLength {
 		return encodeFailure(path+".max_length", "max_length is outside current wire range: %d", field.MaxLength)
@@ -292,10 +310,11 @@ type dependencyDocument struct {
 	Name string `json:"name"`
 }
 
-type createModelDocument struct {
-	Kind     string        `json:"kind"`
-	AppLabel string        `json:"app_label"`
-	Model    modelDocument `json:"model"`
+type modelOperationDocument struct {
+	Kind        string        `json:"kind"`
+	AppLabel    string        `json:"app_label"`
+	Model       modelDocument `json:"model"`
+	BeforeModel string        `json:"before_model,omitempty"`
 }
 
 type addFieldDocument struct {

@@ -14,6 +14,7 @@ from project_reference import decode, digest, same
 ROOT = Path(__file__).resolve().parents[2]
 BLANK_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/blank-tightening-django61.json"
 HISTORICAL_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/historical-data-django61.json"
+MODEL_DELETION_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/model-deletion-django61.json"
 VARIABLE = "GODJ_MIGRATION_DATA_REFERENCE_DATABASE"
 PHASES = {
     "base", "forward_plan", "forward_error", "after_failure", "contracted", "retry_calls",
@@ -49,13 +50,15 @@ def capture(env, directory, vendor, version):
         raise ValueError(f"{vendor} migration capture does not match the current sources")
     if not same(report.get("blank_tightening"), decode(BLANK_REFERENCE.read_bytes())[vendor]):
         raise ValueError(f"{vendor} blank field tightening differs from the native contract")
+    if not same(report.get("model_deletion"), decode(MODEL_DELETION_REFERENCE.read_bytes())):
+        raise ValueError(f"{vendor} model deletion differs from the native contract")
     filename = f"django61-{vendor}.json"
     (directory / filename).write_bytes(result.stdout)
     return report, {"file": filename, "sha256": hashlib.sha256(result.stdout).hexdigest()}
 
 
 def compare(sqlite, postgres):
-    for field in ("input_sha256", "django_commit", "upstream_sha256", "observations"):
+    for field in ("input_sha256", "django_commit", "upstream_sha256", "observations", "model_deletion"):
         if not same(sqlite[field], postgres[field]):
             raise ValueError(f"SQLite and PostgreSQL differ in {field}")
 

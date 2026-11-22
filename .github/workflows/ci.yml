@@ -285,7 +285,7 @@ jobs:
         run: make ${{ matrix.make_targets }}
 
       - name: Publish portable test evidence
-        if: always() && steps.portable-go.outcome != 'skipped' && (matrix.shard == 'core-vet' || matrix.shard == 'core' || matrix.shard == 'conformance')
+        if: always() && steps.portable-go.outcome != 'skipped' && (matrix.shard == 'core-vet' || matrix.shard == 'core' || matrix.shard == 'conformance' || matrix.shard == 'products')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portable-tests-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
@@ -1754,6 +1754,7 @@ jobs:
           operator_target_required_passes=(
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/historical_reverse_sql_uses_project_schema_without_opening_database"
+            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/public_delete_model_recreates_empty_storage"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )

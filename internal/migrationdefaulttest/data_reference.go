@@ -127,34 +127,7 @@ func nativeHistoricalSnapshot(t *testing.T, f Fixture) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
-	read := func(stmt string) [][]any {
-		t.Helper()
-		rows, err := f.SQL.QueryContext(ctx, stmt)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rows.Close()
-		cols, err := rows.Columns()
-		if err != nil {
-			t.Fatal(err)
-		}
-		values := [][]any{}
-		for rows.Next() {
-			row := make([]any, len(cols))
-			dest := make([]any, len(cols))
-			for i := range row {
-				dest[i] = &row[i]
-			}
-			if err := rows.Scan(dest...); err != nil {
-				t.Fatal(err)
-			}
-			values = append(values, row)
-		}
-		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		return values
-	}
+
 	projected := "NULL"
 	var externalNullable any
 	if nullable.Valid {
@@ -173,7 +146,36 @@ func nativeHistoricalSnapshot(t *testing.T, f Fixture) map[string]any {
 	}
 	return map[string]any{
 		"applied": applied, "category_column": names[0], "external_nullable": externalNullable, "external_unique": unique, "category_fk": fk,
-		"categories": read("SELECT id," + names[0] + " FROM " + f.table("m1_category") + " ORDER BY id"),
-		"tickets":    read("SELECT id,category_id,note," + projected + " FROM " + f.table("m1_ticket") + " ORDER BY id"),
+		"categories": f.readRows(t, "SELECT id,"+names[0]+" FROM "+f.table("m1_category")+" ORDER BY id"),
+		"tickets":    f.readRows(t, "SELECT id,category_id,note,"+projected+" FROM "+f.table("m1_ticket")+" ORDER BY id"),
 	}
+}
+
+func (f Fixture) readRows(t *testing.T, stmt string, args ...any) [][]any {
+	t.Helper()
+	rows, err := f.SQL.QueryContext(t.Context(), stmt, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := [][]any{}
+	for rows.Next() {
+		row := make([]any, len(cols))
+		dest := make([]any, len(cols))
+		for i := range row {
+			dest[i] = &row[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			t.Fatal(err)
+		}
+		values = append(values, row)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return values
 }

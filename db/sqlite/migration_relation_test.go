@@ -33,6 +33,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		DefinitionHistory:                 true,
 		HistoricalData:                    true,
 		RenameField:                       true,
+		DeleteModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,
@@ -2343,14 +2344,20 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		}
 	})
 
-	t.Run("wrong_direction_is_integrity_before_session", func(t *testing.T) {
+	t.Run("recreating_an_authored_deletion_requires_bound_history", func(t *testing.T) {
 		single := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{valid.Operations[1]}}
 		single.Operations[0].OperationIndex = 0
-		wrongDirection := transition
-		wrongDirection.Kind = migrationbackend.HistoryTransitionUnapply
-		_, err := validateAndSealSQLiteRelationIntent(wrongDirection, single)
-		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "does not match history transition") {
-			t.Fatalf("wrong-direction validation error = %v", err)
+		reverse := transition
+		reverse.Kind = migrationbackend.HistoryTransitionUnapply
+		if err := migrationbackend.ValidateRequiredHistory(single, reverse); err == nil {
+			t.Fatal("recreated an unbound deletion")
+		}
+		reverse.Migration.HistoryDigest = "sha256:" + strings.Repeat("ab", 32)
+		if err := migrationbackend.ValidateRequiredHistory(single, reverse); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAndSealSQLiteRelationIntent(reverse, single); err != nil {
+			t.Fatal(err)
 		}
 	})
 

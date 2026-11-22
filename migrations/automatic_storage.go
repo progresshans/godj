@@ -30,8 +30,8 @@ func (builder *loadedStateBuilder) storageModel(identity loadedModelIdentity) (i
 // A derived name may be removed and later recreated by a different declaration
 // operation. Each use needs a visible creation authority; replay independently
 // proves that the exact storage is still present at that chronological point.
-func collectAutomaticCreators(graph *plannerGraph, definitions map[MigrationKey]Migration) map[loadedModelIdentity][]loadedModelCreator {
-	result := make(map[loadedModelIdentity][]loadedModelCreator)
+func collectAutomaticCreators(graph *plannerGraph, definitions map[MigrationKey]Migration) map[loadedModelIdentity][]loadedModelEvent {
+	result := make(map[loadedModelIdentity][]loadedModelEvent)
 	for _, key := range graph.nodes {
 		for index, operation := range definitions[key].Operations {
 			app, name := operationSourceModel(operation)
@@ -50,7 +50,7 @@ func collectAutomaticCreators(graph *plannerGraph, definitions map[MigrationKey]
 				}
 				id := field.StorageThrough(ir.ModelIdentity{AppLabel: app, ModelName: name}).Model
 				target := loadedModelIdentity{app: id.AppLabel, model: id.ModelName}
-				result[target] = append(result[target], loadedModelCreator{key: key, operationIndex: index})
+				result[target] = append(result[target], loadedModelEvent{key: key, operationIndex: index})
 			}
 		}
 	}

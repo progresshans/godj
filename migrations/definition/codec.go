@@ -151,7 +151,7 @@ func knownMaxLengthLexicalCandidates(migration jsonValue, sourceID string) []fai
 		}
 		operationPointer := "/migration/operations/" + strconv.Itoa(operationIndex)
 		switch kind.string {
-		case "create_model":
+		case "create_model", "delete_model":
 			model, exists := operation.member("model")
 			if !exists || model.kind != jsonObject {
 				continue
@@ -279,7 +279,7 @@ func semanticLimitCandidates(documents []parsedDocument) []failureCandidate {
 				continue
 			}
 			kind, exists := operation.member("kind")
-			if !exists || kind.kind != jsonString || kind.string != "create_model" {
+			if !exists || kind.kind != jsonString || (kind.string != "create_model" && kind.string != "delete_model") {
 				continue
 			}
 			model, exists := operation.member("model")
@@ -478,18 +478,21 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if kind, ok := value.member("kind"); ok && kind.kind == jsonString && kind.string == "run_data" {
 		return collectDataCandidates(value, sourceID, pointer, app, name, operationIndex)
 	}
-	commonFields := []string{"after", "app_label", "before", "before_field", "constraint", "field", "kind", "model", "model_name"}
+	commonFields := []string{"after", "app_label", "before", "before_field", "before_model", "constraint", "field", "kind", "model", "model_name"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_operation"))
 	}
-	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "remove_field" && kind.string != "alter_field" && kind.string != "rename_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
+	if kind.string != "create_model" && kind.string != "delete_model" && kind.string != "add_field" && kind.string != "remove_field" && kind.string != "alter_field" && kind.string != "rename_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
 		return append(candidates, semanticFailure(CodeUnsupportedOperation, sourceID, pointer+"/kind", app, name, operationIndex, "unsupported_operation"))
 	}
 
 	fields := []string{"app_label", "kind", "model"}
 	var optional []string
+	if kind.string == "delete_model" {
+		optional = []string{"before_model"}
+	}
 	if kind.string == "add_field" || kind.string == "remove_field" || kind.string == "add_many_to_many" || kind.string == "remove_many_to_many" {
 		fields = []string{"app_label", "field", "kind", "model_name"}
 		optional = []string{"before_field"}
@@ -510,7 +513,10 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 		}
 	}
 
-	if kind.string == "create_model" {
+	if kind.string == "create_model" || kind.string == "delete_model" {
+		if _, valid := materializeAnchor(object, "before_model", "model"); !valid {
+			candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/before_model", app, name, operationIndex, "invalid_operation"))
+		}
 		if model, present := object.member("model"); present {
 			candidates = append(candidates, collectModelCandidates(model, sourceID, pointer+"/model", app, name, operationIndex)...)
 		}
@@ -543,7 +549,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			}
 			return candidates
 		}
-		if _, valid := materializeBeforeField(object); !valid {
+		if _, valid := materializeAnchor(object, "before_field", "field"); !valid {
 			candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/before_field", app, name, operationIndex, "invalid_operation"))
 		}
 		if field, present := object.member("field"); present {
@@ -1198,7 +1204,7 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 	switch kind.string {
 	case "run_data":
 		return materializeData(value, migrationApp)
-	case "create_model":
+	case "create_model", "delete_model":
 		modelValue, exists := value.member("model")
 		if !exists {
 			return nil, false
@@ -1206,6 +1212,13 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		model, valid := materializeModel(modelValue)
 		if !valid || !fullyNormalizedCreateModel(appLabel.string, model) {
 			return nil, false
+		}
+		if kind.string == "delete_model" {
+			before, valid := materializeAnchor(value, "before_model", "model")
+			if !valid {
+				return nil, false
+			}
+			return migrations.DeleteModel{AppLabel: appLabel.string, Model: model.Clone(), BeforeModel: before}, true
 		}
 		return migrations.CreateModel{AppLabel: appLabel.string, Model: model.Clone()}, true
 	case "add_field", "remove_field":
@@ -1218,7 +1231,7 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		if !valid || !fullyNormalizedAddField(appLabel.string, field) {
 			return nil, false
 		}
-		before, valid := materializeBeforeField(value)
+		before, valid := materializeAnchor(value, "before_field", "field")
 		if !valid {
 			return nil, false
 		}
@@ -1237,15 +1250,15 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 	}
 }
 
-func materializeBeforeField(value jsonValue) (string, bool) {
-	before, exists := value.member("before_field")
+func materializeAnchor(value jsonValue, anchor, subject string) (string, bool) {
+	before, exists := value.member(anchor)
 	if !exists {
 		return "", true
 	}
 	if before.kind != jsonString || before.string != "" && !identifiers.SQL(before.string) {
 		return "", false
 	}
-	if field, exists := value.member("field"); exists {
+	if field, exists := value.member(subject); exists {
 		if name, exists := field.member("name"); exists && name.kind == jsonString && name.string == before.string {
 			return "", false
 		}

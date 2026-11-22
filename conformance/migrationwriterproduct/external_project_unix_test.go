@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
@@ -315,6 +316,49 @@ replace github.com/progresshans/godj => %s
 	reapplied := externalRun(t, projectRoot, commandEnvironment, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedCycleAfterReapply$", ".")
 	externalAssertSuccessAndRedacted(t, reapplied, sensitive...)
 	externalAssertConsumerReceipt(t, reapplied, "TestGeneratedCycleAfterReapply")
+	t.Run("write_delete_and_restore_model", func(t *testing.T) {
+		env := testenv.With(commandEnvironment, map[string]string{"GODJ_EXTERNAL_RETIRE_BLOG": "1"})
+		run := func(args ...string) externalCommandResult {
+			t.Helper()
+			result := externalRun(t, projectRoot, env, globalBinary, append(args, "--project", descriptor)...)
+			externalAssertSuccessAndRedacted(t, result, sensitive...)
+			return result
+		}
+		prior := dbstate.CaptureSQLite(t, databasePath)
+		write := externalDecodeOne[externalMakemigrationsResult](t, run("makemigrations").stdout)
+		if write.CandidateCount != 2 || len(write.Candidates) != 2 || write.Candidates[0].App != "authors" || write.Candidates[1].App != "blog" || write.Candidates[1].Name != "0002_delete_blog_post" {
+			t.Fatal("expected cross-app reference removal before model deletion", write)
+		}
+		name := write.Candidates[1].Name
+		if retry := externalDecodeOne[externalMakemigrationsResult](t, run("makemigrations").stdout); retry.CandidateCount != 0 {
+			t.Fatal("republished model deletion", retry)
+		}
+		if sql := run("sqlmigrate", "blog", name).stdout; sql != "DROP TABLE \"blog_blog_post\";\n" {
+			t.Fatal("drop SQL", sql)
+		}
+		if sql := run("sqlmigrate", "blog", name, "--backwards").stdout; !strings.Contains(sql, `CREATE TABLE "blog_blog_post"`) {
+			t.Fatal("restore SQL", sql)
+		}
+		if got := dbstate.CaptureSQLite(t, databasePath); got.Digest != prior.Digest {
+			t.Fatal("writer or SQL preview changed the database")
+		}
+		run("migrate")
+		removed := dbstate.CaptureSQLite(t, databasePath)
+		run("migrate", "blog", "0001_initial")
+		restored := dbstate.CaptureSQLite(t, databasePath)
+		count := func(state dbstate.Snapshot, table string) int64 {
+			for _, entry := range state.Counts {
+				if entry.Table == table {
+					return entry.Count
+				}
+			}
+			return -1
+		}
+		if count(prior, "authors_author") < 1 || count(prior, "authors_author") != count(removed, "authors_author") || count(prior, "authors_author") != count(restored, "authors_author") ||
+			count(removed, "blog_blog_post") != -1 || count(restored, "blog_blog_post") != 0 {
+			t.Fatal("public migration lost retained authors or restored old posts", removed.Counts, restored.Counts)
+		}
+	})
 	externalAuditApplicationSources(t, repository, projectRoot)
 	testfixture.AssertArtifactsRedacted(t, projectRoot, sensitive...)
 	entries, err := os.ReadDir(filepath.Join(universe, "scratch"))
@@ -609,6 +653,7 @@ func main() {
 	}
 	if len(os.Args) == 2 && os.Args[1] == "verify-base" { verifyBase(); return }
 	config := project.Config{
+		MigrationSQLRenderer: sqlite.NewMigrationSQLRenderer(),
 		MigrationDefinitionRoots: []string{"migrations"},
 		LoadProjectSpec: loadProjectSpec,
 		OpenMigrationBackend: func(ctx context.Context) (project.MigrationBackend, error) {
@@ -663,6 +708,10 @@ func loadProjectSpec(context.Context) (codegen.ProjectSpec, error) {
 				OnDelete: ir.DeleteProtect,
 			}},
 		}}},
+	}
+	if os.Getenv("GODJ_EXTERNAL_RETIRE_BLOG") == "1" {
+		authors.Models[0].Fields = authors.Models[0].Fields[1:]
+		blog.Models = nil
 	}
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/godj-migrationwriter-external/generated/project", Directory: "generated/project"},

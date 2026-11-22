@@ -128,6 +128,7 @@ func historicalTickets(t *testing.T, f Fixture) []ticketRow {
 }
 
 func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, constraint func(error) string) {
+	t.Run("delete_model_and_restore_empty_storage", func(t *testing.T) { checkModelDeletion(t, database(t), constraint) })
 	t.Run("renamed_keys_indexes_and_fixed_columns", func(t *testing.T) { checkFieldRename(t, database(t), constraint) })
 	t.Run("mixed_transaction_and_scope", func(t *testing.T) { checkHistoricalTransaction(t, database(t)) })
 	t.Run("backfill_restart_and_reverse", func(t *testing.T) {

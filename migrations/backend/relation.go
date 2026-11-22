@@ -27,6 +27,7 @@ type MigrationCapabilities struct {
 	// historical models on the same connection and transaction as its recorder.
 	HistoricalData bool
 	RenameField    bool
+	DeleteModel    bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool

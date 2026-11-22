@@ -15,6 +15,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
     def setUp(self):
         fingerprint = json.loads((runner.ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json").read_bytes())["fingerprint"]
         self.report = {
+            "model_deletion": json.loads(runner.MODEL_DELETION_REFERENCE.read_text()),
             "backend": "sqlite", "database_version": "3.50.4", "django": "6.1", "python": "3.14.3",
             "observations": json.loads(runner.HISTORICAL_REFERENCE.read_text()), "command_output": dict.fromkeys(("forward", "reverse", "barrier"), {}),
             "input_sha256": runner.input_digests(), "django_commit": fingerprint["django_commit"],
@@ -40,6 +41,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
                 ("input_sha256", {"migration_data_reference.py": "ff" * 32}),
                 ("observations", self.report["observations"] | {"reversed": {}}),
                 ("observations", {k: v for k, v in self.report["observations"].items() if k != "first_reverse"}),
+                ("model_deletion", self.report["model_deletion"] | {"restored": self.report["model_deletion"]["before"]}),
                 ("command_output", {"forward": {}, "reverse": {}}),
                 ("blank_tightening", json.loads(runner.BLANK_REFERENCE.read_text())["postgresql"]),
             ):

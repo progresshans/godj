@@ -1682,7 +1682,7 @@ func migrationSQLRenderingFailures(ctx context.Context, contract protocol.Contra
 	}
 	var typedNil *migrationSQLRenderingTypedNilRenderer
 	unsupportedBuiltin := sqlite.NewMigrationSQLRenderer()
-	for _, kind := range []migrationbackend.MigrationOperationKind{migrationbackend.MigrationDeleteModel, migrationbackend.MigrationOperationKind(255)} {
+	for _, kind := range []migrationbackend.MigrationOperationKind{0, migrationbackend.MigrationOperationKind(255)} {
 		statements, renderErr := unsupportedBuiltin.RenderMigrationSQL(ctx, migrationbackend.MigrationSQLRequest{
 			App: "blog", Name: "0002_unsupported",
 			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{OperationIndex: 0, Kind: kind}}},

@@ -38,6 +38,10 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 		if value != nil {
 			return *value
 		}
+	case *migrations.DeleteModel:
+		if value != nil {
+			return *value
+		}
 	case *migrations.CreateModel:
 		if value != nil {
 			return *value
@@ -86,6 +90,9 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		return value
 	case migrations.AlterManyToMany:
 		value.Before, value.After = value.Before.Clone(), value.After.Clone()
+		return value
+	case migrations.DeleteModel:
+		value.Model = value.Model.Clone()
 		return value
 	case migrations.CreateModel:
 		value.Model = value.Model.Clone()

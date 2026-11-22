@@ -104,9 +104,15 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 				return err
 			}
 		case migrations.CreateModel:
-			if err := scanner.scanCreateModel(path, index, value); err != nil {
+			if err := scanner.scanModelOperation(path, index, value.AppLabel, value.Model, ""); err != nil {
 				return err
 			}
+		case migrations.DeleteModel:
+			if err := scanner.scanModelOperation(path, index, value.AppLabel, value.Model, value.BeforeModel); err != nil {
+				return err
+			}
+		case *migrations.DeleteModel:
+			return encodeFailure(path, "nil *migrations.DeleteModel")
 		case *migrations.CreateModel:
 			return encodeFailure(path, "nil *migrations.CreateModel")
 		case migrations.AddField:
@@ -189,17 +195,25 @@ func encodeDocumentSizeFailure(path string, actualLowerBound uint64) error {
 	)
 }
 
-func (scanner *encodingSizeScanner) scanCreateModel(path string, operationIndex int, operation migrations.CreateModel) error {
-	if len(operation.Model.Fields) > MaxFieldsPerCreateModel {
-		return createModelFieldsLimitFailure(operationIndex, len(operation.Model.Fields))
+func (scanner *encodingSizeScanner) scanModelOperation(path string, operationIndex int, app string, model ir.Model, before string) error {
+	if len(model.Fields) > MaxFieldsPerCreateModel {
+		return createModelFieldsLimitFailure(operationIndex, len(model.Fields))
 	}
 	if err := scanner.addStructural(path, createModelOperationStructuralLowerBound); err != nil {
 		return err
 	}
-	if err := scanner.addString(path+".app_label", operation.AppLabel); err != nil {
+	if err := scanner.addString(path+".app_label", app); err != nil {
 		return err
 	}
-	return scanner.scanModel(path+".model", operation.Model)
+	if before != "" {
+		if err := scanner.addStructural(path+".before_model", uint64(len(`,"before_model":""`))); err != nil {
+			return err
+		}
+		if err := scanner.addString(path+".before_model", before); err != nil {
+			return err
+		}
+	}
+	return scanner.scanModel(path+".model", model)
 }
 
 func (scanner *encodingSizeScanner) scanAddField(path string, operation migrations.AddField) error {

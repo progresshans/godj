@@ -36,11 +36,7 @@ func (migrationSQLRenderer) RenderMigrationSQL(
 	}
 	for _, operation := range request.Intent.Operations {
 		switch operation.Kind {
-		case migrationbackend.MigrationDeleteModel:
-			if request.Backwards {
-				continue
-			}
-		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationCreateModel,
+		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
 			migrationbackend.MigrationAddField, migrationbackend.MigrationRemoveField, migrationbackend.MigrationAlterField,
 			migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint, migrationbackend.MigrationAlterManyToMany:
 			continue

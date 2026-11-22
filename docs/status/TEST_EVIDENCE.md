@@ -3,6 +3,16 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## M1 모델 삭제와 빈 테이블 복원
+
+고정 Django 6.1에서 선언 중간의 모델에 고유 열과 자동 다대다 관계를 만들고, 행을 넣은 뒤 삭제·역적용했다. Python 3.14.3과 SQLite 3.50.4에서 기존 역사 관측 15개와 새 관측 8개가 기대값에 일치했다. 새 관측은 초기 행, 삭제·복원 DDL 순서, 뒤 연산 실패 후 롤백, 재접속 뒤 남은 테이블, 빈 테이블 복원, 재삽입, 고유 제약이다. 원본 JSON의 SHA-256은 `93d85750b76e15fe3c45fc55a9cfb8ebfd5f0ad210740774e6e454bf151352de`다. 별도 로컬 PostgreSQL 17.5와 psycopg 3.3.6에서 같은 8개 관측이 일치했다. 공통 기대값의 SHA-256은 `822b2ea71a7061032ba299040e1b5eaa30bcc2dcb14d834707518ae52d0290b4`다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_deletion.py) · [관측값](../../internal/migrationdefaulttest/testdata/model-deletion-django61.json) · [고정 소스·라이선스](../SOURCES.md)
+
+GoDj에는 같은 관측값을 사용하는 양 DB 검사와 프로젝트 명령 검사를 추가했다. 관리 밖 FK와 뷰가 삭제를 막는지, 오류 시 행·스키마·기록이 함께 롤백되는지, 재접속 후 저장된 정의를 바꾸면 역적용이 중단되는지를 확인한다. SQLite 공개 명령은 다른 앱의 참조 해제부터 삭제 정의 작성·재실행·SQL 표시·적용·빈 테이블 복원까지 수행한다. PostgreSQL 공개 명령은 지정한 schema의 DDL과 복원 뒤 새 키를 확인한다. 이 소스의 실제 Go 실행 및 고정 PostgreSQL 17.10 비교는 원격 CI 수용 대상이다. [양 DB 검사](../../internal/migrationdefaulttest/delete_model.go) · [SQLite 공개 명령](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+MIG-107은 같은 앱에서 모델이 사라지고 다른 모델이 추가되는 경우 자동 삭제를 거부한다. 고정 환경에서 작성기 관측 원본을 재생성하고 모호한 모델 교체 사례의 이름만 바뀐 것을 확인했다. 원본 SHA-256은 `bb92a739263c601a4302b1aa1b2428ff751e6af17dfa1ecfd6a141ea3a623638`다. [작성기 거부 기준](../../conformance/runners/django/migration_writer_decisions.py) · [모델 삭제 계획](../../internal/migrationautodetect/delete_model.go)
+
+로컬 CI 도구 검사 120건과 독립 작성기 결정 검사 5건이 통과했다. 작성기 기준을 재실행하고 체크섬 목록 24개와 원본을 읽는 Go 검사의 고정값을 대조했다. Go 소스 포맷과 내장 프로젝트 소스 구문도 확인했다. SQLite 공개 명령의 원격 검사는 normal·race·CGO0 각각에서 부모 테스트와 삭제·복원 사례의 종료 이벤트를 요구한다. [실행 목록](../../scripts/ci/portable-products-required.txt) · [원격 결과 판독기](../../scripts/ci/portable_tests.py)
+
 ## M1 역방향 SQL 표시
 
 `godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)

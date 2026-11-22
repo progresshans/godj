@@ -1,0 +1,2 @@
+github.com/progresshans/godj/conformance/migrationwriterproduct|TestMigrationWriterExternalProjectSQLitePublicSurface
+github.com/progresshans/godj/conformance/migrationwriterproduct|TestMigrationWriterExternalProjectSQLitePublicSurface/write_delete_and_restore_model

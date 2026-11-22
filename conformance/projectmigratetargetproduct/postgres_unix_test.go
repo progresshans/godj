@@ -4,15 +4,49 @@ package projectmigratetargetproduct_test
 
 import (
 	"errors"
-	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/dbstate"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
 func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 	databaseURL := targetPostgresTestURL(t)
 	project := newTargetExternalProject(t)
+
+	t.Run("public_delete_model_recreates_empty_storage", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "delete-model")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_delete")
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "removed"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := targetCapturePostgres(t, databaseURL, schema)
+		targetResetMarker(t, marker)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_delete"), `DROP TABLE "`+schema+`"."target_blog_initial" RESTRICT;`+"\n", targetPostgresSensitive(t, project, databaseURL, "")...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		after := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(after, targetBlog1Table) || len(after.history) != 2 {
+			t.Fatal("model deletion did not commit with history")
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		restored := targetCapturePostgres(t, databaseURL, schema)
+		if !targetPostgresHasTable(restored, targetBlog1Table) || restored.counts[targetBlog1Table] != 0 || len(restored.history) != 1 {
+			t.Fatal("restored data or lost the surviving prefix")
+		}
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "new"); id != 1 {
+			t.Fatal("recreated sequence", id)
+		}
+	})
 
 	t.Run("historical_reverse_sql_uses_project_schema_without_opening_database", func(t *testing.T) {
 		schema := targetCreatePostgresSchema(t, databaseURL)

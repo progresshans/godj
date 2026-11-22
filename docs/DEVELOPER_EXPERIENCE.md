@@ -237,7 +237,7 @@ README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사
 ```
 
 - `generate --check`는 선언과 생성물의 drift를 확인한다. 선언 변경 뒤에는 `generate`로 현재 후보 전체를 검증·게시한다.
-- `makemigrations`는 지원하는 schema difference에서 migration을 작성한다. Destructive/general custom operation을 임의로 추론하지 않는다.
+- 설치한 앱의 선언에서 모델을 제거하면 `makemigrations --dry-run`으로 삭제 정의와 앞서 해제할 관계를 확인할 수 있다. 같은 앱에서 모델 삭제와 추가가 함께 보이면 이름 변경일 수 있으므로 작성을 중단한다. 삭제를 적용하면 해당 행과 자동 중간 테이블의 링크가 사라진다. 역적용은 빈 테이블과 제약을 복원한다. [양 DB 동작](BACKEND_MATRIX.md#모델-삭제와-역적용)
 - `showmigrations`는 현재 DB history의 한 snapshot이다.
 - `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
 - `godj sqlmigrate APP EXACT_NAME`은 적용 SQL을 표시한다. `--backwards`를 붙이면 같은 migration의 역작업 SQL을 표시한다.
