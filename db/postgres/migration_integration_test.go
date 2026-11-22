@@ -38,6 +38,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 
 	assertPostgresMigrationIntegrationHistory(t, ctx, backend, nil)
 	loaded := postgresMigrationIntegrationDefinitions(t)
+	publicHistory := postgresMigrationIntegrationAppliedHistory("")
 	state := postgresMigrationIntegrationMigrate(
 		t,
 		ctx,
@@ -45,7 +46,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 		loaded,
 		migrations.LatestLifecycleRequest(),
 	)
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, postgresMigrationIntegrationAppliedHistory())
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, publicHistory)
 	assertPostgresMigrationIntegrationCatalog(t, ctx, backend, schema, state)
 	assertPostgresMigrationIntegrationDisabledForeignKeyTriggerDrift(t, ctx, backend, schema, state)
 
@@ -53,7 +54,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 		t.Fatalf("close migrated PostgreSQL backend: %v", err)
 	}
 	backend = openPostgresMigrationIntegrationBackend(t, ctx, databaseURL, schema)
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, postgresMigrationIntegrationAppliedHistory())
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, publicHistory)
 	assertPostgresMigrationIntegrationCatalog(t, ctx, backend, schema, state)
 	noOpState := postgresMigrationIntegrationMigrate(
 		t,
@@ -65,7 +66,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 	if !noOpState.Equal(state) {
 		t.Fatalf("PostgreSQL no-op Latest state changed: before=%+v after=%+v", state, noOpState)
 	}
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, postgresMigrationIntegrationAppliedHistory())
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, publicHistory)
 	assertPostgresMigrationIntegrationCatalog(t, ctx, backend, schema, noOpState)
 
 	withoutPostFK := postgresMigrationIntegrationMigrate(
@@ -89,7 +90,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 		loaded,
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(postgresMigrationIntegrationPostFKKey)),
 	)
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, postgresMigrationIntegrationAppliedHistory())
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, publicHistory)
 	assertPostgresMigrationIntegrationCatalog(t, ctx, backend, schema, readdedPostFK)
 	withoutPostFK = postgresMigrationIntegrationMigrate(
 		t,
@@ -133,14 +134,26 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 		loaded,
 		migrations.LatestLifecycleRequest(),
 	)
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, postgresMigrationIntegrationAppliedHistory())
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, publicHistory)
 	assertPostgresMigrationIntegrationCatalog(t, ctx, backend, schema, state)
+
+	var fieldsDigest string
+	for _, source := range loaded.Sources() {
+		if source.Migration == postgresMigrationIntegrationFieldsKey {
+			fieldsDigest = source.HistoryDigest
+			break
+		}
+	}
+	if _, err := migrationbackend.ParseDefinitionHistoryDigest(fieldsDigest); err != nil {
+		t.Fatalf("missing definition binding for %v: %v", postgresMigrationIntegrationFieldsKey, err)
+	}
+	fencedHistory := postgresMigrationIntegrationAppliedHistory(fieldsDigest)
 
 	t.Run("two sessions report contention", func(t *testing.T) {
 		first := postgresMigrationIntegrationSession(t, ctx, backend)
 		second := postgresMigrationIntegrationSession(t, ctx, backend)
-		assertPostgresMigrationIntegrationSessionHistory(t, ctx, first, postgresMigrationIntegrationAppliedHistory())
-		assertPostgresMigrationIntegrationSessionHistory(t, ctx, second, postgresMigrationIntegrationAppliedHistory())
+		assertPostgresMigrationIntegrationSessionHistory(t, ctx, first, fencedHistory)
+		assertPostgresMigrationIntegrationSessionHistory(t, ctx, second, fencedHistory)
 
 		transition := migrationbackend.HistoryTransition{
 			Migration: migrationbackend.AppliedMigration{App: "fence", Name: "0001_hold"},
@@ -168,7 +181,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 
 	t.Run("two sessions report stale snapshot", func(t *testing.T) {
 		stale := postgresMigrationIntegrationSession(t, ctx, backend)
-		assertPostgresMigrationIntegrationSessionHistory(t, ctx, stale, postgresMigrationIntegrationAppliedHistory())
+		assertPostgresMigrationIntegrationSessionHistory(t, ctx, stale, fencedHistory)
 
 		transition := migrationbackend.HistoryTransition{
 			Migration: migrationbackend.AppliedMigration{App: "fence", Name: "0001_advance"},
@@ -176,7 +189,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 		}
 		intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}}
 		advancer := postgresMigrationIntegrationSession(t, ctx, backend)
-		assertPostgresMigrationIntegrationSessionHistory(t, ctx, advancer, postgresMigrationIntegrationAppliedHistory())
+		assertPostgresMigrationIntegrationSessionHistory(t, ctx, advancer, fencedHistory)
 		advanceTransaction, err := advancer.BeginMigration(ctx, transition, intent)
 		if err != nil {
 			t.Fatalf("begin PostgreSQL stale-snapshot advance: %v", err)
@@ -189,7 +202,7 @@ func TestPostgresRevisionFencedMigrationIntegration(t *testing.T) {
 			t.Fatalf("commit PostgreSQL stale-snapshot advance = (%+v, %v)", outcome, err)
 		}
 		assertPostgresMigrationIntegrationHistory(t, ctx, backend, append(
-			postgresMigrationIntegrationAppliedHistory(),
+			slices.Clone(publicHistory),
 			migrationbackend.AppliedMigration{App: "fence", Name: "0001_advance"},
 		))
 		transaction, err := stale.BeginMigration(
@@ -1271,11 +1284,11 @@ func postgresMigrationIntegrationMigrate(
 	return state
 }
 
-func postgresMigrationIntegrationAppliedHistory() []migrationbackend.AppliedMigration {
+func postgresMigrationIntegrationAppliedHistory(fieldsDigest string) []migrationbackend.AppliedMigration {
 	return []migrationbackend.AppliedMigration{
 		{App: "authors", Name: "0001_author"},
 		{App: "blog", Name: "0001_post"},
-		{App: "blog", Name: "0002_fields"},
+		{App: "blog", Name: "0002_fields", HistoryDigest: fieldsDigest},
 		{App: "blog", Name: "0003_author"},
 		{App: "comments", Name: "0001_comment"},
 	}
