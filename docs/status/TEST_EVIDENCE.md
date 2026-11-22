@@ -11,6 +11,8 @@
 
 이 변경은 역사 모델을 읽고 쓰는 콜백과 필드 이름 변경을 포함하는 M1 소비자의 제약 변경 단계다. 콜백의 역방향·실패·기록까지 한 흐름으로 검증하는 일은 남아 있다. [M1 구현·수용 범위](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)
 
+후속 구현에서 loader는 전체 정의 세트의 기존 digest와 함께 각 migration의 선행 정의까지 포함한 `HistoryDigest`를 제공한다. 공유 조상이 있는 네 앱 그래프에서 후속·무관한 migration 추가, 부모 순서·source ID·producer 변경, 조상 본문 수정과 의존성 제거를 구분하는 Go 회귀 검사를 필수 실행에 넣었다. 로컬의 독립적인 canonical JSON과 SHA-256 계산으로 고정 벡터를 구하고 기존 단일 정의의 세트 해시도 대조했다. DB에 이 값을 저장하고 콜백 역적용 전에 검증하는 경로는 남아 있다. [해시 구현](../../migrations/definition/digest.go) · [고정 벡터와 대조군](../../migrations/definition/history_digest_test.go)
+
 ## macOS relation runtime의 작업 시간
 
 통합 PR 소스 `512c17f1`와 비교 앱 소스 `6d8bf751`의 macOS 26 ARM64 normal runtime이 각각 90분 작업 제한으로 취소됐다. GitHub annotation이 제한 만료를 명시했다. 각 작업의 checkout, 업로드 로그의 artifact ID·SHA-256, 다운로드한 ZIP과 내부 Go 이벤트를 대조했다. 첫 실행은 5,561개 이벤트와 패키지 종료 16개, 둘째는 3,060개와 종료 14개에서 잘렸다. 둘 다 이 시점까지 실패 이벤트가 없었고 SQLite 등 필수 패키지가 남았다. [통합 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002207565) · [비교 앱 작업](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024016184)

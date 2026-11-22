@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"unicode/utf8"
@@ -15,87 +16,121 @@ import (
 
 const digestDomain = "godj:migration-definition-set:v1"
 
-// definitionSetDigest hashes only the canonical semantic definition set. Raw
-// source bytes, source identifiers, and producer provenance are deliberately
-// outside this boundary.
-func definitionSetDigest(definitions []migrations.Migration) (string, error) {
-	canonical, err := canonicalDefinitionSet(definitions)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(canonical)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+const historyDigestDomain = "godj:migration-history:v1\x00"
+
+type definitionDigestNode struct {
+	parents  []migrations.MigrationKey
+	payload  [sha256.Size]byte
+	history  []byte
+	visiting bool
 }
 
-func canonicalDefinitionSet(definitions []migrations.Migration) ([]byte, error) {
-	canonical := cloneMigrations(definitions)
-	sort.Slice(canonical, func(left, right int) bool {
-		if canonical[left].App != canonical[right].App {
-			return canonical[left].App < canonical[right].App
-		}
-		return canonical[left].Name < canonical[right].Name
-	})
-	for index := range canonical {
-		sort.Slice(canonical[index].Dependencies, func(left, right int) bool {
-			if canonical[index].Dependencies[left].App != canonical[index].Dependencies[right].App {
-				return canonical[index].Dependencies[left].App < canonical[index].Dependencies[right].App
+// The set and node hashes share exactly one canonical encoding. Each node
+// binds its own payload and its parents' history hashes in dependency-key
+// order. Shared ancestors are computed once even when branches merge.
+func definitionDigests(definitions []migrations.Migration) (string, map[migrations.MigrationKey]string, error) {
+	// Load has validated the graph and sorted definitions by migration key.
+	nodes := make(map[migrations.MigrationKey]*definitionDigestNode, len(definitions))
+	setHash := sha256.New()
+	setHash.Write([]byte(`{"definitions":[`))
+	var body []byte
+	for index, current := range definitions {
+		current.Dependencies = slices.Clone(current.Dependencies)
+		sort.Slice(current.Dependencies, func(i, j int) bool {
+			left, right := current.Dependencies[i], current.Dependencies[j]
+			if left.App != right.App {
+				return left.App < right.App
 			}
-			return canonical[index].Dependencies[left].Name < canonical[index].Dependencies[right].Name
+			return left.Name < right.Name
 		})
-	}
-
-	output := []byte(`{"definitions":[`)
-	for definitionIndex, current := range canonical {
-		if definitionIndex != 0 {
-			output = append(output, ',')
-		}
-		output = append(output, `{"app":`...)
 		var err error
-		output, err = appendCanonicalString(output, current.App)
+		body, err = appendCanonicalMigration(body[:0], current)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
-		output = append(output, `,"dependencies":[`...)
-		for dependencyIndex, dependency := range current.Dependencies {
-			if dependencyIndex != 0 {
-				output = append(output, ',')
-			}
-			output = append(output, `{"app":`...)
-			output, err = appendCanonicalString(output, dependency.App)
-			if err != nil {
-				return nil, err
-			}
-			output = append(output, `,"name":`...)
-			output, err = appendCanonicalString(output, dependency.Name)
-			if err != nil {
-				return nil, err
-			}
-			output = append(output, '}')
+		if index > 0 {
+			setHash.Write([]byte{','})
 		}
-		output = append(output, `],"name":`...)
-		output, err = appendCanonicalString(output, current.Name)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, `,"operations":[`...)
-		for operationIndex, operation := range current.Operations {
-			if operationIndex != 0 {
-				output = append(output, ',')
-			}
-			output, err = appendCanonicalOperation(output, operation)
-			if err != nil {
-				return nil, err
-			}
-		}
-		output = append(output, ']', '}')
+		setHash.Write(body)
+		nodes[current.Key()] = &definitionDigestNode{parents: current.Dependencies, payload: sha256.Sum256(body)}
 	}
-	output = append(output, `],"domain":`...)
+	setHash.Write([]byte(`],"domain":"` + digestDomain + `","format_version":1}`))
+	bindings := make(map[migrations.MigrationKey]string, len(nodes))
+	for _, definition := range definitions {
+		key := definition.Key()
+		history, err := bindDefinitionHistory(key, nodes)
+		if err != nil {
+			return "", nil, err
+		}
+		bindings[key] = "sha256:" + hex.EncodeToString(history)
+	}
+	return "sha256:" + hex.EncodeToString(setHash.Sum(nil)), bindings, nil
+}
+
+func bindDefinitionHistory(key migrations.MigrationKey, nodes map[migrations.MigrationKey]*definitionDigestNode) ([]byte, error) {
+	node := nodes[key]
+	if node == nil || node.visiting {
+		return nil, fmt.Errorf("cannot bind unvalidated migration dependency %s.%s", key.App, key.Name)
+	}
+	if node.history != nil {
+		return node.history, nil
+	}
+	node.visiting = true
+	h := sha256.New()
+	h.Write([]byte(historyDigestDomain))
+	h.Write(node.payload[:])
+	for _, parent := range node.parents {
+		binding, err := bindDefinitionHistory(parent, nodes)
+		if err != nil {
+			return nil, err
+		}
+		h.Write(binding)
+	}
+	node.history = h.Sum(nil)
+	node.visiting = false
+	return node.history, nil
+}
+
+func appendCanonicalMigration(output []byte, current migrations.Migration) ([]byte, error) {
+	output = append(output, `{"app":`...)
 	var err error
-	output, err = appendCanonicalString(output, digestDomain)
+	output, err = appendCanonicalString(output, current.App)
 	if err != nil {
 		return nil, err
 	}
-	return append(output, `,"format_version":1}`...), nil
+	output = append(output, `,"dependencies":[`...)
+	for dependencyIndex, dependency := range current.Dependencies {
+		if dependencyIndex != 0 {
+			output = append(output, ',')
+		}
+		output = append(output, `{"app":`...)
+		output, err = appendCanonicalString(output, dependency.App)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `,"name":`...)
+		output, err = appendCanonicalString(output, dependency.Name)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, '}')
+	}
+	output = append(output, `],"name":`...)
+	output, err = appendCanonicalString(output, current.Name)
+	if err != nil {
+		return nil, err
+	}
+	output = append(output, `,"operations":[`...)
+	for operationIndex, operation := range current.Operations {
+		if operationIndex != 0 {
+			output = append(output, ',')
+		}
+		output, err = appendCanonicalOperation(output, operation)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return append(output, ']', '}'), nil
 }
 
 func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]byte, error) {

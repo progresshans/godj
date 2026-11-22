@@ -152,6 +152,10 @@ Definition은 실행 가능한 Python/Go plugin이 아니라 current data format
 게시하지 않는다. Canonical digest는 정규화된 의미를 식별하며 caller-owned 원문이나 runtime model을 execution authority로
 다시 사용하지 않는다. Codecs는 backend handle이나 credential을 포함하지 않는다.
 
+각 source inventory 항목의 `HistoryDigest`는 해당 migration의 정규화한 본문과 직접 의존하는 migration들의 이력 해시를 묶는다.
+따라서 선행 정의를 수정하면 후손의 해시도 바뀌고, 후속 migration과 무관한 앱을 추가하면 기존 값은 유지된다.
+현재 DB recorder가 저장하는 값은 앱과 migration 이름이다. 데이터 작업을 역적용할 때 적용 당시의 해시를 대조하려면 같은 트랜잭션에 저장하는 기능이 필요하다.
+
 Loader가 정의·source inventory를 복사하고 검증된 immutable graph를 한 번 게시한다. 내부 lifecycle과 SQL projection은
 이를 빌려 읽으며 매번 전체 정의를 복사하거나 같은 graph를 재구축하지 않는다. `Digest`는 저장된 문자열을 반환하고,
 `Sources`와 `Definitions`는 각각 요청한 mutable view만 복사한다. 외부 raw reconstructor 입력은 별도 검증·복사 경계다.

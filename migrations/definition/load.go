@@ -126,16 +126,18 @@ func loadWithPlanner(sources []Source, build plannerBuilder) (migrations.LoadedD
 		return migrations.LoadedDefinitionSet{}, withFailure(report, failure.context), err
 	}
 
-	digest, err := definitionSetDigest(definitions)
+	digest, histories, err := definitionDigests(definitions)
 	if err != nil {
 		return migrations.LoadedDefinitionSet{}, report, err
 	}
 	inventory := make([]SourceInfo, len(decoded))
 	for index := range decoded {
+		key := decoded[index].migration.Key()
 		inventory[index] = SourceInfo{
-			SourceID:  decoded[index].source.sourceID,
-			Producer:  decoded[index].producer,
-			Migration: decoded[index].migration.Key(),
+			SourceID:      decoded[index].source.sourceID,
+			Producer:      decoded[index].producer,
+			Migration:     key,
+			HistoryDigest: histories[key],
 		}
 	}
 	sort.Slice(inventory, func(left, right int) bool {
