@@ -37,6 +37,12 @@ Django 6.1·Python 3.14.3·SQLite 3.50.4에서 비교 앱을 실행해 15개 관
 
 고정 비교기를 다시 실행해 MIG-128의 runner 인자와 버전 두 값만 달라진 것을 확인했다. 재생성한 원본과 체크섬 목록을 읽는 Go 검사의 바이트 고정값도 대조했다. [Go 원본 검사](../../conformance/internal/protocol/artifact_catalog_test.go) · [대상 계획 원본](../../conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json)
 
+### 데이터 함수의 외부 프로젝트와 Python 비교
+
+PR #11의 `f0518ff7`과 실행 `45041391026`의 checkout `8a9c79fb`는 같은 Git tree `17279a5ab5ebf019a3861c6fba3b3b4950f5ae00`다. SQLite·PostgreSQL 공개 명령은 외부 프로젝트의 역사 행 갱신이 가져오는 공개 `orm` 패키지를 파일 검사에서 거부해 명령 실행 전에 멈췄다. 이 함수는 `orm.Record`와 `query.String`을 사용한다. 해당 프로젝트가 직접 쓰는 공개 패키지 10개를 허용 목록과 대조했다. PostgreSQL 출력 ZIP의 SHA-256은 `d50deaf1f9f7aba5f255ba63b6eccd4b8f29f7564e663d4dda77b724276cf7ce`다. [SQLite 작업 로그](https://github.com/progresshans/godj/actions/runs/45041391026/job/137266535297) · [PostgreSQL 원본](https://github.com/progresshans/godj/actions/runs/45041391026/artifacts/14762385717)
+
+같은 소스의 Python 3.14.3 suite는 409건과 별도 환경 담당 skip 4건을 기록했다. 뒤이어 프로토콜 v2의 전체 해시를 v3 관측과 대조하는 단계가 실패했다. 로그와 다운로드한 ZIP의 SHA-256 `4405e7df6a70e31a8aca3c17e68fe0e3d81b58c3785a0838324f6c4c2985fe69`을 확인했다. 이전 원본에서 종전 SHA-256 `947bdffddf0cdd9c102e37a496346ec3e614e084254b17a0dd1ed7b782801685`를 재구성했다. 로컬 Python 3.14.3·Django 6.1·DRF 3.18.0에서 311개 시나리오의 실제 결과를 개별 원본과 대조했다. v3 결과는 1,082,354바이트, SHA-256 `164cfcdf3a85ef3d186685380ff5c2f7e9749279a2f5c5eb0852103485d00f86`로 실패 로그에 기록된 실제 값과 일치했다. CI는 이 항목별 비교를 사용한다. 누락·타입 변경·중복·원본 훼손 거부도 로컬에서 확인했다. 수정 후 Go 명령과 네 Python 환경의 수용은 원격 실행으로 추적한다. [Python 작업](https://github.com/progresshans/godj/actions/runs/45041391026/job/137266535201) · [원본](https://github.com/progresshans/godj/actions/runs/45041391026/artifacts/14762951235) · [비교 대조군](../../scripts/ci/test_python_semantics.py)
+
 ## M1 적용한 migration의 정의 대조
 
 PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조를 추가했다. 새 형식은 nullable 변경과 기본값이 있는 필드 추가·제거의 적용 트랜잭션에 migration별 선행 정의 해시를 저장한다. 일반 이력 조회는 앱·이름을 반환하고, 실행기는 revision으로 보호되는 세션에서 해시까지 읽는다. [실행기](../../migrations/lifecycle.go) · [이력 해시](../../db/internal/migrationhistory/history.go) · [M1 PR](https://github.com/progresshans/godj/pull/9)
