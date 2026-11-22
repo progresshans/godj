@@ -23,6 +23,12 @@ PR #9의 `38b4c819`와 원격 checkout `3a1d55c0`의 트리 `a21eb2e2`가 같다
 
 이력 표가 두 열에서 세 열로 바뀐 뒤 테스트 관측기가 같은 PostgreSQL 연결에서 캐시된 `SELECT *`를 다시 실행했다. 로컬 PostgreSQL 17.5에서 별도 쓰기 연결과 libpq로 오류를 재현했다. 관측 연결에서 쿼리를 다시 describe하면 기존 행의 NULL과 새 행의 32바이트 digest를 포함한 세 열이 모두 반환됐다. 테스트의 전체 열 조회가 매번 현재 형식을 읽도록 수정하고 독립된 관측 연결을 전환 전후에 유지한다. 제품 이력 리더는 이미 형식별 열을 명시한다. 수정한 Go 검사의 수용은 새 소스의 원격 실행에서 확인한다. [관측기](../../internal/migrationdefaulttest/defaults.go) · [형식 전환 검사](../../internal/migrationdefaulttest/history.go) · [제품 이력 리더](../../db/postgres/migration_history.go)
 
+### PostgreSQL 동시 세션의 정의 해시
+
+제품 커밋 `79f0f496`의 PostgreSQL 17.10 race에서 기존 이력 재개 사례를 포함한 필드·이력 검사 10개와 해당 작업의 필수 514개가 통과했다. 별도 race·CGO0 작업의 동시 세션 두 사례는 경합과 stale 검사를 실행하기 전 이력 비교에서 멈췄다. 일반 조회는 앱과 이름을 반환하고 revision으로 보호된 세션은 `blog.0002_fields`의 정의 해시도 반환한다. 테스트가 일반 조회의 기대값을 양쪽에 사용했다. 제출 소스와 같은 트리의 checkout, 업로드 로그와 두 원본 ZIP의 SHA-256을 대조했다. [필드·이력 통과 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761700064) · [동시 세션 race 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761557714) · [CGO0 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761388669)
+
+세션 검사 4곳은 로더가 정의와 선행 migration에서 계산한 해시까지 비교한다. 세션 밖 조회는 전체 목록의 앱·이름과 빈 해시를 계속 비교한다. fixture의 세 migration을 Python으로 독립 계산한 SHA-256은 `12538cd155a9dcb7b57e06495ba67d8a41663732db9b3670e2056edc7b70c635`로 양쪽 원본의 값과 일치했다. 수정 소스에서는 세 모드 각각에서 경합과 stale의 실제 자식 테스트 종료를 요구한다. [PostgreSQL 검사](../../db/postgres/migration_integration_test.go) · [필수 목록](../../scripts/ci/postgres-core-required.txt)
+
 ## M1 채운 열의 필수·고유 전환
 
 `71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 이 제품 커밋의 필수 실행은 필드 종류별 `blank` 사례를 포함해 각 DB에 7건이었다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
