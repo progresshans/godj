@@ -23,6 +23,12 @@ PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조�
 
 같은 소스의 Linux ARM64 normal relation 원본 47,134개 이벤트에서 SQLite 필드·이력 사례 10개가 통과했다. 기존 파일 재시작 검사 세 개가 이력 형식 2를 읽고 형식 1 기대값에서 실패했고, 한 실행기 검사가 정의 이력 capability를 누락한 테스트 백엔드를 사용했다. 재시작 검사는 저장 열의 실제 타입·길이·내용을 읽고, 기본값을 둔 `blog.0002_article_title`과 두 선행 정의에서 독립 계산한 해시 `630e820de068dddadb30a7be4b332a02051a465e782aeb2c489dafa475518066`를 대조하도록 수정했다. 전체 이력, 블로그 역적용 뒤 이력, 재적용·후속 행 추가의 지문도 각각 고정했다. 실행기 검사는 기존 공용 capability fixture를 사용한다. 수정 후 Go 검증은 해당 소스의 원격 실행에서 확인한다. [실패 작업](https://github.com/progresshans/godj/actions/runs/45031091571/job/137234825780) · [원본 ZIP `65016d86`](https://github.com/progresshans/godj/actions/runs/45031091571/artifacts/14758763014)
 
+### PostgreSQL 이력 형식 전환 관측
+
+PR #9의 `38b4c819`와 원격 checkout `3a1d55c0`의 트리 `a21eb2e2`가 같다. PostgreSQL 17.10 race에서 필드·이력 필수 사례 10개 중 9개가 통과했고 `legacy_definition_history`가 SQLSTATE `0A000`으로 실패했다. 작업 로그와 원본 ZIP의 SHA-256 `013eaa3b6c7f9d646a9e7e4ede032a16320baaedac574550d22d740e08791c45`을 대조했다. [원격 작업](https://github.com/progresshans/godj/actions/runs/45034340427/job/137245394968) · [Go 이벤트 원본](https://github.com/progresshans/godj/actions/runs/45034340427/artifacts/14759752809)
+
+이력 표가 두 열에서 세 열로 바뀐 뒤 테스트 관측기가 같은 PostgreSQL 연결에서 캐시된 `SELECT *`를 다시 실행했다. 로컬 PostgreSQL 17.5에서 별도 쓰기 연결과 libpq로 오류를 재현했다. 관측 연결에서 쿼리를 다시 describe하면 기존 행의 NULL과 새 행의 32바이트 digest를 포함한 세 열이 모두 반환됐다. 테스트의 전체 열 조회가 매번 현재 형식을 읽도록 수정하고 독립된 관측 연결을 전환 전후에 유지한다. 제품 이력 리더는 이미 형식별 열을 명시한다. 수정한 Go 검사의 수용은 새 소스의 원격 실행에서 확인한다. [관측기](../../internal/migrationdefaulttest/defaults.go) · [형식 전환 검사](../../internal/migrationdefaulttest/history.go) · [제품 이력 리더](../../db/postgres/migration_history.go)
+
 ## M1 채운 열의 필수·고유 전환
 
 `71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 이 제품 커밋의 필수 실행은 필드 종류별 `blank` 사례를 포함해 각 DB에 7건이었다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
