@@ -11,6 +11,8 @@ PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조�
 
 로컬 SQLite 3.50.4의 트랜잭션에서 이력 열을 추가한 뒤 기존 행의 SQL NULL과 롤백 후 원래 두 열을 확인했다. 이 버전은 빈 BLOB을 `substr`로 자르면 SQL NULL을 반환한다. recorder는 값의 저장 타입과 길이를 먼저 검사해 빈 BLOB과 이전 이력의 NULL을 구별한다. 별도 Python 계산으로 기존 형식, 서로 다른 행에 같은 해시를 붙인 경우, 해시 값을 바꾼 경우의 SHA-256 고정값을 산출했다. CI 도구의 Python 테스트 119개가 로컬에서 통과했다. 각 DB의 필수 사례는 기존 7개와 이력 검사 3개이며 PostgreSQL normal·cgo0·race에서 각 사례의 실행 담당이 하나인지 확인했다. [고정값 검사](../../db/internal/migrationhistory/history_test.go)
 
+제품 소스 `85e4e3ae`의 PR 실행은 동일 트리 `5dc4e7c8`를 검사했다. Portable integration의 normal·cgo0에서 Article의 첫 적용, 두 번째 적용, 빈 계획까지 실행한 다음 마지막 이력 비교가 실패했다. 이 비교는 여전히 모든 해시가 비어 있다고 기대했다. 두 계정 migration의 JSON과 선행 관계로 독립 계산한 SHA-256은 각각 `20709649efac31941b23ac45cb246933ef40b9150c92f7233bcefcb56b49cdec`, `9a64814a89c5562a96ea9f07bfeacb61a92e7d8056d5438a41f6239702edb630`으로 원격이 읽은 값과 같았다. 예제의 기대값에 두 해시를 고정했다. 수정 후 실행은 새 제품 소스에서 확인한다. [normal 실패](https://github.com/progresshans/godj/actions/runs/45028941401/job/137229937954) · [cgo0 실패](https://github.com/progresshans/godj/actions/runs/45028941401/job/137229937923)
+
 ## M1 채운 열의 필수·고유 전환
 
 `71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 이 제품 커밋의 필수 실행은 필드 종류별 `blank` 사례를 포함해 각 DB에 7건이었다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
