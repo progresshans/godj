@@ -225,7 +225,7 @@ func sqliteRelationOperationNeedsRemake(operation migrationbackend.MigrationOper
 	}
 	if operation.Kind == migrationbackend.MigrationAlterField {
 		before, after, _, err := migrationbackend.ChangedField(operation.Before, operation.After)
-		return err == nil && sqliteForeignKeyDeferred(before) != sqliteForeignKeyDeferred(after)
+		return err == nil && (before.Nullable != after.Nullable || sqliteForeignKeyDeferred(before) != sqliteForeignKeyDeferred(after))
 	}
 	return false
 }
@@ -414,9 +414,9 @@ func executeSQLiteRelationRemake(
 func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, error) {
 	columns := make([]string, len(plan.after.Fields))
 	expressions := make([]string, len(columns))
-	retained := make(map[string]bool, len(plan.before.Fields))
+	wasNullable := make(map[string]bool, len(plan.before.Fields))
 	for _, field := range plan.before.Fields {
-		retained[field.Column] = true
+		wasNullable[field.Column] = field.Nullable
 	}
 	for index := range plan.after.Fields {
 		field := plan.after.Fields[index]
@@ -426,10 +426,19 @@ func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, err
 		}
 		columns[index] = quoted
 		expressions[index] = quoted
-		if !retained[field.Column] {
+		nullable, exists := wasNullable[field.Column]
+		if !exists {
 			expressions[index], err = compileSQLiteMigrationDefault(field)
 			if err != nil {
 				return "", fmt.Errorf("compile new-column backfill: %w", err)
+			}
+		} else if nullable && !field.Nullable {
+			literal, err := sqliteTighteningFill(field)
+			if err != nil {
+				return "", fmt.Errorf("compile nullability backfill: %w", err)
+			}
+			if literal != "" {
+				expressions[index] = "COALESCE(" + quoted + ", " + literal + ")"
 			}
 		}
 	}
@@ -440,6 +449,25 @@ func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, err
 	return `INSERT INTO ` + qualifiedSQLiteRelationMain(plan.temporary) +
 		` (` + strings.Join(columns, ", ") + `) SELECT ` + strings.Join(expressions, ", ") +
 		` FROM ` + qualifiedSQLiteRelationMain(plan.before.DBTable) + ` ORDER BY ` + primaryKey, nil
+}
+
+// Django's SQLite table remake uses the effective default for each old NULL.
+// A blank string/binary field has an empty storage value even without an
+// application default. All other omitted defaults leave the constraint to
+// reject existing NULLs. No persistent database default is installed.
+func sqliteTighteningFill(field ir.Field) (string, error) {
+	if field.Default != nil {
+		return compileSQLiteMigrationDefault(field)
+	}
+	if field.Blank {
+		switch field.Kind {
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText, ir.FieldFile, ir.FieldImage:
+			return "''", nil
+		case ir.FieldBinary:
+			return "X''", nil
+		}
+	}
+	return "", nil
 }
 
 // The projection contains operation bodies, just like other sqlmigrate output.

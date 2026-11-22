@@ -17,6 +17,9 @@ type MigrationCapabilities struct {
 	AlterFieldInputPolicy      bool
 	AlterFieldDecimalPrecision bool
 	AlterFieldRelation         bool
+	// AlterFieldNullability covers tightening or relaxing a column and applying
+	// its explicit scalar default to existing NULLs when tightening.
+	AlterFieldNullability bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool

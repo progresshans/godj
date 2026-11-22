@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/schema/ir"
 )
 
 // MigrationSQLConfig is the complete immutable PostgreSQL SQL projection
@@ -102,23 +101,9 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if deltaErr != nil {
 				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
 			}
-			groups[index], err = compilePostgresFieldIndexes(renderer.schema, operation.After, before, field)
+			groups[index], err = compilePostgresFieldAlter(renderer.schema, operation.After, before, field, kind)
 			if err != nil {
 				return nil, err
-			}
-			if postgresForeignKeyDeferred(before) != postgresForeignKeyDeferred(field) {
-				statement, err = compilePostgresForeignKeyTimingAlter(renderer.schema, operation.After, field)
-				if err != nil {
-					return nil, err
-				}
-				groups[index] = append(groups[index], statement)
-			}
-			if kind == ir.ChangeDecimalPrecision {
-				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
-				if err != nil {
-					return nil, err
-				}
-				groups[index] = append(groups[index], statement)
 			}
 			continue
 		case migrationbackend.MigrationCreateModel:

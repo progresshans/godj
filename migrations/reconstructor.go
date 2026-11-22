@@ -345,6 +345,7 @@ const (
 	loadedRequiresAutomaticManyToMany
 	loadedRequiresColumnIndexes
 	loadedRequiresAlterFieldInputPolicy
+	loadedRequiresAlterFieldNullability
 )
 
 const (
@@ -1605,6 +1606,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			if change == ir.ChangeRelation {
 				requirements |= loadedRequiresAlterFieldRelation
+			}
+			if change == ir.ChangeNullability {
+				requirements |= loadedRequiresAlterFieldNullability
 			}
 			if alteration.Before.Unique != alteration.After.Unique {
 				requirements |= loadedRequiresUniqueConstraints

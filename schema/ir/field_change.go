@@ -14,12 +14,14 @@ const (
 	ChangeIndex
 	ChangeEditable
 	ChangeBinaryLength
+	ChangeNullability
 )
 
-// ClassifyFieldChange requires a real change to exactly one supported facet.
+// ClassifyFieldChange identifies the schema editor transition for a field.
 // Relation changes may change cardinality, reverse namespace, delete policy and
-// the associated uniqueness together, while preserving the FK target.
-// Identity, default, nullability and every other facet stay identical.
+// the associated uniqueness together. A nullability change may also change the
+// unique constraint and the declared scalar default used to fill existing NULLs.
+// Both transitions preserve the column, storage type and FK target.
 // The arguments and their nested metadata remain owned by their callers.
 func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	for _, field := range []Field{before, after} {
@@ -90,6 +92,21 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	if !before.PrimaryKey && previous.Equal(next) {
 		return ChangeUnique, nil
 	}
+	if before.Nullable != after.Nullable && !before.PrimaryKey && !after.PrimaryKey {
+		previous = before
+		previous.Nullable = after.Nullable
+		previous.Unique = after.Unique
+		previous.Default = after.Default
+		if previous.Equal(after) {
+			if err := validateField(before, "before"); err != nil {
+				return 0, err
+			}
+			if err := validateField(after, "after"); err != nil {
+				return 0, err
+			}
+			return ChangeNullability, nil
+		}
+	}
 	if before.Kind == FieldForeignKey && after.Kind == FieldForeignKey &&
 		before.Relation != nil && after.Relation != nil &&
 		before.Relation.Cardinality.SingleValued() && after.Relation.Cardinality.SingleValued() &&
@@ -112,7 +129,7 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy, Decimal precision, blank/editable policy, Binary input length, column indexing or bounded string input semantics changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, nullability with optional scalar default and uniqueness changes, relation cardinality/reverse namespace/delete policy, Decimal precision, blank/editable policy, Binary input length, column indexing or bounded string input semantics changes")
 }
 
 func boundedStringKind(kind FieldKind) bool {

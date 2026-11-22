@@ -44,6 +44,12 @@ TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경
 Default 없는 required 추가는 빈 테이블을 요구한다. Legacy SQLite DirectExecutor는 기존 empty-table 제한을 유지한다.
 PK·FK 기본값, callable default와 임의 data migration은 별도 범위다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
 
+채운 테이블의 `AlterField`는 같은 열의 NULL 허용 여부를 양방향으로 바꾸며, 고유성과 선언한 상수 기본값도 함께 변경할 수 있다.
+필수 열로 바꿀 때 기본값은 기존 NULL에만 적용한다. 최종 열에는 DB 기본값이 없으며, 되돌릴 때 이미 채운 행의 값은 보존한다.
+명시적 기본값 없이 NULL이 남으면 필수 제약에서 실패한다. 고정 Django의 SQLite schema editor와 같이 `blank=True`인 문자열·바이너리 열은 이때 각각 빈 문자열·빈 바이트로 채운다.
+PostgreSQL은 같은 입력의 기존 NULL을 거부한다. 중복값이나 NULL로 실패하면 해당 migration의 행·제약·기록·revision이 함께 롤백된다.
+SQLite는 인덱스와 키 할당 상태를 보존하는 테이블 재생성을 사용한다. PostgreSQL은 잠긴 테이블에서 제약 변경과 값 갱신을 실행한다.
+
 Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Email, URL, Slug, File, Image, Text, Date, DateTime, Time, Duration, Float, Decimal, Binary, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
@@ -96,7 +102,7 @@ SQLite BLOB numeric order key와 PostgreSQL NUMERIC(p,s)는 초과 scale을 반�
 Typed/dynamic comparison·IN·F·projection·Min/Max와 generated root/eager scan, historical create/add/remove를 연결했다.
 Form/Admin의 원문 precision 검증과 Helpdesk 예상 비용의 fixed-scale JSON/OpenAPI·독립 client까지 연결했다.
 Precision-only AlterField는 기존 값을 변경 전후 범위로 검사하고, SQLite에서는 metadata만, PostgreSQL에서는 NUMERIC typmod를 변경한다.
-Reverse의 범위 초과는 값을 반올림하지 않고 실패한다. SQLite의 Django NUMERIC 물리 형식 채택·unbounded NUMERIC·일반 type/default/nullability 변경은 미지원이다.
+Reverse의 범위 초과는 값을 반올림하지 않고 실패한다. SQLite의 Django NUMERIC 물리 형식 채택·unbounded NUMERIC·일반 타입 변경과 독립적인 기본값 변경은 미지원이다.
 [정확한 값·물리 저장 경계](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 UUID는 모든 128-bit pattern의 복사 가능한 값과 별도 NULL을 사용한다. SQLite CHAR(32)의 canonical lowercase hex TEXT와 PostgreSQL native UUID를 연결했다.
 Typed/dynamic comparison·IN/F·projection·Min/Max·forward 및 현재 reverse exact scalar, historical create/nullable add와 reverse를 지원한다.

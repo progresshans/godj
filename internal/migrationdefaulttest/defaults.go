@@ -50,7 +50,7 @@ type scalarCase struct {
 	value query.Value
 }
 
-//go:embed testdata/defaults-django61-*.json
+//go:embed testdata/defaults-django61-*.json testdata/blank-tightening-django61.json
 var references embed.FS
 
 func assertReference(t *testing.T, fixture Fixture, name string, actual map[string]any) {
@@ -148,8 +148,13 @@ func definitions(t *testing.T, field schema.Field) (migrations.LoadedDefinitionS
 		migrations.CreateModel{AppLabel: normalized.AppLabel, Model: parent}, migrations.CreateModel{AppLabel: normalized.AppLabel, Model: child},
 	}}
 	addition := migrations.Migration{App: normalized.AppLabel, Name: "0002_default", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{migrations.AddField{AppLabel: normalized.AppLabel, ModelName: "parent", Field: added}}}
+	return loadChanges(t, initial, addition), initial.Key(), addition.Key()
+}
+
+func loadChanges(t *testing.T, changes ...migrations.Migration) migrations.LoadedDefinitionSet {
+	t.Helper()
 	sources := []definition.Source{}
-	for _, migration := range []migrations.Migration{initial, addition} {
+	for _, migration := range changes {
 		encoded, err := definition.Encode(definition.Producer{Name: "default-fixture", Version: "1"}, migration)
 		if err != nil {
 			t.Fatal(err)
@@ -160,7 +165,7 @@ func definitions(t *testing.T, field schema.Field) (migrations.LoadedDefinitionS
 	if err != nil {
 		t.Fatal(err)
 	}
-	return loaded, initial.Key(), addition.Key()
+	return loaded
 }
 
 func insert(t *testing.T, f Fixture, table string, assignments ...query.Assignment) int64 {

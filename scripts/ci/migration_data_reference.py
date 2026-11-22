@@ -12,6 +12,7 @@ from django_reference_database import private_database
 from project_reference import decode, digest, same
 
 ROOT = Path(__file__).resolve().parents[2]
+BLANK_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/blank-tightening-django61.json"
 VARIABLE = "GODJ_MIGRATION_DATA_REFERENCE_DATABASE"
 PHASES = {
     "base", "forward_plan", "forward_error", "after_failure", "contracted", "retry_calls",
@@ -43,6 +44,8 @@ def capture(env, directory, vendor, version):
     if (report["input_sha256"] != input_digests()
             or report["django_commit"] != profile["fingerprint"]["django_commit"]):
         raise ValueError(f"{vendor} migration capture does not match the current sources")
+    if not same(report.get("blank_tightening"), decode(BLANK_REFERENCE.read_bytes())[vendor]):
+        raise ValueError(f"{vendor} blank field tightening differs from the native contract")
     filename = f"django61-{vendor}.json"
     (directory / filename).write_bytes(result.stdout)
     return report, {"file": filename, "sha256": hashlib.sha256(result.stdout).hexdigest()}

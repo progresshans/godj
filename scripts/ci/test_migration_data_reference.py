@@ -19,6 +19,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
             "observations": dict.fromkeys(runner.PHASES, {"rows": 1}), "command_output": dict.fromkeys(("forward", "reverse", "barrier"), {}),
             "input_sha256": runner.input_digests(), "django_commit": fingerprint["django_commit"],
             "upstream_sha256": {"module": "ab" * 32},
+            "blank_tightening": json.loads(runner.BLANK_REFERENCE.read_text())["sqlite"],
         }
 
     def capture(self, directory, report):
@@ -39,6 +40,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
                 ("input_sha256", {"migration_data_reference.py": "ff" * 32}),
                 ("observations", {k: v for k, v in self.report["observations"].items() if k != "first_reverse"}),
                 ("command_output", {"forward": {}, "reverse": {}}),
+                ("blank_tightening", json.loads(runner.BLANK_REFERENCE.read_text())["postgresql"]),
             ):
                 with self.subTest(field=field), self.assertRaises(ValueError):
                     self.capture(directory, self.report | {field: replacement})

@@ -20,12 +20,15 @@ from django.db import IntegrityError, connection, connections, transaction
 from django.db.migrations.exceptions import IrreversibleError
 
 from .migration_data_fixture import callbacks
+from .migration_data_fixture.field_contract import observe_blank_tightening
 
 APP = "migration_data_fixture"
 MIGRATIONS = ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze", "0006_tail"]
 FIRST, EXPAND, BACKFILL, CONTRACT, FREEZE, TAIL = MIGRATIONS
 UPSTREAM = "fe0a859f537d4238cf49fca39073513206f83122"
 SOURCE_SHA256 = {
+    "db/backends/base/schema.py": "9dc62b1585e378fdd490e66b0dac7b87cd7bf323f8a2fee392d2b48368bc22fe",
+    "db/models/fields/__init__.py": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f",
     "db/backends/postgresql/schema.py": "78617b2c44c17f3404ebadd2db5148cb63d87e078dcc7798155b9cfb932099dc",
     "db/backends/sqlite3/schema.py": "85b1c0c726e9e38f4be1169aa146473d4116efc4f7094c9c936a468dd109e1bf",
     "db/migrations/executor.py": "a41c86b8bb744c3b70128ff1f321dd373d5acd96ca46cd3513adc44c975ca26a",
@@ -235,7 +238,8 @@ def observe():
             observations, commands = exercise()
             return {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                     "database_version": version, "django_commit": UPSTREAM, "upstream_sha256": SOURCE_SHA256,
-                    "input_sha256": sources, "observations": observations, "command_output": commands}
+                    "input_sha256": sources, "observations": observations, "command_output": commands,
+                    "blank_tightening": observe_blank_tightening()}
         finally:
             connections.close_all()
 

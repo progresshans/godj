@@ -34,7 +34,7 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 				return relationIntentIntegrity("AlterField lacks its exact sealed physical remake plan")
 			}
 			if err := executeSQLiteRelationRemake(ctx, executor, plan); err != nil {
-				return newSQLiteMigrationDDLExecutionError("alter SQLite foreign key timing by bounded remake", err)
+				return newSQLiteMigrationDDLExecutionError("alter SQLite field by bounded remake", err)
 			}
 		} else {
 			statements, err := compileSQLiteFieldIndexes(operation.After, wantBefore, wantAfter)

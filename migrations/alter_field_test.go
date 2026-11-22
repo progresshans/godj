@@ -11,6 +11,35 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+func TestNullabilityAndUniqueRequireIndependentCapabilitiesBeforeBegin(t *testing.T) {
+	s, err := schema.Build(schema.Definition{AppLabel: "tickets", Models: []schema.Model{{Name: "ticket", GoName: "Ticket", Fields: []schema.Field{schema.CharField("external_id", "ExternalID", 80, schema.Nullable())}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := s.Models[0].Fields[1]
+	after := before.Clone()
+	after.Nullable, after.Unique = false, true
+	initial := Migration{App: s.AppLabel, Name: "0001_initial", Operations: []Operation{CreateModel{AppLabel: s.AppLabel, Model: s.Models[0]}}}
+	change := Migration{App: s.AppLabel, Name: "0002_contract", Dependencies: []MigrationKey{initial.Key()}, Operations: []Operation{AlterField{AppLabel: s.AppLabel, ModelName: "ticket", Before: before, After: after}}}
+	loaded := testLoadedDefinitionSet(t, []Migration{initial, change})
+	for _, missing := range []string{"AlterFieldNullability", "UniqueConstraints"} {
+		for _, direction := range []Direction{DirectionForward, DirectionBackward} {
+			records, request := lifecycleRecords(initial.Key()), LatestLifecycleRequest()
+			if direction == DirectionBackward {
+				records, request = lifecycleRecords(initial.Key(), change.Key()), TargetedLifecycleRequest(NamedTarget(initial.Key()))
+			}
+			session := newLifecycleTestSession(records, nil)
+			fake := newLifecycleTestBackend(session)
+			fake.capabilities = backend.MigrationCapabilities{AlterFieldNullability: missing != "AlterFieldNullability", UniqueConstraints: missing != "UniqueConstraints"}
+			_, err := (Executor{Backend: fake}).Migrate(t.Context(), loaded, request)
+			var capability *backend.CapabilityError
+			if !errors.As(err, &capability) || !strings.Contains(capability.Detail, missing) || session.beginCount != 0 || fake.atomicBeginCount != 0 || session.closeCount != 1 {
+				t.Fatalf("%s, %s: missing capability reached a mutation or lost its diagnostic: %v", direction, missing, err)
+			}
+		}
+	}
+}
+
 func TestChoiceAlterFieldHistoricalForwardBackwardAndPreimage(t *testing.T) {
 	definition, err := schema.Build(schema.Definition{AppLabel: "choices", Models: []schema.Model{{Name: "entry", GoName: "Entry", Fields: []schema.Field{
 		schema.CharField("status", "Status", 12, schema.Default("open")),

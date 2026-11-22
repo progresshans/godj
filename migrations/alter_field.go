@@ -10,9 +10,8 @@ import (
 )
 
 // AlterField carries both historical values so forward and backward execution
-// reject stale metadata instead of guessing a previous definition. The current
-// operation supports choices, uniqueness, relation cardinality/reverse namespace
-// and exact Decimal precision changes, with separate backend capabilities.
+// reject stale metadata instead of guessing a previous definition. Schema IR
+// classifies the change and the lifecycle checks its backend capabilities.
 type AlterField struct {
 	AppLabel  string
 	ModelName string
