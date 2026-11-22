@@ -14,12 +14,11 @@ import re
 import subprocess
 
 from go_test_events import discover_roots, events, inspect
+from project_artifacts import COORDINATES, PYTHON, resolve, validated_producers
 from runserver_tests import PACKAGE, SPECIAL, plan, verify as verify_runserver
 
 ROOT = Path(__file__).resolve().parents[2]
 REFERENCES = ROOT / "conformance/runners/django"
-COORDINATES = tuple((system, arch, mode) for system in ("linux", "darwin")
-                    for arch in ("amd64", "arm64") for mode in ("normal", "race", "cgo0"))
 COMMAND_TEST = SPECIAL["scaffold"] + "/explicit_app_registration_and_existing_data"
 EVENT_TEST = "TestEventSynchronousReferenceBoundaries"
 SCAFFOLD_PACKAGE = "github.com/progresshans/godj/internal/projectscaffold"
@@ -243,12 +242,21 @@ def verify_native(directory, owner, coordinate, expected_source):
     return seal_hash
 
 
-def verify_all(directory, expected_source):
+def verify_all(directory, expected_source, selection, repository_id):
     directory = Path(directory)
-    attempt = expected_source["run_attempt"]
-    python_directory = directory / "python"
+    selected = validated_producers(selection, expected_source, repository_id)
+    names = {f"{stem}-{row['producer_attempt']}" for stem, row in selected.items()}
+    paths = list(directory.iterdir())
+    require({p.name for p in paths} == names and all(p.is_dir() and not p.is_symlink() for p in paths),
+            "unexpected or missing project evidence archives")
+
+    def producer_input(stem):
+        attempt = str(selected[stem]["producer_attempt"])
+        return directory / (stem + "-" + attempt), {**expected_source, "run_attempt": attempt}
+
+    python_directory, python_source = producer_input(PYTHON)
     python_seal = verify_seal(python_directory)
-    require(document(python_directory / "source.json") == {**expected_source, "python_version": "3.14.3"}, "Python evidence source/run differs")
+    require(document(python_directory / "source.json") == {**python_source, "python_version": "3.14.3"}, "Python evidence source/run differs")
     log = python_directory / "python-tests.txt"
     with log.open() as stream:
         completed = sum(bool(re.fullmatch(r"PYTHON_SUITE_VERIFIED tests=[1-9][0-9]* skips=[0-9]+\n?", line)) for line in stream)
@@ -261,10 +269,11 @@ def verify_all(directory, expected_source):
         observed[name] = found[0]
     outputs = []
     for coordinate in COORDINATES:
-        suffix = "-".join(coordinate) + "-" + attempt
-        baseline, reload = directory / "baseline" / ("project-check-" + suffix), directory / "reload" / ("project-reload-" + suffix)
-        seals = {"baseline": verify_native(baseline, "baseline", coordinate, expected_source),
-                 "reload": verify_native(reload, "reload", coordinate, expected_source)}
+        suffix = "-".join(coordinate)
+        baseline, baseline_source = producer_input("project-check-" + suffix)
+        reload, reload_source = producer_input("project-reload-" + suffix)
+        seals = {"baseline": verify_native(baseline, "baseline", coordinate, baseline_source),
+                 "reload": verify_native(reload, "reload", coordinate, reload_source)}
         consumers = {
             "notes": go_observation(reload / "runserver-reload-notes.json", SPECIAL["reload-notes"], "GODJ_DEVELOPMENT_OBSERVATION"),
             "article": go_observation(reload / "runserver-reload-article.json", SPECIAL["reload-article"], "GODJ_DEVELOPMENT_OBSERVATION"),
@@ -274,32 +283,40 @@ def verify_all(directory, expected_source):
         outputs.append({"coordinate": coordinate, "seals": seals,
                         "development": compare_development(observed["development"], consumers),
                         "events": compare_events(observed["event"], event_observation)})
-    for folder, prefix in (("baseline", "project-check-"), ("reload", "project-reload-")):
-        require({path.name for path in (directory / folder).iterdir()} ==
-                {prefix + "-".join(coordinate) + "-" + attempt for coordinate in COORDINATES}, "unexpected native artifact inventory")
-    return {"kind": "project-reference-comparison-v1", "source": expected_source, "python_seal": python_seal,
+    return {"kind": "project-reference-comparison-v2", "source": expected_source, "repository_id": repository_id,
+            "producers": selected, "python_seal": python_seal,
             "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("initialize-python", "seal", "verify"))
-    parser.add_argument("directory", type=Path)
+    parser.add_argument("action", choices=("initialize-python", "seal", "resolve", "verify"))
+    parser.add_argument("path", type=Path)
+    parser.add_argument("--selection", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     try:
         if args.action == "initialize-python":
-            args.directory.mkdir()
+            args.path.mkdir()
             source = {**source_identity(), "python_version": os.environ["EXPECTED_PYTHON"]}
-            (args.directory / "source.json").write_text(json.dumps(source, sort_keys=True) + "\n")
+            (args.path / "source.json").write_text(json.dumps(source, sort_keys=True) + "\n")
         elif args.action == "seal":
-            seal(args.directory)
+            seal(args.path)
+        elif args.action == "resolve":
+            selection = resolve(source_identity(), int(os.environ["GITHUB_REPOSITORY_ID"]))
+            with args.path.open("x") as output:
+                json.dump(selection, output, sort_keys=True)
+            ids = ",".join(str(row["artifact_id"]) for row in selection["producers"].values())
+            with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                print("artifact_ids=" + ids, file=output)
         else:
-            report = json.dumps(verify_all(args.directory, source_identity()), sort_keys=True) + "\n"
+            require(args.selection is not None, "verification requires the authorized project evidence selection")
+            result = verify_all(args.path, source_identity(), document(args.selection), int(os.environ["GITHUB_REPOSITORY_ID"]))
+            report = json.dumps(result, sort_keys=True) + "\n"
             if args.output:
                 args.output.write_text(report)
             print(report, end="")
-    except (KeyError, OSError, TypeError, ValueError) as error:
+    except (KeyError, OSError, TypeError, ValueError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + "\n")
 
 
