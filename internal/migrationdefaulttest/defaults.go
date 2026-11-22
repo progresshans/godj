@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
@@ -177,12 +178,24 @@ func insert(t *testing.T, f Fixture, table string, assignments ...query.Assignme
 	return id
 }
 
-func snapshot(t *testing.T, f Fixture, table string) []string {
+// A schema observation must describe all current columns even when the same
+// connection has already read this table before a migration changed its shape.
+func (f Fixture) tableRows(t *testing.T, table, orderBy string) *sql.Rows {
 	t.Helper()
-	rows, err := f.SQL.QueryContext(t.Context(), "SELECT * FROM "+f.table(table)+" ORDER BY 1")
+	var options []any
+	if !f.SQLite {
+		options = []any{pgx.QueryExecModeDescribeExec}
+	}
+	rows, err := f.SQL.QueryContext(t.Context(), "SELECT * FROM "+f.table(table)+" ORDER BY "+orderBy, options...)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return rows
+}
+
+func snapshot(t *testing.T, f Fixture, table string) []string {
+	t.Helper()
+	rows := f.tableRows(t, table, "1")
 	defer rows.Close()
 	columns, err := rows.Columns()
 	if err != nil {

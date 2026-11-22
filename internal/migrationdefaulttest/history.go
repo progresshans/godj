@@ -39,10 +39,7 @@ func (m fieldMigration) checkRecorder(t *testing.T, format int, binding []byte) 
 	if err := m.SQL.QueryRowContext(t.Context(), "SELECT format_version FROM "+m.table("godj_migration_revision")).Scan(&version); err != nil || version != format {
 		t.Fatalf("recorder version = %d, want %d: %v", version, format, err)
 	}
-	rows, err := m.SQL.QueryContext(t.Context(), "SELECT * FROM "+m.table("godj_migrations")+" ORDER BY app, name")
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows := m.tableRows(t, "godj_migrations", "app, name")
 	defer rows.Close()
 	wantColumns := []string{"app", "name"}
 	if format == 2 {
@@ -290,7 +287,11 @@ func checkLegacyDefinitionHistory(t *testing.T, open func() Fixture, constraint 
 		t.Fatal("no-op migrate stamped a legacy record or changed the database")
 	}
 	m.apply(t, m.initial)
-	m.checkRecorder(t, 1, nil)
+	// The observer keeps its own connection across the two- to three-column upgrade.
+	observer := m
+	observer.Fixture = open()
+	observer.SQL.SetMaxOpenConns(1)
+	observer.checkRecorder(t, 1, nil)
 	m.apply(t, m.change)
-	m.checkRecorder(t, 2, expectedHistoryDigest(t, m.loaded, m.change))
+	observer.checkRecorder(t, 2, expectedHistoryDigest(t, m.loaded, m.change))
 }
