@@ -98,7 +98,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/fixtures/godj-template-form-deviation-expected.json":                               {1472, "0f9b10539677c07aa18c058f0e78925b3388299be853506324325c2af11d2ff3"},
 		"conformance/fixtures/godj-template-form-not-implemented.json":                                  {1863, "b1e426264c53dc4885f70aa0f6d2f2231ade201da0fa9fd980d11400960cc1f5"},
 		"conformance/fixtures/godj-write-migration-not-implemented.json":                                {-1, "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "655a5c9ba53d5e15c0d3a0618a97501070650738d2d09b82f72db5189e7c8d17"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "378ed3276cbdc53386a18d4a8334cd173750b0f623c3d4143991b4b7750c9c7a"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json":                  {17711, "112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":                   {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json":              {12690, "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee"},

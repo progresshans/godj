@@ -22,16 +22,16 @@ type migrationSQLRenderingArtifactLock struct {
 
 var migrationSQLRenderingArtifactLocks = map[string]migrationSQLRenderingArtifactLock{
 	migrationSQLRenderingManifestArtifact: {
-		size:   7950,
-		sha256: "fb737465cabf955fced0e04f52d5d2a89b6c00a2646b3a4e339eae37d6f084b9",
+		size:   7955,
+		sha256: "73845988048fe1dd0ab8f6c19610a83711187b116fb94e604bdac5d294c676cf",
 	},
 	migrationSQLRenderingBaselineArtifact: {
 		size:   1727,
 		sha256: "217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144",
 	},
 	migrationSQLRenderingOracleArtifact: {
-		size:   47337,
-		sha256: "0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df",
+		size:   48851,
+		sha256: "102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3",
 	},
 }
 

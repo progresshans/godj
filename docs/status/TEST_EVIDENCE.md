@@ -9,7 +9,7 @@
 
 로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)
 
-CI 도구의 Python 검사 119개와 고정 원본 체크섬 24개가 통과했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
+CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만든 MIG-128·MIG-129 원본에 대해 공통 바이트 고정값 99개, SQL 전용 고정값 3개, 체크섬 목록 24개 및 별도로 잠근 14개 항목을 Python으로 파일과 대조했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
 
 ## M1 필드 이름 변경과 역사 데이터 대조
 
