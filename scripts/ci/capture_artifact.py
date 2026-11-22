@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import time
 
 
 CAPTURES = {
@@ -35,9 +36,22 @@ def identity():
     return result
 
 
+def github_read(*arguments):
+    for attempt in range(3):
+        try:
+            return subprocess.run(["gh", "api", *arguments], check=True, capture_output=True, timeout=90).stdout
+        except subprocess.TimeoutExpired:
+            if attempt == 2:
+                raise
+        except subprocess.CalledProcessError as error:
+            if attempt == 2 or not re.search(rb"\bHTTP (429|500|502|503|504)\b", error.stderr or b""):
+                raise
+        time.sleep(2 ** attempt)
+
+
 def github_records(path, key):
-    pages = json.loads(subprocess.check_output(
-        ['gh', 'api', path + '?per_page=100', '--paginate', '--slurp'], text=True))
+    separator = '&' if '?' in path else '?'
+    pages = json.loads(github_read(path + separator + 'per_page=100', '--paginate', '--slurp'))
     return [record for page in pages for record in page[key]]
 
 
@@ -139,7 +153,7 @@ def main():
             verify(args.directory, args.filename, run, args.producer_attempt)
         else:
             pack(args.directory, args.filename, run)
-    except (ValueError, TypeError, KeyError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, TypeError, KeyError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, f'Capture artifact rejected: {error}\n')
 
 
