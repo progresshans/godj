@@ -42,7 +42,7 @@ TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경
 기본값 AddField는 revision-fenced lifecycle과 자동 계획·SQL projection에 연결했다. Nullable 필드도 선언한 값을 기존 행에
 채우며 최종 DB default는 남기지 않는다. Scalar 저장 한도·unique 제약은 유지하고 실패 시 catalog·history·revision도 rollback한다.
 Default 없는 required 추가는 빈 테이블을 요구한다. Legacy SQLite DirectExecutor는 기존 empty-table 제한을 유지한다.
-PK·FK 기본값, callable default와 임의 data migration은 별도 범위다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
+PK·FK 기본값과 callable default는 후속 범위다. 등록한 Go 함수의 행 접근은 [적용 당시 모델의 데이터 변환](#적용-당시-모델의-데이터-변환)을 따른다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
 
 채운 테이블의 `AlterField`는 같은 열의 NULL 허용 여부를 양방향으로 바꾸며, 고유성과 선언한 상수 기본값도 함께 변경할 수 있다.
 필수 열로 바꿀 때 기본값은 기존 NULL에만 적용한다. 최종 열에는 DB 기본값이 없으며, 되돌릴 때 이미 채운 행의 값은 보존한다.
@@ -250,6 +250,14 @@ Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NUL
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
+
+## 적용 당시 모델의 데이터 변환
+
+프로젝트는 migration JSON의 `run_data`에 앱, 함수 이름, 양의 정수 버전, 정방향·역방향 동작과 접근할 모델을 선언한다. `migrations.NewDataRegistry`로 같은 키에 Go 함수를 등록하고 `project.Config.DataMigrations`에 전달한다. 각 방향은 함수 호출(`call`) 또는 명시적 무동작(`noop`)을 선택한다. 역함수를 제공할 수 없으면 `irreversible`로 기록한다. 선언한 호출에 함수가 빠지면 계획과 실행 모두 오류를 반환한다. [선언과 등록](../migrations/data.go) · [프로젝트 사용 예제](../examples/article/cmd/projectrunner/main_test.go)
+
+함수는 선행 migration과 같은 파일에서 앞서 실행한 연산으로 복원한 모델을 받는다. `models.Model(ctx, app, name)`으로 선언한 모델과 그 모델이 참조하는 관계 대상에 접근한다. `Get`은 키 하나를, `Page`는 마지막 키 다음의 행을 키 순서로 읽는다. `Update`는 키 하나의 지정 필드만 갱신하고 영향받은 행 수를 반환한다. 필드는 당시 모델의 논리 이름을 사용한다. 행·스키마·적용 기록은 같은 DB 연결과 트랜잭션에서 커밋된다. 함수가 반환되면 행 접근 권한은 끝난다. 함수에서 수행하는 외부 서비스 호출은 DB 롤백 범위를 벗어난다. [모델 복원](../migrations/data_scope.go) · [행 접근](../orm/record_set.go)
+
+함수의 의미를 바꿀 때는 새 버전과 새 migration을 선언하고 이전 버전의 함수를 보존한다. 저장한 해시는 선언된 버전·동작·모델과 선행 정의를 식별한다. Go 함수 본문의 버전 관리는 프로젝트가 맡는다. 역계획의 `irreversible_operation`은 해당 migration 안에서 역순으로 처음 만나는 비가역 연산의 0부터 시작하는 인덱스다. 실행은 그 migration을 시작하기 전에 종료하고, 앞에서 커밋한 역적용은 유지한다. SQL 미리보기는 Go 콜백 위치에 주석을 출력한다. [이력 해시](../migrations/definition/digest.go) · [실행기](../migrations/lifecycle.go)
 
 ## SQLite 경계
 

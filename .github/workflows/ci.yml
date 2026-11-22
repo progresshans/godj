@@ -1167,6 +1167,7 @@ jobs:
             "TestProjectLinkedTargetedMigrateSQLite/MIG-122_app_zero_DEV-0002_order"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-123_noop_and_known_zero_unknown"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only"
+            "TestProjectLinkedTargetedMigrateSQLite/historical_data_public_plan_and_execution"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset"

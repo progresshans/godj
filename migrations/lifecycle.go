@@ -200,6 +200,9 @@ func (e Executor) prepareLoadedLifecycle(
 		key := MigrationKey{App: record.App, Name: record.Name}
 		keys[index] = key
 		if record.HistoryDigest == "" {
+			if definition, exists := reconstructor.definitions[key]; exists && containsRunData(definition) {
+				return prepared, resultState, migrationError(CategoryHistory, CodeDefinitionHistoryMismatch, "", definition, NoOperation, "", errors.New("a data migration requires a binding recorded at apply time"))
+			}
 			continue
 		}
 		if sourceDigests[key] != record.HistoryDigest {
@@ -211,6 +214,11 @@ func (e Executor) prepareLoadedLifecycle(
 			boundHistory = make(map[MigrationKey]string)
 		}
 		boundHistory[key] = record.HistoryDigest
+	}
+	for _, definition := range definitions {
+		if err := e.Data.validate(definition); err != nil {
+			return prepared, resultState, err
+		}
 	}
 	applied, err := NewAppliedState(keys...)
 	if err != nil {
@@ -276,6 +284,12 @@ func (e Executor) prepareLoadedLifecycle(
 		migration := reconstructor.definitions[step.step.Key]
 		if step.step.Direction == DirectionBackward {
 			step.historyDigest = boundHistory[step.step.Key]
+			for index := len(migration.Operations) - 1; index >= 0; index-- {
+				if op, ok := migration.Operations[index].(RunData); ok && op.Reverse == DataIrreversible {
+					step.step.Irreversible, step.step.IrreversibleOperation = true, index
+					break
+				}
+			}
 		} else if needsDefinitionHistory(migration) {
 			step.historyDigest = sourceDigests[step.step.Key]
 			if _, err := backend.ParseDefinitionHistoryDigest(step.historyDigest); err != nil {
@@ -305,6 +319,8 @@ func (e Executor) prepareLoadedLifecycle(
 func needsDefinitionHistory(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch op := operation.(type) {
+		case RunData:
+			return true
 		case AlterField:
 			if op.Before.Nullable != op.After.Nullable {
 				return true
@@ -333,6 +349,10 @@ func (e Executor) executePreparedLifecycle(
 		if err := ctx.Err(); err != nil {
 			return working.Clone(), executionContextError(expected.step, err)
 		}
+		if expected.step.Irreversible {
+			migration := prepared.reconstructor.definitions[expected.step.Key]
+			return working.Clone(), migrationError(CategoryPlan, CodeIrreversibleData, DirectionBackward, migration, expected.step.IrreversibleOperation, "RunData", errors.New("data migration has no reverse action"))
+		}
 		materialized, materializeErr := prepared.reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
 		if materializeErr != nil {
 			return working.Clone(), materializeErr
@@ -356,6 +376,7 @@ func (e Executor) executePreparedLifecycle(
 			working,
 			materialized,
 			expected.historyDigest,
+			e.Data,
 		)
 		if err != nil {
 			return working.Clone(), err
@@ -458,6 +479,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresAlterFieldNullability, capabilities.AlterFieldNullability, "AlterFieldNullability"},
+		{loadedRequiresHistoricalData, capabilities.HistoricalData, "HistoricalData"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
 		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},
@@ -489,6 +511,7 @@ func executeLoadedFencedMigration(
 	before ProjectState,
 	materialized loadedMaterializedStep,
 	historyDigest string,
+	registry DataRegistry,
 ) (ProjectState, error) {
 	prepared := materialized.prepared
 	if err := ctx.Err(); err != nil {
@@ -536,6 +559,7 @@ func executeLoadedFencedMigration(
 		prepared.step.Direction,
 		materialized.execution,
 		transaction,
+		registry,
 	); primary != nil {
 		return before.Clone(), rollbackFenced(ctx, transaction, primary)
 	}
@@ -628,6 +652,7 @@ func executeLoadedMigrationBody(
 	direction Direction,
 	operations []loadedOperationView,
 	transaction migrationBodyTransaction,
+	registry DataRegistry,
 ) *Error {
 	step := PlanStep{Key: migration.Key(), Direction: direction}
 	for _, operation := range operations {
@@ -640,7 +665,9 @@ func executeLoadedMigrationBody(
 			return executionContextError(step, err)
 		}
 		var err error
-		if direction == DirectionForward {
+		if data, ok := operation.operation.(RunData); ok {
+			err = registry.execute(ctx, transaction, operation.index, data, direction)
+		} else if direction == DirectionForward {
 			err = operation.operation.databaseForward(ctx, transaction, from, to)
 		} else {
 			err = operation.operation.databaseBackward(ctx, transaction, from, to)

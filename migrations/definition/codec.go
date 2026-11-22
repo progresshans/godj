@@ -475,6 +475,9 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidOperation, sourceID, pointer, app, name, operationIndex, "invalid_operation")}
 	}
+	if kind, ok := value.member("kind"); ok && kind.kind == jsonString && kind.string == "run_data" {
+		return collectDataCandidates(value, sourceID, pointer, app, name, operationIndex)
+	}
 	commonFields := []string{"after", "app_label", "before", "before_field", "constraint", "field", "kind", "model", "model_name"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	kind, exists := value.member("kind")
@@ -1193,6 +1196,8 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		return nil, false
 	}
 	switch kind.string {
+	case "run_data":
+		return materializeData(value, migrationApp)
 	case "create_model":
 		modelValue, exists := value.member("model")
 		if !exists {

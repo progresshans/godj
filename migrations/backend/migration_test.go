@@ -23,6 +23,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AlterFieldRelation",
 		"AlterFieldNullability",
 		"DefinitionHistory",
+		"HistoricalData",
 		"UniqueConstraints",
 		"ColumnIndexes",
 		"ExplicitManyToMany",

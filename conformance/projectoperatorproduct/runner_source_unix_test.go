@@ -160,7 +160,7 @@ func main() {
   if err != nil { os.Exit(1) }; return
  }
  // Declaration/source reads are not migration or first-account attempts.
- if os.Getenv("GODJ_OPERATOR_PRODUCT_MARK_RUNNER") == "1" && len(os.Args) == 2 && os.Args[1] == "__godj_project_migrate_runner_v2" {
+ if os.Getenv("GODJ_OPERATOR_PRODUCT_MARK_RUNNER") == "1" && len(os.Args) == 2 && os.Args[1] == "__godj_project_migrate_runner_v3" {
   if err := appendMarker(); err != nil { fatal() }
  }
  selected, selectionErr := databaseconfig.FromEnvironment(os.LookupEnv)

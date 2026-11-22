@@ -27,6 +27,7 @@ type MigrationBackend interface {
 // OpenMigrationBackend is called only after the complete definition catalog
 // has loaded successfully.
 type MigrateConfig struct {
+	DataMigrations             migrations.DataRegistry
 	ProjectRoot                string
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
@@ -48,6 +49,7 @@ func RunMigrate(
 	sources := cloneDefinitionSources(config.MigrationDefinitionSources)
 	arguments := append([]string(nil), argv...)
 	owned := MigrateConfig{
+		DataMigrations:             config.DataMigrations,
 		ProjectRoot:                config.ProjectRoot,
 		MigrationDefinitionRoots:   roots,
 		MigrationDefinitionSources: sources,
@@ -151,7 +153,7 @@ func runMigrate(
 
 	report.RevisionLifecycleCalls++
 	report.GoDjDBCalls++
-	executor := migrations.Executor{Backend: opened}
+	executor := migrations.Executor{Backend: opened, Data: config.DataMigrations}
 	var lifecycleErr error
 	var success migrateprotocol.Result
 	switch request.Mode {
@@ -177,9 +179,10 @@ func runMigrate(
 					break
 				}
 				rows[index] = migrateprotocol.PlanRow{
-					App:       step.Key.App,
-					Name:      step.Key.Name,
-					Direction: direction,
+					App:          step.Key.App,
+					Name:         step.Key.Name,
+					Direction:    direction,
+					Irreversible: step.Irreversible, IrreversibleOperation: step.IrreversibleOperation,
 				}
 			}
 			if lifecycleErr == nil {

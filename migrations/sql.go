@@ -140,6 +140,10 @@ func RenderMigrationSQL(
 	intent := loadedBackendRelationIntent(materialized.intent)
 	rules := make([]migrationSQLGroupRule, len(intent.Operations))
 	for index, operation := range intent.Operations {
+		if operation.Kind == backend.MigrationRunData {
+			rules[index] = migrationSQLData
+			continue
+		}
 		if operation.Kind == backend.MigrationAlterManyToMany {
 			rules[index] = migrationSQLMetadataOnly
 			changes, err := operation.AutomaticStorageChanges(target.App)
@@ -201,6 +205,7 @@ const (
 	migrationSQLStatementRequired migrationSQLGroupRule = iota
 	migrationSQLMetadataOnly
 	migrationSQLBackendSpecific
+	migrationSQLData
 )
 
 func validateRenderedMigrationSQL(
@@ -246,6 +251,10 @@ func validateRenderedMigrationSQL(
 			return nil, executionContextError(step, err)
 		}
 		switch rules[index] {
+		case migrationSQLData:
+			if len(group) != 1 || group[0] != backend.RunDataSQLComment {
+				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+			}
 		case migrationSQLStatementRequired:
 			if len(group) == 0 {
 				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)

@@ -135,6 +135,8 @@ func appendCanonicalMigration(output []byte, current migrations.Migration) ([]by
 
 func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]byte, error) {
 	switch value := operation.(type) {
+	case migrations.RunData:
+		return appendCanonicalData(output, value)
 	case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 		return appendCanonicalManyOperation(output, operation)
 	case migrations.CreateModel:

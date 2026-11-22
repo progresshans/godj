@@ -37,7 +37,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
+		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
 				"current SQL projection supports forward model, field and named constraint changes",
@@ -67,6 +67,9 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		}
 		operation := seal.intent.Operations[index]
 		switch operation.Kind {
+		case migrationbackend.MigrationRunData:
+			groups[index] = []string{migrationbackend.RunDataSQLComment}
+			continue
 		case migrationbackend.MigrationAlterManyToMany:
 			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:

@@ -18,6 +18,10 @@ func cloneField(field ir.Field) ir.Field {
 // snapshots contain only recognized value forms.
 func operationValue(operation migrations.Operation) migrations.Operation {
 	switch value := operation.(type) {
+	case *migrations.RunData:
+		if value != nil {
+			return *value
+		}
 	case *migrations.AddManyToMany:
 		if value != nil {
 			return *value
@@ -64,6 +68,9 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 
 func cloneOperation(operation migrations.Operation) migrations.Operation {
 	switch value := operationValue(operation).(type) {
+	case migrations.RunData:
+		value.Models = append([]ir.ModelIdentity(nil), value.Models...)
+		return value
 	case migrations.AddManyToMany:
 		value.Field = value.Field.Clone()
 		return value

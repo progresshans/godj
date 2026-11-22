@@ -49,6 +49,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldBlank:                   true,
 		AlterFieldNullability:             true,
 		DefinitionHistory:                 true,
+		HistoricalData:                    true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -166,6 +167,9 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	seal, err := validateAndSealSQLiteRelationIntent(transition, intent)
 	if err != nil {
 		return nil, err
+	}
+	if err := migrationbackend.ValidateDataHistory(seal.intent, transition.Migration.HistoryDigest); err != nil {
+		return nil, relationIntentIntegrity("invalid data operation history: %v", err)
 	}
 
 	session.mu.Lock()
@@ -713,6 +717,8 @@ func validateSQLiteRelationIntent(
 		}
 		before, after := operation.Before, operation.After
 		switch operation.Kind {
+		case migrationbackend.MigrationRunData:
+			// ResolveMigrationGraphPlan validated the full row-access scope.
 		case migrationbackend.MigrationCreateModel:
 			if !reflect.DeepEqual(before, ir.Model{}) {
 				return relationIntentIntegrity("CreateModel has a non-zero Before model")
@@ -1502,6 +1508,13 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 	}
 	for index := range seal.intent.Operations {
 		operation := seal.intent.Operations[index]
+		if operation.Kind == migrationbackend.MigrationRunData {
+			for _, scoped := range operation.RelatedModels {
+				key := sqliteRelationIdentifierKey(scoped.Model.DBTable)
+				touched[key], relevant[key], mutationHazards[key] = struct{}{}, struct{}{}, struct{}{}
+			}
+			continue
+		}
 		model := operation.After
 		if reflect.DeepEqual(model, ir.Model{}) {
 			model = operation.Before

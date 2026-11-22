@@ -53,7 +53,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
+		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",
 				"current SQL projection supports forward model, field and named constraint changes",
@@ -84,6 +84,9 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		operation := prepared.intent.Operations[index]
 		var statement string
 		switch operation.Kind {
+		case migrationbackend.MigrationRunData:
+			groups[index] = []string{migrationbackend.RunDataSQLComment}
+			continue
 		case migrationbackend.MigrationAlterManyToMany:
 			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
 			if err != nil {

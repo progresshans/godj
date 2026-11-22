@@ -535,6 +535,23 @@ func (plan MigrationGraphPlan) Operation(position int) (RelationGraph, bool) {
 // is After; deletion/removal uses Before. A self target therefore refers to
 // that same exact boundary, not to a second snapshot with stale fields.
 func ResolveMigrationGraph(app string, operation MigrationOperation) (RelationGraph, error) {
+	if operation.Kind == MigrationRunData {
+		if !reflect.DeepEqual(operation.Before, ir.Model{}) || !reflect.DeepEqual(operation.After, ir.Model{}) || len(operation.Targets) != 0 {
+			return RelationGraph{}, fmt.Errorf("data migration cannot carry a schema delta")
+		}
+		if len(operation.RelatedModels) > migrationGraphMaxModels {
+			return RelationGraph{}, fmt.Errorf("data migration model scope exceeds its resource limit")
+		}
+		models := make(map[ir.ModelIdentity]ir.Model, len(operation.RelatedModels))
+		for i, model := range operation.RelatedModels {
+			key := model.Identity()
+			if i > 0 && !migrationModelIdentityLess(operation.RelatedModels[i-1].Identity(), key) {
+				return RelationGraph{}, fmt.Errorf("data migration models must have unique, ordered identities")
+			}
+			models[key] = model.Model
+		}
+		return migrationGraphBoundary(models)
+	}
 	source := operation.After
 	if operation.Kind == MigrationDeleteModel || operation.Kind == MigrationRemoveField || operation.Kind == MigrationAlterManyToMany && len(operation.Before.ManyToMany) > len(operation.After.ManyToMany) {
 		source = operation.Before

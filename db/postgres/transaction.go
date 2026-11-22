@@ -20,7 +20,7 @@ var _ db.SessionValidator = (*transactionSession)(nil)
 var _ db.Savepointer = (*transactionSession)(nil)
 
 type transactionSession struct {
-	transaction transactionHandle
+	transaction transactionExecutor
 	backend     *Backend
 	readOnly    bool
 	scope       *txscope.Scope
@@ -58,9 +58,13 @@ func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationS
 	return b.atomic(ctx, nil, func(session *transactionSession) error { return callback(session) })
 }
 
-type transactionHandle interface {
+type transactionExecutor interface {
 	cursorExecutor
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type transactionHandle interface {
+	transactionExecutor
 	Commit() error
 	Rollback() error
 }
@@ -128,7 +132,7 @@ func normalizeRollbackError(err error) error {
 	return fmt.Errorf("rollback PostgreSQL transaction: %w", err)
 }
 
-func newTransactionSession(ctx context.Context, transaction transactionHandle, backend *Backend) *transactionSession {
+func newTransactionSession(ctx context.Context, transaction transactionExecutor, backend *Backend) *transactionSession {
 	return &transactionSession{transaction: transaction, backend: backend, scope: txscope.New(ctx, func(ctx context.Context, statement string) error {
 		_, err := transaction.ExecContext(ctx, statement)
 		return classifyDatabaseError(ctx, "savepoint control", backend.schema, "", err)

@@ -18,6 +18,7 @@ const (
 	MigrationAddConstraint
 	MigrationRemoveConstraint
 	MigrationAlterManyToMany
+	MigrationRunData
 )
 
 // MigrationIntent carries a complete, ordered migration step. Scalar
@@ -35,7 +36,8 @@ type MigrationOperation struct {
 	Before         ir.Model
 	After          ir.Model
 	Targets        []MigrationTarget
-	// RelatedModels seals transitive vertices that are neither the source nor
+	// For RunData, RelatedModels is the entire historical row-access scope.
+	// For schema operations it seals transitive vertices that are neither the source nor
 	// a direct target. It is unique and ordered by app/model identity. Targets
 	// always contains every source FK in field order, including retained FKs.
 	RelatedModels []MigrationModel

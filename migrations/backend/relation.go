@@ -23,6 +23,9 @@ type MigrationCapabilities struct {
 	// DefinitionHistory binds a recorder write to the loaded migration and its
 	// declared ancestors in the same transaction as the migration body.
 	DefinitionHistory bool
+	// HistoricalData runs application code with row access to the operation's
+	// historical models on the same connection and transaction as its recorder.
+	HistoricalData bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
@@ -47,6 +50,7 @@ type MigrationModelChange = migrationgraph.ModelChange
 
 const (
 	MigrationAlterManyToMany  = migrationgraph.MigrationAlterManyToMany
+	MigrationRunData          = migrationgraph.MigrationRunData
 	MigrationCreateModel      = migrationgraph.MigrationCreateModel
 	MigrationDeleteModel      = migrationgraph.MigrationDeleteModel
 	MigrationAddField         = migrationgraph.MigrationAddField

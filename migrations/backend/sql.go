@@ -2,6 +2,10 @@ package backend
 
 import "context"
 
+// RunDataSQLComment occupies its original position among projected DDL.
+// Replaying the executable function requires the migration lifecycle.
+const RunDataSQLComment = "-- RunData has no SQL statements to display"
+
 // ForwardMigrationSQLRequest carries one complete, ordered forward migration
 // intent together with its loader-owned identity. Renderers must treat the
 // request as immutable. The result has exactly one statement group per

@@ -1,0 +1,50 @@
+package backend
+
+import (
+	"context"
+	"errors"
+
+	"github.com/progresshans/godj/migrations/internal/datascope"
+)
+
+// DataSession is borrowed from the enclosing migration transaction. A native
+// backend invalidates it and closes outstanding results before returning.
+type DataSession = datascope.Session
+
+// DataScope is the opaque native authority for the checked model inventory.
+type DataScope = datascope.Scope
+type DataCallback func(context.Context, DataScope) error
+
+// HistoricalDataTransaction consumes a RunData operation at its exact
+// logical position in the sealed migration intent.
+type HistoricalDataTransaction interface {
+	RunData(context.Context, int, DataCallback) error
+}
+
+// ValidateDataHistory requires a persisted definition identity before any
+// native data migration can begin. Pure SQL projection has no transition.
+func ValidateDataHistory(intent MigrationIntent, digest string) error {
+	for _, op := range intent.Operations {
+		if op.Kind == MigrationRunData {
+			_, err := ParseDefinitionHistoryDigest(digest)
+			return err
+		}
+	}
+	return nil
+}
+
+// InvokeDataCallback constructs the public model scope only after the backend
+// has verified the catalog and operation seal. Its owner controls the session
+// lifetime and the single commit for schema, data and recorder changes.
+func InvokeDataCallback(ctx context.Context, session DataSession, scope []MigrationModel, callback DataCallback) error {
+	if ctx == nil || session == nil || callback == nil {
+		return errors.New("invalid historical data callback or session")
+	}
+	if err := session.ValidateSession(ctx); err != nil {
+		return err
+	}
+	if err := callback(ctx, datascope.New(session, scope)); err != nil {
+		return err
+	}
+	return session.ValidateSession(ctx)
+}

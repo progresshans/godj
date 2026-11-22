@@ -50,6 +50,12 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 	}
 	for index, operation := range snapshot.Operations {
 		switch value := operation.(type) {
+		case migrations.RunData:
+			doc, err := dataOperationDocument(value)
+			if err != nil {
+				return nil, err
+			}
+			document.Migration.Operations[index] = doc
 		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			document.Migration.Operations[index] = manyOperationDocument(operation)
 		case migrations.CreateModel:
@@ -166,6 +172,10 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			doc := manyOperationDocument(operation)
 			if doc.AppLabel != migration.App || !validManyOperation(doc) {
 				return encodeFailure(path, "ManyToMany requires exact normalized declarations and an unchanged rename binding")
+			}
+		case migrations.RunData:
+			if _, err := value.Normalized(); err != nil || value.App() != migration.App {
+				return encodeFailure(path, "invalid data operation or app identity")
 			}
 		case migrations.CreateModel:
 			if value.AppLabel != migration.App {

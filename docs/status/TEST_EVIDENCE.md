@@ -3,6 +3,12 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## M1 역사 모델의 Go 데이터 작업
+
+GoDj에 역사 모델의 키 조회·페이지 읽기·지정 필드 갱신과 버전별 데이터 함수를 연결했다. SQLite·PostgreSQL에 두 사례를 각각 필수 실행으로 등록했다. 첫 사례는 세 번째 입력 오류 전에 같은 연결에서 앞선 두 쓰기를 읽고 재접속 뒤 행·이력·revision을 대조한다. 재시도, 필수·고유 제약, 명시적 무동작, 역함수와 같은 migration의 비가역 중단도 검사한다. 둘째는 한 migration에서 추가한 열의 정·역방향 가시성, 오류·취소·panic 뒤 열과 쓰기의 롤백, 콜백 수명과 선행 정의의 범위를 검사한다. 외부 프로젝트는 공개 `godj migrate`로 같은 행을 두 번 적용해 콜백 재실행 여부를 확인하고, `--plan`의 비가역 인덱스와 실제 종료 코드·DB 보존을 대조한다. 프로젝트 실행기에서는 등록 누락도 검사한다. [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 검사](../../internal/migrationdefaulttest/data.go) · [프로젝트 명령 검사](../../examples/article/cmd/projectrunner/main_test.go)
+
+로컬에서 독립 Python 계산으로 함수 키·버전·양방향·모델 루트를 포함한 정의의 이력 SHA-256 `164244875a7b2d6939c034141bb2d0088657e68b1a67da5736626b28a6a0fa67`을 얻었다. 고정 Django의 target-plan 기준을 재생성해 Go 전용 프로토콜 버전과 runner 인자 두 값의 변경을 확인했다. 기준 재실행, 비교 결정 검사 6개, 저장한 원본 체크섬 24개와 PostgreSQL 세 모드의 필수 실행 배정을 확인했다. 이 제품 변경의 Go·양 DB·프로젝트 명령 실행은 원격 검증 대상이다. 비교 앱의 필드 이름 변경까지 포함한 15개 관측에 대한 GoDj 대조는 필드 이름 변경 구현 뒤에 완료한다. [정의 고정값](../../migrations/definition/encode_test.go) · [독립 비교 근거](#m1-준비--과거-모델을-사용한-데이터-변환)
+
 ## M1 적용한 migration의 정의 대조
 
 PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조를 추가했다. 새 형식은 nullable 변경과 기본값이 있는 필드 추가·제거의 적용 트랜잭션에 migration별 선행 정의 해시를 저장한다. 일반 이력 조회는 앱·이름을 반환하고, 실행기는 revision으로 보호되는 세션에서 해시까지 읽는다. [실행기](../../migrations/lifecycle.go) · [이력 해시](../../db/internal/migrationhistory/history.go) · [M1 PR](https://github.com/progresshans/godj/pull/9)

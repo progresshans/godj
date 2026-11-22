@@ -297,6 +297,8 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 	var before, after ir.Model
 	var changed ir.Field
 	switch operation.Kind {
+	case migrationbackend.MigrationRunData:
+		// ResolveMigrationGraphPlan validated the full row-access scope.
 	case migrationbackend.MigrationCreateModel:
 		if !reflect.DeepEqual(operation.Before, ir.Model{}) {
 			return before, after, changed, postgresMigrationIntentIntegrity("CreateModel has a non-zero Before model", nil)

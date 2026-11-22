@@ -31,6 +31,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AlterFieldBlank:                   true,
 		AlterFieldNullability:             true,
 		DefinitionHistory:                 true,
+		HistoricalData:                    true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,

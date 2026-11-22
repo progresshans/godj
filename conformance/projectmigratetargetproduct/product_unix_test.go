@@ -43,6 +43,34 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		targetAssertPlanIsReadOnly(t, project)
 	})
 
+	t.Run("historical_data_public_plan_and_execution", func(t *testing.T) {
+		database, marker := project.paths(t, "historical-data")
+		env := project.environment(database, marker, "historical_data")
+		sensitive := project.sensitive(database)
+		command := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		targetAssertExecuteSuccess(t, command("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertSQLiteValue(t, database, targetBlog1Table, "original"); id != 1 {
+			t.Fatal("initial row key", id)
+		}
+		before := dbstate.CaptureSQLite(t, database)
+		targetResetMarker(t, marker)
+		targetAssertSuccess(t, command("migrate", "--plan"), targetPlanOutput(t, targetPlanRow{App: "blog", Name: "0002_freeze", Direction: "forward"}), sensitive...)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertMarkerEvents(t, marker, targetEventBackendOpen, targetEventSessionOpen, targetEventHistoryRead, targetEventSessionClose, targetEventBackendClose)
+		targetAssertExecuteSuccess(t, command("migrate"), 2, sensitive...)
+		targetAssertExecuteSuccess(t, command("migrate"), 2, sensitive...)
+		if values := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(values, []string{"frozen original"}) {
+			t.Fatal("fresh processes repeated or lost callback", values)
+		}
+		after := dbstate.CaptureSQLite(t, database)
+		const reversePlan = "{\"plan\":[{\"app\":\"blog\",\"name\":\"0002_freeze\",\"direction\":\"backward\",\"irreversible_operation\":0}]}\n"
+		targetAssertSuccess(t, command("migrate", "blog", targetBlog1, "--plan"), reversePlan, sensitive...)
+		targetAssertFailure(t, command("migrate", "blog", targetBlog1), 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertSQLiteUnchanged(t, database, after)
+	})
+
 	t.Run("MIG-125_preview_drift_fresh_execute", func(t *testing.T) {
 		targetAssertPreviewDriftUsesFreshHistory(t, project)
 	})
