@@ -52,6 +52,8 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
+외부 프로젝트의 오프라인 테스트에 필요한 모듈은 `make project-command-dependencies`로 준비한다. 같은 Go 캐시 키를 복원해도 추가 모듈 다운로드가 필요할 수 있다. 확인된 일시적 전송 오류에는 같은 `go mod download all`을 최대 두 번 더 실행한다. 체크섬·권한 오류와 중단 신호는 즉시 실패로 처리한다.
+
 Linux 32비트 컴파일과 관계 테스트는 일반 Portable core에서 한 번 실행한다. PostgreSQL 원본을 기다리는 비교 작업과 병렬로 진행하며 두 작업의 성공을 모두 요구한다.
 
 Darwin 필수 검사는 패키지 하나씩 실행하고 매번 시작·종료 시각, Go 이벤트와 stderr를 남긴다. SQLite는 마지막에 실행한다. `-p=1`로 동시 빌드 도구 수를 제한하고 외부 프로젝트와 같은 `-trimpath`를 사용한다. 각 패키지 테스트의 15분 제한, race·CGO=0, 하위 검사 필수 통과 조건을 유지한다. 단계 제한은 Intel 35분과 ARM64 80분이며 전용 작업에는 준비·증거 업로드 10분을 별도로 둔다.
@@ -176,7 +178,7 @@ PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각
 
 기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
 macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
-Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전체를 45분 제한으로 한 번 실행하고 나머지 패키지는 35분으로 실행한다.
+Linux amd64·arm64 race의 runtime 작업은 full·PR 실행 계획의 맨 앞에 등록한다. 두 좌표 모두 작업 제한은 70분이다. `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고, 나머지 패키지는 35분으로 실행한다.
 두 호출의 Go 이벤트와 stderr를 같은 원본에 보관하고 전체 필수 목록을 대조한다. [SQLite 패키지 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
 각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
 실제 package 집합의 정확한 일치를 요구한다. 실행용 필수 목록은 파일로 보존하고 로그에는 목록의 개수와 상위 테스트 지문을 남긴다.

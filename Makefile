@@ -60,7 +60,7 @@ generate-check:
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:
-	go mod download all
+	python3 scripts/ci/download_go_modules.py
 
 api-client-dependencies:
 	@set -euo pipefail; \

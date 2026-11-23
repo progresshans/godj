@@ -17,6 +17,10 @@ CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만�
 
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 
+#13 `eb4aab7a`에서 Linux amd64 race의 SQLite 패키지가 35분 제한에 도달했다. 계정 저장소 원본에는 성공 1,954개와 시작 1,958개가 남았고 상위 테스트의 성공은 없었다. 앞선 #12의 같은 좌표에서는 2,219개의 시작·성공과 27분 32초의 상위 실행을 확인했다. #12 ARM64에서는 그 상위 실행만 32분 8초였다. 기존 ARM64 방식과 같은 SQLite 전용 45분 제한을 amd64에도 적용하고 두 긴 runtime을 matrix의 맨 앞에 배치했다. 나머지 Go 패키지는 35분을 유지하고, 기존 좌표 수와 필수 하위 검사 전체를 대조한다. [amd64 실패 원본](https://github.com/progresshans/godj/actions/runs/45189080621/artifacts/14831468709) · [amd64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14820355710) · [ARM64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14821725809)
+
+#13 `eb4aab7a`의 PostgreSQL normal 계정 관계 작업은 Go 캐시를 복원한 뒤 `proxy.golang.org`에서 `github.com/google/pprof` ZIP을 읽다가 HTTP/2 스트림이 종료됐다. 테스트와 원본 로그 작성 전의 실패였다. 이 실패 뒤 모듈 준비 작업 여섯 곳이 같은 Make 대상을 사용하고, starter 브라우저도 기존 Go 캐시 키를 사용하도록 했다. 로컬 검사에서 전송 오류 후 성공, 재시도 소진, 체크섬·권한 오류와 중단 신호를 각각 확인했다. [실패한 준비 단계](https://github.com/progresshans/godj/actions/runs/45189080621/job/137742797713) · [재시도 동작 검사](../../scripts/ci/test_download_go_modules.py)
+
 `fc79da34`의 첫 시도는 232개 성공 후 Intel reload가 실패해 비교를 건너뛰었고 최종 집계가 실패했다. 같은 커밋에서 Intel reload만 다시 실행해 9분 13초에 통과했다. 두 번째 시도의 비교기는 GitHub 작업 목록을 한 번에 페이지당 100개씩 조회하다가 종료 코드 1을 반환했다. 수정한 비교기로 같은 실행의 작업 기록 470개에서 기존 생산자 16개와 재실행 생산자 1개의 원래 작업 ID와 archive 영수증을 대조했다. 원본 ZIP 17개를 다운로드해 SHA-256과 내용 봉인을 확인한 뒤, 해당 소스 트리의 Linux·Darwin 8개 좌표에서 Django 관측값과 제품 결과가 일치함을 로컬 비교기로 확인했다. [첫 시도](https://github.com/progresshans/godj/actions/runs/45140609540/attempts/1) · [Intel 재실행](https://github.com/progresshans/godj/actions/runs/45140609540/job/137624029940) · [비교 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137628866213)
 
 이 소스에서 PostgreSQL 원본을 기다린 Linux 비교 작업의 마지막 32비트 컴파일·테스트 세 단계는 10분 7초가 걸렸다. 세 단계의 Go 명령·환경을 유지하고 먼저 시작하는 Portable normal core-vet으로 옮겼다. Hosted에서 같은 세 단계의 실제 실행과 전체 경과를 다시 확인한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137603637630) · [기존 Portable 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577627005)
