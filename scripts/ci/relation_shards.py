@@ -49,6 +49,10 @@ def matrix(profile='full'):
     rows = []
     for runner, goos, goarch in PLATFORMS:
         platform = {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch}
+        if profile == 'native' and goos == 'darwin':
+            # Project reload owns the same native boundary suite on its Darwin
+            # race and CGO0 coordinates. Linux retains every relation shard.
+            continue
         if profile == 'pr' and goos == 'darwin':
             for mode in ('race', 'cgo0'):
                 rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',

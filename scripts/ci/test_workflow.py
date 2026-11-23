@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from workflow import COMMAND_PRODUCTS, JOBS, plan_outputs, verify, verify_command_products
-from platform_policy import coordinates, event_profile, product_matrix
+from platform_policy import coordinates, event_profile, pr_profile, product_matrix
 from relation_shards import matrix as relation_matrix
 
 
@@ -17,11 +17,12 @@ class WorkflowTest(unittest.TestCase):
         full, pr = (relation_matrix(scope)['include'] for scope in ('full', 'pr'))
         linux = lambda rows: [r for r in rows if r['platform']['expected_goos'] == 'linux']
         self.assertEqual(linux(full), linux(pr))
-        for profile, expected in [('pr', 11), ('full', 144)]:
+        self.assertEqual(relation_matrix('native')['include'], linux(full))
+        for profile, expected in [('pr', 11), ('native', 19), ('full', 144)]:
             products = product_matrix(profile)['include']
             planned = {(r['platform']['expected_goos'], r['platform']['expected_goarch'], r['mode']) for r in products}
             want = {(osname, arch, mode) for osname in ('linux', 'darwin') for arch in ('amd64', 'arm64')
-                    for mode in ('normal', 'race', 'cgo0') if osname == 'linux' or profile == 'full' or mode == 'normal'}
+                    for mode in ('normal', 'race', 'cgo0') if osname == 'linux' or profile != 'pr' or mode == 'normal'}
             self.assertEqual(planned, want)
             self.assertEqual(len(planned), len(products))
             self.assertEqual([tuple(row[1:]) for row in coordinates(profile)],
@@ -31,6 +32,18 @@ class WorkflowTest(unittest.TestCase):
             if profile == 'pr':
                 self.assertEqual({(r['platform']['expected_goarch'], r['mode'], r['scope']) for r in darwin},
                                  {(arch, mode, 'darwin-native') for arch in ('amd64', 'arm64') for mode in ('race', 'cgo0')})
+
+    def test_all_shared_unix_changes_expand_products_and_darwin_changes_take_precedence(self):
+        unix = 'internal/projectcheck/linked/sqlmigrate_unix.go'
+        self.assertEqual(pr_profile([unix]), 'native')
+        for path in ('go.mod', 'go.sum', 'fs/publish_darwin.go', 'tty/control_darwin_arm64_test.go'):
+            self.assertEqual(pr_profile([unix, path]), 'full')
+            self.assertEqual(pr_profile([path, unix]), 'full')
+        results = {name: {'result': 'success'} for name in JOBS | {'validation-plan'}}
+        results['validation-plan']['outputs'] = plan_outputs('native')
+        self.assertFalse(verify(results, 'native')['full_platform_verified'])
+        with self.assertRaises(ValueError):
+            verify(results, 'full')
 
     def test_pr_profile_is_bound_to_both_merge_parents_and_deleted_native_sources(self):
         with tempfile.TemporaryDirectory() as root:

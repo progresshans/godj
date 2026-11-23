@@ -11,7 +11,7 @@ PLATFORMS = (
     ('macos-26', 'darwin', 'arm64'),
 )
 MODES = ('normal', 'race', 'cgo0')
-PROFILES = ('pr', 'full')
+PROFILES = ('pr', 'native', 'full')
 
 # Package budgets belong to their actual platform. Preserve the allowances
 # for both sequential cold project flows and for the independent CLI suites.
@@ -24,14 +24,17 @@ PROJECT_BUDGETS = {
 
 
 def pr_profile(paths):
-    # Include deleted files and both sides of a rename. Unix implementations
-    # share filesystem, process and terminal contracts with Darwin.
+    # A shared Unix command changes the native consumers on both systems.
+    # A Darwin implementation or root dependency can affect every Darwin package.
+    profile = 'pr'
     for path in paths:
         name = PurePosixPath(path).name
         if (path in ('go.mod', 'go.sum') or
-                name.endswith(('_darwin.go', '_unix.go')) or '_darwin_' in name and name.endswith('.go')):
+                name.endswith('_darwin.go') or '_darwin_' in name and name.endswith('.go')):
             return 'full'
-    return 'pr'
+        if name.endswith('_unix.go'):
+            profile = 'native'
+    return profile
 
 
 def event_profile():
@@ -55,7 +58,7 @@ def coordinates(profile):
     if profile not in PROFILES:
         raise ValueError('unknown validation profile: ' + repr(profile))
     return [(runner, system, arch, mode) for runner, system, arch in PLATFORMS for mode in MODES
-            if profile == 'full' or system == 'linux' or mode == 'normal']
+            if profile != 'pr' or system == 'linux' or mode == 'normal']
 
 
 def product_matrix(profile):

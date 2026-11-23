@@ -962,7 +962,7 @@ jobs:
           python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
           test "$runserver_status" = 0
 
-      - name: Verify Darwin native boundaries on the full platform matrix
+      - name: Verify Darwin native boundaries in race and CGO-disabled modes
         if: matrix.platform.expected_goos == 'darwin' && matrix.mode != 'normal'
         run: bash scripts/ci/darwin-native.sh "${{ matrix.mode }}" "$RUNNER_TEMP/project-reload-evidence"
 

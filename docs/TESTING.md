@@ -38,9 +38,11 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
 macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
 
-PR이 루트 `go.mod`·`go.sum`, `*_darwin.go`·`*_darwin_*.go`·`*_unix.go`를 변경하거나 삭제하면 전체 플랫폼을 자동 실행한다. 계획기는 이벤트의 base·head와 실제 병합 커밋의 양쪽 부모를 확인하고, 이름 변경 전후 경로를 포함해 비교한다. main push와 수동 실행도 전체 플랫폼을 실행한다. 릴리스 후보는 해당 소스에서 전체 결과를 확인한다. [선택 기준](../scripts/ci/platform_policy.py)
+공용 `*_unix.go`가 바뀌면 양쪽 Mac에서 프로젝트 검사·reload·외부 명령을 normal·race·CGO=0으로 모두 실행한다. 네이티브 필수 검사도 같은 race·CGO=0 reload 작업에서 실행한다. Linux 관계 검사는 모든 shard를 유지한다.
 
-같은 PR의 새 push는 진행 중인 이전 실행을 취소한다. 최종 집계는 같은 소스에서 범위를 다시 계산하고 모든 필수 작업의 성공을 요구한다. 일반 PR의 결과는 `profile=pr`, 전체 플랫폼 성공은 `profile=full`과 `full_platform_verified=true`로 기록한다.
+PR이 루트 `go.mod`·`go.sum`, `*_darwin.go`·`*_darwin_*.go`를 변경하거나 삭제하면 전체 플랫폼을 자동 실행한다. 계획기는 이벤트의 base·head와 실제 병합 커밋의 양쪽 부모를 확인하고, 이름 변경 전후 경로를 포함해 비교한다. main push와 수동 실행도 전체 플랫폼을 실행한다. 릴리스 후보는 해당 소스에서 전체 결과를 확인한다. [선택 기준](../scripts/ci/platform_policy.py)
+
+같은 PR의 새 push는 진행 중인 이전 실행을 취소한다. 최종 집계는 같은 소스에서 범위를 다시 계산하고 모든 필수 작업의 성공을 요구한다. 일반 PR은 `profile=pr`, 공용 Unix 변경은 `profile=native`, 전체 플랫폼 성공은 `profile=full`과 `full_platform_verified=true`로 기록한다.
 
 Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
 [suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
@@ -80,8 +82,8 @@ OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-r
 단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료와 `--no-reload`의 명시적 재시작을,
 관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
-필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
-비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 전체 25개)가 모두 성공하고 각 작업의 업로드 로그에 기록된 artifact ID·SHA-256이 GitHub 메타데이터와 일치해야 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
+필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 공용 Unix·전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
+비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 공용 Unix·전체 플랫폼 25개)가 모두 성공하고 각 작업의 업로드 로그에 기록된 artifact ID·SHA-256이 GitHub 메타데이터와 일치해야 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
 각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 실행 범위와 모든 생산자의 ID·시도·artifact ID·해시를 남긴다.
 개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
 제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.
@@ -163,7 +165,7 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-전체 플랫폼의 관계 matrix와 일반 PR의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
+전체 플랫폼의 관계 matrix와 두 PR 범위의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
 생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
 계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
 
