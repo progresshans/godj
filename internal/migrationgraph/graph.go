@@ -303,11 +303,6 @@ type graphChange struct {
 	ModelChange
 }
 
-type graphChange struct {
-	app string
-	ModelChange
-}
-
 // ResolveMigrationGraphPlan checks model continuity across the entire step.
 // Backend-specific deltas, identifiers, storage limits and physical catalog
 // checks are additional requirements. A target is never filled from a future
