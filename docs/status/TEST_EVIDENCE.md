@@ -5,6 +5,12 @@
 
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 
+`fc79da34`의 첫 시도는 232개 성공 후 Intel reload가 실패해 비교를 건너뛰었고 최종 집계가 실패했다. 같은 커밋에서 Intel reload만 다시 실행해 9분 13초에 통과했다. 두 번째 시도의 비교기는 GitHub 작업 목록을 한 번에 페이지당 100개씩 조회하다가 종료 코드 1을 반환했다. 수정한 비교기로 같은 실행의 작업 기록 470개에서 기존 생산자 16개와 재실행 생산자 1개의 원래 작업 ID와 archive 영수증을 대조했다. 원본 ZIP 17개를 다운로드해 SHA-256과 내용 봉인을 확인한 뒤, 해당 소스 트리의 Linux·Darwin 8개 좌표에서 Django 관측값과 제품 결과가 일치함을 로컬 비교기로 확인했다. [첫 시도](https://github.com/progresshans/godj/actions/runs/45140609540/attempts/1) · [Intel 재실행](https://github.com/progresshans/godj/actions/runs/45140609540/job/137624029940) · [비교 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137628866213)
+
+이 소스에서 PostgreSQL 원본을 기다린 Linux 비교 작업의 마지막 32비트 컴파일·테스트 세 단계는 10분 7초가 걸렸다. 세 단계의 Go 명령·환경을 유지하고 먼저 시작하는 Portable normal core-vet으로 옮겼다. Hosted에서 같은 세 단계의 실제 실행과 전체 경과를 다시 확인한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137603637630) · [기존 Portable 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577627005)
+
+#12의 같은 소스 재실행에서 GitHub는 성공한 Intel project check를 새 작업 ID로 복사했다. 두 API 기록은 runner ID, 시작·종료 시각, 15개 단계와 원래 archive ID·체크섬이 같았으며 새 기록의 생성 시각은 작업 종료 후였다. 비교기는 이 경우 실제 생산 작업과 원본 ZIP을 선택하고 runner·시각·결과·단계가 달라지거나 실제 원본이 누락되면 거부하도록 수정했다. [원래 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626629) · [보존된 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137624032544)
+
 #12의 `fc79da34`에서 Intel normal Notes reload 여섯 단계는 통과했지만 마지막 비공개 임시 디렉터리 검사에 `godj-candidate-*` 하나가 남았다. 원본에는 잔여 항목을 만든 프로세스가 기록되지 않았다. 후보 검증과 외부 앱 조회의 Go 명령은 취소할 때 드라이버 PID만 종료했다. 격리된 작업에서 드라이버를 종료하고 디렉터리를 삭제한 뒤 자식에게 쓰기를 허용하면 디렉터리가 다시 생겼고, 소유 프로세스 그룹을 종료하면 생기지 않았다. 두 도구 호출에 같은 그룹 취소를 적용하고 종료 뒤 쓰기를 요구하는 회귀 검사를 추가했다. [Intel reload 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626752) · [원본 이벤트](https://github.com/progresshans/godj/actions/runs/45140609540/artifacts/14802601506)
 
 #12의 `ad0df1ef`에서 ARM64 race와 CGO=0은 같은 467,948,357바이트 캐시를 복원했으나 작업 40분 제한에 닿았다. 두 ZIP의 Go 이벤트 8개는 맨 앞의 프로세스 그룹 검사와 패키지 완료까지다. 나머지 패키지의 테스트 시작 기록은 없다. 이전 ARM64 CGO=0 전체 관계 작업에도 직전 패키지 완료와 SQLite 시작 사이 34분 19초의 공백이 있었고 SQLite 테스트 자체는 5분 19초였다. 빌드 구간을 패키지별로 확인할 수 있게 실행 경계를 나눴다. [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14800960927) · [race 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14801391427) · [이전 ARM64 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)

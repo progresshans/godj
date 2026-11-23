@@ -50,6 +50,8 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
+Linux 32비트 컴파일과 관계 테스트는 일반 Portable core에서 한 번 실행한다. PostgreSQL 원본을 기다리는 비교 작업과 병렬로 진행하며 두 작업의 성공을 모두 요구한다.
+
 Darwin 필수 검사는 패키지 하나씩 실행하고 매번 시작·종료 시각, Go 이벤트와 stderr를 남긴다. SQLite는 마지막에 실행한다. `-p=1`로 동시 빌드 도구 수를 제한하고 외부 프로젝트와 같은 `-trimpath`를 사용한다. 각 패키지 테스트의 15분 제한, race·CGO=0, 하위 검사 필수 통과 조건을 유지한다. 단계 제한은 Intel 35분과 ARM64 80분이며 전용 작업에는 준비·증거 업로드 10분을 별도로 둔다.
 
 공개 저장소의 표준 GitHub 호스팅 러너를 사용한다. Go 설정은 OS·CPU·Go 버전별로 루트 모듈과 OpenAPI 클라이언트의 `go.mod`·`go.sum` 조합을 공유하므로 같은 PR에서 Portable과 다른 Linux 작업이 같은 캐시를 복원할 수 있다. Python은 uv의 기존 캐시와 고정 lockfile을 사용한다. GitHub의 PR 캐시 접근 범위와 저장소의 10 GB 상한을 따른다. [GitHub 캐시 정책](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
@@ -84,6 +86,7 @@ OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-r
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
 필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
 비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 전체 25개)가 모두 성공하고 각 생산 작업에서 업로드 직후 성공한 단계 이름에 고정 업로드 액션이 반환한 artifact ID·SHA-256을 기록한다. 비교기는 작업 API의 해당 시도·단계 순서·영수증을 GitHub artifact 메타데이터와 대조한 뒤 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
+실패한 작업만 재실행하면 GitHub가 이미 성공한 작업에도 새 ID를 부여할 수 있다. 작업이 끝난 뒤 만들어진 기록은 같은 runner, 시작·종료 시각, 결과와 업로드 영수증을 포함한 전체 단계가 이전 실행과 일치해야 한다. 비교 결과에는 원본을 실제로 올린 작업 ID와 시도를 기록한다.
 각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 실행 범위와 모든 생산자의 ID·시도·artifact ID·해시를 남긴다.
 개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
 제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.
