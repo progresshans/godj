@@ -5,6 +5,8 @@
 
 ## M1 필드 이름 변경과 역사 데이터 대조
 
+PR #12의 `af260101` 전체 실행에서 Linux 필수 작업 9개가 실패했다. Portable 세 모드는 재생 검사에 관리 앱 `content`가 빠져 초기 상태에서 멈췄다. Linux 양 아키텍처의 SQLite 세 모드는 필드 이름 변경 SQL을 만드는 단계에서 멈췄다. SQLite 검사가 FK의 이전 이름과 새 이름을 동시에 살아 있는 역참조 소유자로 등록했다. 자동 감지 검사에서 관리 앱을 지정하고, 공유 관계 그래프가 각 연산 경계의 이름 소유권을 검증하도록 수정했다. SQLite 통합 검사는 고정된 DB 열과 명시적 중간 모델을 포함한다. 시작·끝 상태는 모두 정상이어도 중간 연산이 살아 있는 역참조 이름을 사용하면 거부하는 대조군을 추가했다. 이 수정의 수용은 새 제품 커밋의 전체 CI에서 확인한다. [자동 감지 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355473360) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355477823) · [연산 경계 회귀 검사](../../internal/migrationgraph/graph_test.go)
+
 명시적인 필드 이름 변경을 definition 저장·해시, 역사 모델 복원, 양 DB의 트랜잭션, 정방향 SQL 및 외부 프로젝트 명령에 연결했다. 양 DB에서 다른 앱이 참조하는 기본 키, 명시적 중간 모델의 외래 키, 인덱스·고유 제약, 물리 열을 유지한 필드, 미등록 참조 거부, 후속 제약 실패·롤백과 재접속·역적용을 검사한다. [양 DB 검사](../../internal/migrationdefaulttest/rename.go) · [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go)
 
 Django 6.1·Python 3.14.3·SQLite 3.50.4에서 비교 앱을 실행해 15개 관측과 입력 해시를 확인했다. 로컬 전체 원본의 SHA-256은 `3f966e47c02e38880aff4d0cf660eac6ca51e310744ac9ffcc473463c3a87232`다. 이 원본에서 추출한 기대값을 양 DB에서 다시 얻는 Django 원본과 대조하도록 CI에 연결했다. GoDj의 여섯 migration도 같은 키와 입력을 사용한다. 재접속 후 실제 행·열·제약·이력, 콜백 및 오류, 계획을 비교한다. 13개 관측은 전체 값을, 역방향과 비가역 계획 두 개는 연산 순서와 가역 여부를 대조한다. 두 계획의 역방향 SQL 부분은 후속 구현 대상이다. [독립 기대값](../../internal/migrationdefaulttest/testdata/historical-data-django61.json) · [Go 관측기](../../internal/migrationdefaulttest/data_reference.go) · [원본 대조](../../scripts/ci/migration_data_reference.py)
