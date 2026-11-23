@@ -17,6 +17,8 @@ GoDj의 양 DB 검사는 동일 관측과 함께 자동 중간 모델을 직접 
 
 ## M1 모델 삭제와 빈 테이블 복원
 
+#14의 Portable core에서 새 `DeleteModel`을 추가하자 capability 필드 수를 18개로 고정한 검사와 정상적인 정방향 모델 삭제를 위조로 취급한 검사가 실패했다. 기존 capability와 `DeleteModel`의 이름·불리언 타입을 확인하고, PostgreSQL 위조 사례는 삭제 후에도 모델이 남는 불법 선언을 거부하는지 확인한다. 정상 삭제·역적용은 양 DB의 기존 이력 검사에서 행·제약·빈 테이블 복원을 대조한다. [Portable core 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294918739) · [역사 모델 검사](../../internal/migrationdefaulttest/delete_model.go)
+
 #14의 `a0d5ef59`에서 제품 테스트의 세 Make target이 공통 실행기로 이동했지만 프로토콜 검사가 이전 shell 명령을 찾아 실패했다. 공개 target이 normal·race·CGO=0을 각각 올바르게 전달하는지 대조한다. 공통 실행기 검사는 실제 인자·package 목록·필수 SQLite 외부 writer와 모델 삭제의 통과, 누락·실패·잘린 이벤트의 거부를 확인한다. [기존 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294924440) · [실행기 검증](../../scripts/ci/test_portable_tests.py)
 
 고정 Django 6.1에서 선언 중간의 모델에 고유 열과 자동 다대다 관계를 만들고, 행을 넣은 뒤 삭제·역적용했다. Python 3.14.3과 SQLite 3.50.4에서 기존 역사 관측 15개와 새 관측 8개가 기대값에 일치했다. 새 관측은 초기 행, 삭제·복원 DDL 순서, 뒤 연산 실패 후 롤백, 재접속 뒤 남은 테이블, 빈 테이블 복원, 재삽입, 고유 제약이다. 원본 JSON의 SHA-256은 `93d85750b76e15fe3c45fc55a9cfb8ebfd5f0ad210740774e6e454bf151352de`다. 별도 로컬 PostgreSQL 17.5와 psycopg 3.3.6에서 같은 8개 관측이 일치했다. 공통 기대값의 SHA-256은 `822b2ea71a7061032ba299040e1b5eaa30bcc2dcb14d834707518ae52d0290b4`다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_deletion.py) · [관측값](../../internal/migrationdefaulttest/testdata/model-deletion-django61.json) · [고정 소스·라이선스](../SOURCES.md)
