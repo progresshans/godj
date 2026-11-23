@@ -7,8 +7,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/progresshans/godj/conformance/internal/testprocess"
-	"github.com/progresshans/godj/internal/testenv"
 	"go/parser"
 	"go/token"
 	"io"
@@ -23,7 +21,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
