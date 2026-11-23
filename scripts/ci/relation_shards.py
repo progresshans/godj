@@ -109,9 +109,9 @@ def matrix(profile='full'):
                     job_timeout = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
                                    ('amd64', 'race'): 135}.get((goarch, mode), job_timeout)
                 sqlite_timeout = ''
-                if goos == 'linux' and goarch == 'arm64' and mode == 'race' and shard == 0:
-                    # In CI 44931649835 the credential root passed in 1,902s.
-                    # The 35m SQLite package deadline then cut off a 1s prefetch case.
+                if goos == 'linux' and mode == 'race' and shard == 0:
+                    # Both architectures have exhausted a 35m SQLite package run.
+                    # Run the entire package alone before the other runtime packages.
                     sqlite_timeout = '45m'
                     job_timeout = 70
                 rows.append({
@@ -122,6 +122,8 @@ def matrix(profile='full'):
                     'test_timeout': '70m' if darwin_race else '35m',
                     'sqlite_timeout': sqlite_timeout,
                 })
+    # Submit the long Linux race runtimes ahead of the consumer shards.
+    rows.sort(key=lambda row: not row.get('sqlite_timeout'))
     return {'include': rows}
 
 

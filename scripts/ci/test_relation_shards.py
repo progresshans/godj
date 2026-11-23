@@ -118,6 +118,10 @@ class RelationShardTest(unittest.TestCase):
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
         self.assertLessEqual(len(actual['include']), 256, 'GitHub must admit the complete matrix')
+        for profile in ('pr', 'native', 'full'):
+            first = matrix(profile)['include'][:2]
+            self.assertEqual([(r['platform']['runs_on'], r['mode'], r['shard']) for r in first],
+                             [('ubuntu-24.04', 'race', 0), ('ubuntu-24.04-arm', 'race', 0)])
         expected_counts = {
             ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
             ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
@@ -136,7 +140,7 @@ class RelationShardTest(unittest.TestCase):
             if row['shard'] == 0:
                 job_minutes = {('macos-26', 'normal'): 180, ('macos-26', 'race'): 180,
                                ('macos-15-intel', 'race'): 135}.get((coordinate[0], coordinate[3]), job_minutes)
-            separate_sqlite = coordinate[1:] == ('linux', 'arm64', 'race') and row['shard'] == 0
+            separate_sqlite = coordinate[1] == 'linux' and race and row['shard'] == 0
             self.assertEqual(row['job_timeout'], 70 if separate_sqlite else job_minutes)
             self.assertEqual(row['test_timeout'], '70m' if darwin and race else '35m')
             self.assertEqual(row['sqlite_timeout'], '45m' if separate_sqlite else '')
@@ -186,7 +190,8 @@ class RelationShardTest(unittest.TestCase):
         log, stderr, planned = (self.directory / name for name in ('events', 'stderr', 'packages'))
         for arch, failure, missing, exit_code in [('arm64', '', False, 0), ('arm64', sqlite, False, 23),
                                                   ('arm64', ordinary, False, 23), ('amd64', '', False, 0),
-                                                  ('arm64', '', True, 1)]:
+                                                  ('amd64', sqlite, False, 23), ('amd64', ordinary, False, 23),
+                                                  ('amd64', '', True, 1), ('arm64', '', True, 1)]:
             with self.subTest(arch=arch, failure=failure, missing=missing):
                 row = next(row for row in matrix()['include'] if row['mode'] == 'race' and row['shard'] == 0
                            and row['platform']['runs_on'] == ('ubuntu-24.04-arm' if arch == 'arm64' else 'ubuntu-24.04'))
@@ -210,7 +215,7 @@ class RelationShardTest(unittest.TestCase):
                            PORTABLE_COVERED='true' if arch == 'amd64' else 'false', log=str(log), stderr_log=str(stderr))
                 process = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
                                          env=env, capture_output=True, text=True, timeout=5)
-                expected = [separate, base + [ordinary, neighbor]] if arch == 'arm64' else [base + [sqlite, ordinary, neighbor]]
+                expected = [separate, base + [ordinary, neighbor]]
                 if arch == 'arm64' and not failure:
                     expected.append(checker)
                 if missing:
