@@ -78,7 +78,8 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		}
 		before := targetCapturePostgres(t, databaseURL, schema)
 		targetResetMarker(t, marker)
-		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_delete"), `DROP TABLE "`+schema+`"."target_blog_initial" RESTRICT;`+"\n", targetPostgresSensitive(t, project, databaseURL, "")...)
+		wantSQL := `DROP TABLE "` + schema + `"."target_blog_initial" RESTRICT;` + "\n"
+		project.runAt(t, project.nested, env, wantSQL, "sqlmigrate", "blog", "0002_delete", "--project", project.descriptor)
 		targetAssertPathAbsent(t, marker)
 		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
 		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
