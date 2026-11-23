@@ -33,6 +33,43 @@ func RepositoryRoot(t *testing.T) string {
 	return root
 }
 
+// SeedModuleChecksums gives a private external module the repository's verified
+// dependency sums. Call the returned check after preparing its own module graph.
+func SeedModuleChecksums(t *testing.T, repository, root string) func() {
+	t.Helper()
+	checksums, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.sum"), checksums, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return func() {
+		t.Helper()
+		preparedChecksums, err := os.ReadFile(filepath.Join(root, "go.sum"))
+		if err != nil {
+			t.Fatal("read prepared dependency checksums")
+		}
+		verified := make(map[string]bool)
+		for _, line := range strings.Split(string(checksums), "\n") {
+			line = strings.Join(strings.Fields(line), " ")
+			if line != "" {
+				verified[line] = true
+			}
+		}
+		for _, line := range strings.Split(string(preparedChecksums), "\n") {
+			line = strings.Join(strings.Fields(line), " ")
+			if line != "" && !verified[line] {
+				fields := strings.Fields(line)
+				if len(fields) != 3 {
+					t.Fatal("external fixture produced invalid dependency checksums")
+				}
+				t.Fatalf("external fixture selected a dependency outside repository checksums: %s %s", fields[0], fields[1])
+			}
+		}
+	}
+}
+
 func AssertSeparateRoot(t *testing.T, repository, external string) {
 	t.Helper()
 	resolvedRepository, err := filepath.EvalSymlinks(repository)

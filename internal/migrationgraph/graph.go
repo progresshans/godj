@@ -188,25 +188,11 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, reachabil
 	// Iterative traversal bounds work by vertices and fields, including cycles.
 	// Reverse ownership is global to each target model, even when two sources
 	// reach that target through different paths or different apps.
-	type reverseIdentity struct {
-		target ir.ModelIdentity
-		name   string
-	}
-	type reverseOwner struct {
-		source ir.ModelIdentity
-		field  string
-	}
-	owners := make(map[reverseIdentity]reverseOwner)
-	fieldNames := make(map[ir.ModelIdentity]map[string]struct{}, len(graph.models))
-	for identity, model := range graph.models {
-		names := make(map[string]struct{}, len(model.Fields))
-		for _, field := range model.Fields {
-			names[field.Name] = struct{}{}
+	names := make(relationNamespace)
+	for _, id := range graph.order {
+		if err := names.add(MigrationModel{AppLabel: id.AppLabel, Model: graph.models[id]}); err != nil {
+			return RelationGraph{}, err
 		}
-		for _, field := range model.ManyToMany {
-			names[field.Name] = struct{}{}
-		}
-		fieldNames[identity] = names
 	}
 	visited := map[ir.ModelIdentity]bool{graph.root: true}
 	queue := []ir.ModelIdentity{graph.root}
@@ -243,16 +229,6 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, reachabil
 			_, exists := graph.models[targetIdentity]
 			if !exists {
 				return RelationGraph{}, fmt.Errorf("relation graph %s.%s.%s has missing target %s.%s", identity.AppLabel, identity.ModelName, field.Name, targetIdentity.AppLabel, targetIdentity.ModelName)
-			}
-			if name := field.Relation.Reverse.Name; name != "" {
-				if _, collision := fieldNames[targetIdentity][name]; collision {
-					return RelationGraph{}, fmt.Errorf("relation graph reverse name %q collides with %s.%s field", name, targetIdentity.AppLabel, targetIdentity.ModelName)
-				}
-				key := reverseIdentity{targetIdentity, name}
-				if previous, exists := owners[key]; exists {
-					return RelationGraph{}, fmt.Errorf("relation graph reverse name %q is owned by both %s.%s.%s and %s.%s.%s", name, previous.source.AppLabel, previous.source.ModelName, previous.field, identity.AppLabel, identity.ModelName, field.Name)
-				}
-				owners[key] = reverseOwner{identity, field.Name}
 			}
 			if !visited[targetIdentity] {
 				visited[targetIdentity] = true
@@ -321,6 +297,11 @@ type TableOrigin struct {
 // InputTables returns origins in execution order, including reverse plans.
 // An operation with no Before model has an empty name.
 func (plan MigrationGraphPlan) InputTables() []TableOrigin { return slices.Clone(plan.inputs) }
+
+type graphChange struct {
+	app string
+	ModelChange
+}
 
 type graphChange struct {
 	app string
@@ -501,6 +482,9 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 	}
 	if plan.final, err = migrationGraphBoundary(current); err != nil {
 		return MigrationGraphPlan{}, fmt.Errorf("migration graph final boundary: %w", err)
+	}
+	if err := plan.checkFieldNames(changes); err != nil {
+		return MigrationGraphPlan{}, err
 	}
 	return plan, nil
 }

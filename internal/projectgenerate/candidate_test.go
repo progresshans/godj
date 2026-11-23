@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,7 +21,103 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
+
+func TestCanceledCandidateCommandStopsPrivateWorkspaceWriters(t *testing.T) {
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	if err := listener.SetDeadline(time.Now().Add(20 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	private := filepath.Join(root, "candidate")
+	if err := os.Mkdir(private, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	environment := testenv.With(os.Environ(), map[string]string{
+		"GODJ_TEST_CANDIDATE_WRITER_ADDRESS": listener.Addr().String(),
+		"GODJ_TEST_CANDIDATE_WRITER_PATH":    private,
+	})
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		defer close(done)
+		// The tool's worker has no output descriptor for Cmd.Wait to join.
+		_, _, runErr = runCandidateStructuredCommand(ctx, root, environment, 4096, "/bin/sh", "-c",
+			`"$1" -test.run='^TestCandidatePrivateWriterHelper$' </dev/null >/dev/null 2>&1 & wait`, "candidate-tool", executable)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("candidate tool did not terminate")
+		}
+	})
+	worker, err := listener.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer worker.Close()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("candidate cancellation did not complete")
+	}
+	if !errors.Is(runErr, context.Canceled) {
+		t.Errorf("candidate cancellation returned %v", runErr)
+	}
+	if err := os.Remove(private); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = worker.Write([]byte{'w'})
+	var response [1]byte
+	n, readErr := worker.Read(response[:])
+	if n != 0 || readErr == nil || errors.Is(readErr, os.ErrDeadlineExceeded) {
+		t.Fatal("a candidate worker survived cancellation")
+	}
+	if _, err := os.Stat(private); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("a canceled worker recreated its private workspace")
+	}
+}
+
+func TestCandidatePrivateWriterHelper(t *testing.T) {
+	address := os.Getenv("GODJ_TEST_CANDIDATE_WRITER_ADDRESS")
+	if address == "" {
+		return
+	}
+	connection, err := net.DialTimeout("tcp4", address, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	var request [1]byte
+	if _, err := io.ReadFull(connection, request[:]); err != nil {
+		return
+	}
+	if request[0] != 'w' {
+		t.Fatal("unexpected writer request")
+	}
+	if err := os.Mkdir(os.Getenv("GODJ_TEST_CANDIDATE_WRITER_PATH"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Write([]byte{'w'}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestGoCandidateVerifierCompilesVirtualNewPackagesWithoutExecutingUserCode(t *testing.T) {
 	for _, nested := range []bool{false, true} {

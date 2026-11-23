@@ -150,6 +150,11 @@ replace github.com/progresshans/godj => %s
 		"GOENV":           "off",
 		"GOFLAGS":         "",
 		"GOCACHEPROG":     "",
+		"GOPROXY":         "off",
+		"GOSUMDB":         "off",
+		"GONOPROXY":       "none",
+		"GONOSUMDB":       "none",
+		"GOPRIVATE":       "",
 	}),
 		targetPostgresTestURLEnvironment,
 		targetPostgresRequiredEnvironment,
@@ -160,15 +165,14 @@ replace github.com/progresshans/godj => %s
 		targetCatalogEnvironment,
 		targetMarkerEnvironment,
 	)
-	// Dependency resolution is fixture setup. Every product invocation after
-	// this point runs with both the proxy and checksum database disabled.
+	// Every process uses the prewarmed module graph, including fixture setup.
 	setupEnv = gobuild.Environment(setupEnv, os.Environ(), universe)
-	targetRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
+	verifyChecksums := testfixture.SeedModuleChecksums(t, repository, root)
+	targetRunSuccess(t, root, setupEnv, "go", "list", "-mod=mod", "-deps", "./cmd/projectrunner")
+	verifyChecksums()
 
 	secret := "target-migrate-secret-canary-5d7e248ca1"
 	baseEnv := testenv.With(setupEnv, map[string]string{
-		"GOPROXY":                         "off",
-		"GOSUMDB":                         "off",
 		targetSecretEnvironment:           secret,
 		targetFailDeleteTableEnvironment:  "",
 		targetFailBackendOpenEnvironment:  "",
@@ -285,10 +289,10 @@ func (project *targetExternalProject) postgresEnvironmentWith(
 
 func (project *targetExternalProject) run(t *testing.T, environment []string, arguments ...string) testprocess.CommandResult {
 	t.Helper()
-	return project.runAt(t, project.nested, environment, arguments...)
+	return project.runAt(t, project.nested, environment, "", arguments...)
 }
 
-func (project *targetExternalProject) runAt(t *testing.T, directory string, environment []string, arguments ...string) testprocess.CommandResult {
+func (project *targetExternalProject) runAt(t *testing.T, directory string, environment []string, wantSchemaSQL string, arguments ...string) testprocess.CommandResult {
 	t.Helper()
 	project.recordPublicFamily(arguments)
 	result := testprocess.Run(t, testprocess.CommandLimits{Timeout: targetCommandTimeout, Output: targetMaximumOutput}, directory, environment, project.globalBinary, arguments...)
@@ -296,17 +300,59 @@ func (project *targetExternalProject) runAt(t *testing.T, directory string, envi
 	databaseURL := targetEnvironmentValue(environment, targetPostgresURLEnvironment)
 	schema := targetEnvironmentValue(environment, targetPostgresSchemaEnvironment)
 	marker := targetEnvironmentValue(environment, targetMarkerEnvironment)
-	sensitive := project.sensitive(database, databaseURL, schema, marker, filepath.ToSlash(marker), filepath.Base(marker))
+	sensitive := project.sensitive(database, databaseURL, marker, filepath.ToSlash(marker), filepath.Base(marker))
 	if password := targetURLPassword(databaseURL); len(password) >= 4 {
 		sensitive = append(sensitive, password)
 	}
 	targetAssertRedacted(t, result, sensitive...)
+	if wantSchemaSQL == "" {
+		targetAssertRedacted(t, result, schema)
+	} else if !targetExactSchemaSQL(arguments, schema, wantSchemaSQL, result) {
+		t.Fatal("sqlmigrate did not return the exact expected schema-qualified SQL")
+	}
+	// Only the expected successful stdout can publish the schema identifier.
+	// Files, markers and every other result retain the complete redaction set.
+	sensitive = append(sensitive, schema)
 	targetAssertMarkerProcessesReaped(t, marker)
 	project.assertWorkspaceEmpty(t)
 	project.assertApplicationUnchanged(t)
 	testfixture.AssertArtifactsRedacted(t, project.root, sensitive...)
 	targetAssertStateArtifactsRedacted(t, []string{database, marker}, sensitive...)
 	return result
+}
+
+func targetExactSchemaSQL(arguments []string, schema, want string, result testprocess.CommandResult) bool {
+	return len(arguments) > 0 && arguments[0] == "sqlmigrate" && schema != "" &&
+		strings.Count(want, schema) == 1 && strings.Contains(want, `"`+schema+`".`) &&
+		result.ExitCode == 0 && result.Stderr == "" && result.Stdout == want
+}
+
+func TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput(t *testing.T) {
+	const schema = "example_schema"
+	const sql = "ALTER TABLE \"example_schema\".\"notes\" RENAME COLUMN \"old\" TO \"new\";\n"
+	good := testprocess.CommandResult{Stdout: sql}
+	command := []string{"sqlmigrate"}
+	if !targetExactSchemaSQL(command, schema, sql, good) {
+		t.Fatal("expected qualified SQL was rejected")
+	}
+	for i, check := range []struct {
+		command []string
+		schema  string
+		want    string
+		result  testprocess.CommandResult
+	}{
+		{[]string{"migrate"}, schema, sql, good},
+		{command, "", sql, good},
+		{command, schema, sql, testprocess.CommandResult{Stdout: sql + schema}},
+		{command, schema, sql, testprocess.CommandResult{Stdout: sql, Stderr: schema}},
+		{command, schema, sql, testprocess.CommandResult{Stdout: sql, ExitCode: 1}},
+		{command, schema, schema, testprocess.CommandResult{Stdout: schema}},
+		{command, schema, sql + schema, testprocess.CommandResult{Stdout: sql + schema}},
+	} {
+		if targetExactSchemaSQL(check.command, check.schema, check.want, check.result) {
+			t.Fatalf("invalid output case %d was accepted", i)
+		}
+	}
 }
 
 func (project *targetExternalProject) sensitive(database string, extras ...string) []string {

@@ -217,7 +217,7 @@ func targetAssertRejectedArgumentsPrecedeProjectIO(t *testing.T, project *target
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			database, marker := project.paths(t, "rejected-"+test.name)
-			result := project.runAt(t, project.unselected, project.environment(database, marker, targetCatalogBranch), test.argv...)
+			result := project.runAt(t, project.unselected, project.environment(database, marker, targetCatalogBranch), "", test.argv...)
 			targetAssertFailure(t, result, 2, "migration_project_command_error/invalid_arguments\n", project.sensitive(database)...)
 			targetAssertPathAbsent(t, marker)
 			targetAssertPathAbsent(t, database)

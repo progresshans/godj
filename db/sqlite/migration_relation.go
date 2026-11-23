@@ -645,15 +645,11 @@ func validateSQLiteRelationIntent(
 	graphPlan migrationbackend.MigrationGraphPlan,
 ) error {
 	// SQLite folds identifier spelling. The shared historical graph keeps
-	// semantic app/model identities exact; this backend additionally rejects
-	// physical table/column aliases and reverse-name collisions.
+	// reverse field names bound to their owner at each operation boundary.
+	// This backend additionally checks physical table, column and index names.
 	tableOwners := make(map[string]ir.ModelIdentity)
 	indexOwners := make(map[string]sqliteIndexOwner)
 	modelNames := make(map[struct{ app, name string }]ir.ModelIdentity)
-	reverseOwners := make(map[ir.ModelIdentity]map[string]struct {
-		source ir.ModelIdentity
-		field  string
-	})
 	checkModel := func(snapshot migrationbackend.MigrationModel) error {
 		identity := snapshot.Identity()
 		model := snapshot.Model
@@ -688,26 +684,6 @@ func validateSQLiteRelationIntent(
 				return relationIntentIntegrity("relation model %q repeats SQLite column %q", model.Name, field.Column)
 			}
 			columns[column] = true
-			if field.Relation == nil || field.Relation.Reverse.Name == "" {
-				continue
-			}
-			owners := reverseOwners[field.Relation.Target]
-			if owners == nil {
-				owners = make(map[string]struct {
-					source ir.ModelIdentity
-					field  string
-				})
-				reverseOwners[field.Relation.Target] = owners
-			}
-			name := sqliteRelationIdentifierKey(field.Relation.Reverse.Name)
-			owner := struct {
-				source ir.ModelIdentity
-				field  string
-			}{identity, field.Name}
-			if previous, exists := owners[name]; exists && previous != owner {
-				return relationIntentIntegrity("relation reverse name %q has multiple owners", field.Relation.Reverse.Name)
-			}
-			owners[name] = owner
 		}
 		return nil
 	}
@@ -801,12 +777,6 @@ func validateSQLiteRelationIntent(
 	for _, snapshot := range append(graphPlan.InitialModels(), graphPlan.FinalModels()...) {
 		if err := checkModel(snapshot); err != nil {
 			return err
-		}
-		owners := reverseOwners[snapshot.Identity()]
-		for _, field := range snapshot.Model.Fields {
-			if _, exists := owners[sqliteRelationIdentifierKey(field.Name)]; exists {
-				return relationIntentIntegrity("field %s.%s.%s collides with a relation reverse name", snapshot.AppLabel, snapshot.Model.Name, field.Name)
-			}
 		}
 	}
 	for name := range indexOwners {
