@@ -15,6 +15,10 @@ CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만�
 
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 
+#12의 `ad0df1ef`에서 ARM64 race와 CGO=0은 같은 467,948,357바이트 캐시를 복원했으나 작업 40분 제한에 닿았다. 두 ZIP의 Go 이벤트 8개는 맨 앞의 프로세스 그룹 검사와 패키지 완료까지다. 나머지 패키지의 테스트 시작 기록은 없다. 이전 ARM64 CGO=0 전체 관계 작업에도 직전 패키지 완료와 SQLite 시작 사이 34분 19초의 공백이 있었고 SQLite 테스트 자체는 5분 19초였다. 빌드 구간을 패키지별로 확인할 수 있게 실행 경계를 나눴다. [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14800960927) · [race 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14801391427) · [이전 ARM64 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
+같은 실행에서 비교 작업의 로그 API 호출이 실패했다. 이후 해당 소스·시도의 Python과 프로젝트 생산자 17개 모두에서 사용자 계정으로 원본 업로드 ID와 ZIP SHA-256을 확인했다. 비교기는 고정 업로드 액션의 두 출력을 같은 생산 작업의 다음 단계 이름에서 확인하도록 변경했다. 성공한 생산자·시도와 보관 원본의 ID·digest·내부 체크섬 조건을 유지한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45128918106/job/137563473527)
+
 PR마다 macOS 관계 작업 125개, 프로젝트 검사·reload·외부 명령 18개, 고정 Darwin 원본 재생 1개를 예약했다. 실행 `43659728789`에서 macOS 작업 시간 합계는 약 45.7시간, 전체 경과는 9시간 19분이었다. 겹친 실행 `44955313490`은 약 47.4 macOS 작업 시간과 17시간 6분의 전체 경과를 기록했다. 두 실행 모두 일부 작업이 실패하거나 취소됐다. [실행 43659728789](https://github.com/progresshans/godj/actions/runs/43659728789) · [실행 44955313490](https://github.com/progresshans/godj/actions/runs/44955313490)
 
 11월 23일 기존 PR #9~#12의 실행 4건을 취소하고 활성 실행 0건을 확인했다. PR #12의 `70800a5f`에서는 취소 전에 Linux 작업 222건이 성공했다. 전체 결과는 취소다. 저장소 API에서 Go 캐시 22개와 uv 캐시 14개, 총 11,959,024,665바이트와 설정 상한 10 GB를 확인했다. Linux amd64의 Portable과 나머지 작업은 서로 다른 의존성 키를 사용했다. [PR #12 기존 실행](https://github.com/progresshans/godj/actions/runs/45110329043) · [새 실행 기준](../TESTING.md#원격-ci-실행-범위)

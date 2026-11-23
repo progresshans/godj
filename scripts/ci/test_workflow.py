@@ -77,7 +77,6 @@ class WorkflowTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         script = root / 'scripts/ci/darwin-native.sh'
         required = [line.split('|') for line in script.with_name('darwin-native-required.txt').read_text().splitlines()]
-        roots = {name.split('/')[0] for _, name in required}
         packages = sorted({pkg for pkg, _ in required})
         events = []
         for package in packages:
@@ -88,27 +87,45 @@ class WorkflowTest(unittest.TestCase):
             events.append({'Action': 'pass', 'Package': package})
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
-            (work / 'go').write_text("""#!/bin/sh
-if [ "$1" = env ] && [ "$2" = GOOS ]; then echo darwin; exit 0; fi
-printf '%s\\n' "$CGO_ENABLED" "$@" > "$RUNNER_TEMP/args"
-cat "$RUNNER_TEMP/events"
+            (work / 'go').write_text("""#!/usr/bin/env python3
+import json, os, pathlib, sys
+if sys.argv[1:] == ['env', 'GOOS']:
+    print('darwin')
+    sys.exit(0)
+work = pathlib.Path(os.environ['RUNNER_TEMP'])
+with (work / 'args').open('a') as calls:
+    print(json.dumps([os.environ['CGO_ENABLED'], *sys.argv[1:]]), file=calls)
+for line in (work / 'events').read_text().splitlines():
+    if json.loads(line)['Package'] == sys.argv[-1]:
+        print(line)
+if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runserverproduct'):
+    sys.exit(3)
 """)
             (work / 'go').chmod(0o700)
+            ordered = [p for p in packages if not p.endswith('/db/sqlite')] + [p for p in packages if p.endswith('/db/sqlite')]
             for mode in ('race', 'cgo0'):
-                for missing in (False, True):
-                    with self.subTest(mode=mode, missing=missing):
+                for fault in ('success', 'missing', 'command'):
+                    with self.subTest(mode=mode, fault=fault):
                         child = 'TestRenameNoReplacePreservesConcurrentDestination/directory'
-                        stream = [row for row in events if not missing or row.get('Test') != child]
+                        stream = [row for row in events if fault != 'missing' or row.get('Test') != child]
+                        (work / 'args').write_text('')
                         (work / 'events').write_text(''.join(json.dumps(row) + '\n' for row in stream))
-                        env = dict(os.environ, RUNNER_TEMP=directory, PATH=directory + os.pathsep + os.environ['PATH'], CGO_ENABLED='1')
+                        env = dict(os.environ, RUNNER_TEMP=directory, PATH=directory + os.pathsep + os.environ['PATH'],
+                                   CGO_ENABLED='1', SIMULATE_FAILURE=fault)
                         ran = subprocess.run(['bash', str(script), mode], cwd=root, env=env, capture_output=True, text=True)
-                        self.assertEqual(ran.returncode == 0, not missing, ran.stderr)
-                        args = (work / 'args').read_text().splitlines()
-                        self.assertEqual(args[:2], ['1' if mode == 'race' else '0', 'test'])
-                        self.assertEqual(args.count('-race'), int(mode == 'race'))
-                        self.assertIn('-count=1', args)
-                        self.assertEqual(args[args.index('-run') + 1], '^(' + '|'.join(sorted(roots)) + ')$')
-                        self.assertEqual(args[-len(packages):], packages)
+                        self.assertEqual(ran.returncode == 0, fault == 'success', ran.stderr)
+                        calls = [json.loads(line) for line in (work / 'args').read_text().splitlines()]
+                        self.assertEqual([args[-1] for args in calls], ordered)
+                        for args in calls:
+                            roots = {name.split('/')[0] for package, name in required if package == args[-1]}
+                            self.assertEqual(args[:2], ['1' if mode == 'race' else '0', 'test'])
+                            self.assertEqual(args.count('-race'), int(mode == 'race'))
+                            for flag in ('-count=1', '-p=1', '-trimpath', '-timeout=15m'):
+                                self.assertIn(flag, args)
+                            self.assertEqual(args[args.index('-run') + 1], '^(' + '|'.join(sorted(roots)) + ')$')
+                        timings = [line.split()[1:] for line in (work / 'darwin-native-timings.txt').read_text().splitlines()]
+                        self.assertEqual([p for phase, p in timings if phase == 'start'], ordered)
+                        self.assertEqual([p for phase, p in timings if phase in ('pass', 'fail')], ordered)
 
     def test_pr_success_cannot_attest_the_full_platform(self):
         results = {name: {'result': 'success'} for name in JOBS | {'validation-plan'}}
