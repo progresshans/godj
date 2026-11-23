@@ -81,7 +81,7 @@ OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-r
 관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
 필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
-비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 전체 25개)가 모두 성공하고 각 작업의 업로드 로그에 기록된 artifact ID·SHA-256이 GitHub 메타데이터와 일치해야 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
+비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 전체 25개)가 모두 성공하고 각 생산 작업에서 업로드 직후 성공한 단계 이름에 고정 업로드 액션이 반환한 artifact ID·SHA-256을 기록한다. 비교기는 작업 API의 해당 시도·단계 순서·영수증을 GitHub artifact 메타데이터와 대조한 뒤 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
 각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 실행 범위와 모든 생산자의 ID·시도·artifact ID·해시를 남긴다.
 개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
 제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.

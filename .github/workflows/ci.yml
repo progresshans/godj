@@ -850,6 +850,7 @@ jobs:
           PY
 
       - name: Publish project-check evidence
+        id: project_upload
         if: always() && steps.project-evidence.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -857,6 +858,13 @@ jobs:
           path: ${{ runner.temp }}/project-check-evidence/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Project artifact ${{ steps.project_upload.outputs.artifact-id }} ${{ steps.project_upload.outputs.artifact-digest }}
+        if: success() && steps.project_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.project_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.project_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
 
       - name: Require a clean worktree
         run: |
@@ -985,6 +993,7 @@ jobs:
           PY
 
       - name: Publish project-reload evidence
+        id: project_upload
         if: always() && steps.reload-evidence.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -992,6 +1001,13 @@ jobs:
           path: ${{ runner.temp }}/project-reload-evidence/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Project artifact ${{ steps.project_upload.outputs.artifact-id }} ${{ steps.project_upload.outputs.artifact-digest }}
+        if: success() && steps.project_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.project_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.project_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
 
       - name: Require a clean worktree
         run: |
@@ -1249,6 +1265,7 @@ jobs:
         run: python3 scripts/ci/project_reference.py seal "$RUNNER_TEMP/python-reference-evidence"
 
       - name: Publish Python project-reference evidence
+        id: project_upload
         if: always() && steps.python-reference.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -1256,6 +1273,13 @@ jobs:
           path: ${{ runner.temp }}/python-reference-evidence/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Project artifact ${{ steps.project_upload.outputs.artifact-id }} ${{ steps.project_upload.outputs.artifact-digest }}
+        if: success() && steps.project_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.project_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.project_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
 
       - name: Require a clean worktree
         run: |

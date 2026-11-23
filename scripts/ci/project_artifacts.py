@@ -2,7 +2,7 @@
 from collections import defaultdict
 import re
 
-from capture_artifact import github_read, github_records
+from capture_artifact import github_records
 from platform_policy import coordinates
 
 
@@ -18,25 +18,15 @@ def producers(profile):
     return result
 
 
-def job_log(repository, job_id):
-    return github_read(f"repos/{repository}/actions/jobs/{job_id}/logs")
-
-
-def verify_upload(log, artifact):
-    # Read the pinned upload action's own receipt. Diagnostic uploads survive
-    # cancellation too, so this check is in addition to the producer conclusion.
-    sections = re.split(rb"(?m)^\S+ ##\[group\]Run ", log)
-    name = artifact["name"].encode()
-    header = re.compile(rb"(?m)^\S+   name: " + re.escape(name) + rb"\r?$")
-    groups = [block for block in sections if block.startswith(b"actions/upload-artifact@")
-              and header.search(block.partition(b"##[endgroup]")[0])]
-    if len(groups) != 1:
-        raise ValueError(f"missing or ambiguous upload step for {artifact['name']}")
-    lines = [line.partition(b" ")[2] for line in groups[0].splitlines()]
-    digest = artifact["digest"].removeprefix("sha256:").encode()
-    identifier = str(artifact["id"]).encode()
-    if (lines.count(b"SHA256 digest of uploaded artifact zip is " + digest) != 1
-            or lines.count(b"Artifact " + name + b".zip successfully finalized. Artifact ID " + identifier) != 1):
+def verify_upload(job, upload, artifact):
+    # The trusted upload action supplies both fields in the following step's
+    # evaluated name. GitHub returns that step on this exact job and attempt.
+    receipts = [step for step in job["steps"] if step["name"].startswith("Project artifact ")]
+    expected = f"Project artifact {artifact['id']} {artifact['digest'].removeprefix('sha256:')}"
+    if (len(receipts) != 1 or type(upload.get("number")) is not int or upload["number"] < 1
+            or type(receipts[0].get("number")) is not int or receipts[0]["number"] != upload["number"] + 1
+            or receipts[0]["name"] != expected
+            or receipts[0]["status"] != "completed" or receipts[0]["conclusion"] != "success"):
         raise ValueError(f"upload receipt differs for {artifact['name']}")
 
 
@@ -60,7 +50,7 @@ def validated_producers(selection, source, repository_id, profile):
     return selected
 
 
-def resolve(source, repository_id, profile, fetch=github_records, read_log=job_log):
+def resolve(source, repository_id, profile, fetch=github_records):
     repository = source["repository"]
     run, current = int(source["run_id"]), int(source["run_attempt"])
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII) or min(run, current, repository_id) < 1:
@@ -86,7 +76,7 @@ def resolve(source, repository_id, profile, fetch=github_records, read_log=job_l
         if not re.fullmatch("[1-9][0-9]*", version) or int(version) not in jobs[expected[stem][0]]:
             raise ValueError(f"project archive has no matching producer attempt for {stem}")
         archives[artifact["name"]].append(artifact)
-    selected, uploads = {}, []
+    selected = {}
     for stem, (name, publish_step) in expected.items():
         if not jobs[name]:
             raise ValueError(f"missing producer for {name}")
@@ -109,9 +99,7 @@ def resolve(source, repository_id, profile, fetch=github_records, read_log=job_l
             raise ValueError(f"invalid immutable archive for {stem}")
         selected[stem] = {"producer_attempt": attempt, "job_id": job["id"], "artifact_id": artifact["id"],
                           "archive_sha256": artifact["digest"].removeprefix("sha256:")}
-        uploads.append((job["id"], artifact))
+        verify_upload(job, published[0], artifact)
     selection = {"source": source, "repository_id": repository_id, "profile": profile, "producers": selected}
     validated_producers(selection, source, repository_id, profile)
-    for job_id, artifact in uploads:
-        verify_upload(read_log(repository, job_id), artifact)
     return selection
