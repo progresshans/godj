@@ -12,6 +12,7 @@ PLATFORMS = (
 )
 MODES = ('normal', 'race', 'cgo0')
 PROFILES = ('pr', 'full')
+NATIVE_STEP_MINUTES = {'amd64': 35, 'arm64': 80}
 
 # Package budgets belong to their actual platform. Preserve the allowances
 # for both sequential cold project flows and for the independent CLI suites.
@@ -65,6 +66,8 @@ def product_matrix(profile):
         rows.append({'platform': {'runs_on': runner, 'expected_goos': system, 'expected_goarch': arch,
                                   'cmd_test_timeout': cmd, 'flow_test_timeout': flow,
                                   'operator_timeout': operator, 'target_timeout': target,
-                                  'project_minutes': project[MODES.index(mode)], 'command_minutes': commands},
+                                  'project_minutes': project[MODES.index(mode)], 'command_minutes': commands,
+                                  'native_minutes': NATIVE_STEP_MINUTES[arch],
+                                  'reload_minutes': 65 + (NATIVE_STEP_MINUTES[arch] if system == 'darwin' and mode != 'normal' else 0)},
                      'mode': mode})
     return {'include': rows}

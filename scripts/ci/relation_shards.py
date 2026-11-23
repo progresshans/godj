@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 
 from go_test_events import discover_roots, events, inspect
-from platform_policy import PLATFORMS, PROFILES
+from platform_policy import NATIVE_STEP_MINUTES, PLATFORMS, PROFILES
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
@@ -52,7 +52,8 @@ def matrix(profile='full'):
         if profile == 'pr' and goos == 'darwin':
             for mode in ('race', 'cgo0'):
                 rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
-                             'shard': 'native', 'job_timeout': 40})
+                             'shard': 'native', 'native_minutes': NATIVE_STEP_MINUTES[goarch],
+                             'job_timeout': NATIVE_STEP_MINUTES[goarch] + 10})
             continue
         for mode in ('normal', 'race', 'cgo0'):
             # Keep ordinary consumer owners separate from the runtime owner.

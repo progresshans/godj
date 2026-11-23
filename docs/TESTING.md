@@ -50,6 +50,8 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
+Darwin 필수 검사는 패키지 하나씩 실행하고 매번 시작·종료 시각, Go 이벤트와 stderr를 남긴다. SQLite는 마지막에 실행한다. `-p=1`로 동시 빌드 도구 수를 제한하고 외부 프로젝트와 같은 `-trimpath`를 사용한다. 각 패키지 테스트의 15분 제한, race·CGO=0, 하위 검사 필수 통과 조건을 유지한다. 단계 제한은 Intel 35분과 ARM64 80분이며 전용 작업에는 준비·증거 업로드 10분을 별도로 둔다.
+
 공개 저장소의 표준 GitHub 호스팅 러너를 사용한다. Go 설정은 OS·CPU·Go 버전별로 루트 모듈과 OpenAPI 클라이언트의 `go.mod`·`go.sum` 조합을 공유하므로 같은 PR에서 Portable과 다른 Linux 작업이 같은 캐시를 복원할 수 있다. Python은 uv의 기존 캐시와 고정 lockfile을 사용한다. GitHub의 PR 캐시 접근 범위와 저장소의 10 GB 상한을 따른다. [GitHub 캐시 정책](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
 
 외부 operator·targeted migration fixture는 준비 단계에서 저장소의 검증된 Go 체크섬을 복사한다. 오프라인에서 실제 실행 파일의 의존성을 해석하고 사용된 합계를 원본과 대조한다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도

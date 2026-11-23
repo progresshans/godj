@@ -517,6 +517,7 @@ jobs:
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Run relation product mode
+        timeout-minutes: ${{ matrix.native_minutes || matrix.job_timeout }}
         env:
           PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
           GODJ_GENERATED_CONSUMER_CAPTURE_DIR: ${{ runner.temp }}/generated-consumer-diagnostics
@@ -875,7 +876,7 @@ jobs:
     needs: validation-plan
     name: Product reload (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.platform.runs_on }}
-    timeout-minutes: 65
+    timeout-minutes: ${{ matrix.platform.reload_minutes }}
     env:
       LC_ALL: C
       TZ: UTC
@@ -971,6 +972,7 @@ jobs:
           test "$runserver_status" = 0
 
       - name: Verify Darwin native boundaries on the full platform matrix
+        timeout-minutes: ${{ matrix.platform.native_minutes }}
         if: matrix.platform.expected_goos == 'darwin' && matrix.mode != 'normal'
         run: bash scripts/ci/darwin-native.sh "${{ matrix.mode }}" "$RUNNER_TEMP/project-reload-evidence"
 
