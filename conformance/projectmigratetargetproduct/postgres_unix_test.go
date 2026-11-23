@@ -4,9 +4,9 @@ package projectmigratetargetproduct_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/dbstate"
@@ -39,13 +39,10 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 				from, to = to, from
 				args = append(args, "--backwards")
 			}
-			out := run(args...)
-			lines := strings.Split(strings.TrimSuffix(out.Stdout, "\n"), "\n")
-			if len(lines) != 3 || lines[0] != "ALTER TABLE \""+schema+"\".\""+from+"\" RENAME TO \""+to+"\";" ||
-				!strings.HasPrefix(lines[1], "ALTER SEQUENCE \""+schema+"\".") || !strings.HasPrefix(lines[2], "ALTER TABLE \""+schema+"\".\""+to+"\" RENAME CONSTRAINT ") {
-				t.Fatal("rename SQL", lines)
-			}
-			targetAssertSuccess(t, out, strings.Join(lines, "\n")+"\n", targetPostgresSensitive(t, project, databaseURL, "")...)
+			want := fmt.Sprintf("ALTER TABLE %q.%q RENAME TO %q;\n", schema, from, to) +
+				fmt.Sprintf("ALTER SEQUENCE %q.%q RENAME TO %q;\n", schema, targetPostgresSequenceName(from), targetPostgresSequenceName(to)) +
+				fmt.Sprintf("ALTER TABLE %q.%q RENAME CONSTRAINT %q TO %q;\n", schema, to, targetPostgresPrimaryName(from), targetPostgresPrimaryName(to))
+			project.runAt(t, project.nested, env, want, append(args, "--project", project.descriptor)...)
 		}
 		targetAssertPathAbsent(t, marker)
 		targetAssertPostgresUnchanged(t, databaseURL, schema, before)

@@ -5,7 +5,7 @@
 
 ## M1 모델 이름 변경과 관계 보존
 
-#15의 `17a46f27`에서 SQLite는 모델명을 변경하고 테이블명을 유지한 두 선언을 동시 소유자로 처리해 트랜잭션 시작을 거부했다. 테이블 소유권은 초기 모델과 실제 저장소 변경 순서를 따라 검사하도록 수정했다. 정방향·역방향에 대해 고정 테이블의 이름 변경이 DDL을 만들지 않는 경우와, 기존 소유자가 살아 있을 때 새 모델이 같은 테이블을 요구하는 경우를 필수 회귀 검사에 추가했다. 실제 행·관계·재접속 검증은 이 변경의 원격 CI 대상이다. [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314915383) · [외부 프로젝트 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314908928)
+#15의 `17a46f27`에서 SQLite는 모델명을 변경하고 테이블명을 유지한 두 선언을 동시 소유자로 처리해 트랜잭션 시작을 거부했다. 테이블 소유권은 초기 모델과 실제 저장소 변경 순서를 따라 검사하도록 수정했다. 정방향·역방향에 대해 고정 테이블의 이름 변경이 DDL을 만들지 않는 경우와, 기존 소유자가 살아 있을 때 새 모델이 같은 테이블을 요구하는 경우를 필수 회귀 검사에 추가했다. 실제 행·관계·재접속 검증은 이 변경의 원격 CI 대상이다. PostgreSQL 이름 변경 미리보기는 두 방향 모두 표·시퀀스·기본 키 이름을 독립적인 catalog 기대값으로 구성해 세 SQL문 전체를 대조한다. 각 줄에는 정확한 스키마 한 곳만 허용한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314909980) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314915383) · [외부 프로젝트 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314908928)
 
 Django 6.1과 Python 3.14.3의 실제 migration을 실행했다. SQLite 3.50.4와 별도 로컬 PostgreSQL 17.5·psycopg 3.3.6에서 기본 테이블 9개, 고정 테이블 8개 항목이 일치했다. 두 경우 모두 PK·자기 FK·다른 앱의 OneToOne·양 방향에서 참조되는 다대다 행과 링크 키를 대조했다. 명시적 through 모델을 따로 바꿨다가 되돌리고 재접속해 관계와 가중치도 확인했다. 뒤 제약이 실패하면 기존 행과 테이블이 남았고, 기본 테이블의 목적 이름이 이미 사용 중이면 기존 목적 행도 보존됐다. 이름 변경 뒤 추가한 행은 역적용과 재적용 뒤에도 같은 키로 남았다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_rename.py) · [공통 기준](../../internal/migrationdefaulttest/testdata/model-rename-django61.json) · [고정 소스와 라이선스](../SOURCES.md)
 
