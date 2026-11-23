@@ -5,6 +5,8 @@
 
 ## M1 역방향 SQL 표시
 
+PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명령의 공통 비공개 값 검사에서 실패했다. 소스에서 정상 SQL에 필요한 스키마 이름도 모든 출력의 금지 목록에 들어 있었다. 이 사례는 독립적으로 정한 SQL 전체, 성공 종료, 빈 stderr와 한 번의 스키마 한정자를 요구한다. 연결 URL·암호·경로·비밀 표식은 원문에서 계속 검사하고, 파일과 다른 명령의 출력에는 스키마 이름도 허용하지 않는다. 오류 응답과 DB 미접속·사전/사후 상태는 같은 제품 사례에서 검사한다. [기존 PostgreSQL 실패](https://github.com/progresshans/godj/actions/runs/45044922465/job/137277397625)
+
 `godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
 
 로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)

@@ -1115,6 +1115,7 @@ jobs:
           fi
           package="github.com/progresshans/godj/conformance/projectmigratetargetproduct"
           required_passes=(
+            "TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput"
             "TestProjectLinkedTargetedMigrateSQLite"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-119_exact_argv_and_exact_name_miss"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-120_named_forward_closure"
