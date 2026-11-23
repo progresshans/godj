@@ -111,7 +111,7 @@ class RelationShardTest(unittest.TestCase):
 
     def test_workflow_plan_preserves_coordinates_coverage_and_timeouts(self):
         output = self.directory / 'outputs'
-        environment = dict(os.environ, GITHUB_OUTPUT=str(output))
+        environment = dict(os.environ, GITHUB_OUTPUT=str(output), GITHUB_EVENT_NAME="workflow_dispatch")
         result = subprocess.run([sys.executable, str(Path(__file__).with_name('workflow.py')), 'plan'], env=environment,
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -288,7 +288,7 @@ class RelationShardTest(unittest.TestCase):
         for isolated, shard, shards in ((False, 2, 3), (True, 7, 7)):
             with self.subTest(isolated=isolated):
                 values = {'mode': 'normal', 'shard': str(shard), 'shards': str(shards),
-                          'isolate_accounts': str(isolated).lower()}
+                          'scope': 'relation', 'isolate_accounts': str(isolated).lower()}
                 script = capture + prefix + '\n'.join(commands) + '\n'
                 script = re.sub(r'\$\{\{\s*matrix\.(\w+)\s*\}\}', lambda match: values[match[1]], script)
                 environment = {**os.environ, **paths, 'PARTITION_PYTHON': sys.executable}

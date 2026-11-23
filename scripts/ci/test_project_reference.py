@@ -5,8 +5,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from platform_policy import coordinates
 from project_artifacts import PYTHON, producers
-from project_reference import (COMMAND_TEST, COORDINATES, EVENT_TEST, PACKAGE, REFERENCES, ROOT, SPECIAL,
+from project_reference import (COMMAND_TEST, EVENT_TEST, PACKAGE, REFERENCES, ROOT, SPECIAL,
                                compare_development, compare_events, decode, digest, document, go_observation,
                                plan, seal, verify_all, verify_seal)
 
@@ -59,11 +60,11 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                        "event_head": "1" * 40, "checkout": "2" * 40, "tree": "3" * 40, "status": ""}
 
         records = {stem: {"producer_attempt": 2, "job_id": index, "artifact_id": index + 100, "archive_sha256": "a" * 64}
-                   for index, stem in enumerate(producers(), 1)}
-        self.selection = {"source": self.source, "repository_id": 7, "producers": records}
+                   for index, stem in enumerate(producers("full"), 1)}
+        self.selection = {"source": self.source, "repository_id": 7, "profile": "full", "producers": records}
 
     def verify(self, source=None):
-        return verify_all(self.directory, self.source if source is None else source, self.selection, 7)
+        return verify_all(self.directory, self.source if source is None else source, self.selection, 7, "full")
 
     def write_json(self, path, value):
         path.write_text(json.dumps(value, sort_keys=True) + "\n")
@@ -74,7 +75,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
     def write_events(self, path, values):
         path.write_text("".join(json.dumps(value) + "\n" for value in values))
 
-    def fixture(self):
+    def fixture(self, profile="full"):
         python = self.directory / (PYTHON + "-2")
         python.mkdir()
         self.write_json(python / "source.json", {**self.source, "python_version": "3.14.3"})
@@ -88,7 +89,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         roots = sorted({entry.split("|", 1)[1].split("/")[0] for entry in required + postgres if entry.startswith(PACKAGE + "|")})
         discovery = ([self.event("start")] + [self.event("output", Output=root + "\n") for root in roots] +
                      [self.event("output", Output="ok  \t" + PACKAGE + "\t0.1s\n"), self.event("pass")])
-        for coordinate in COORDINATES:
+        for _, *coordinate in coordinates(profile):
             for owner, prefix in (("baseline", "project-check-"), ("reload", "project-reload-")):
                 target = self.directory / (prefix + "-".join(coordinate) + "-2")
                 target.mkdir(parents=True)
@@ -183,6 +184,18 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         for name, data in original.items(): (target / name).write_bytes(data)
         seal(target)
         self.assertEqual(12, len(self.verify()['coordinates']))
+
+    def test_pr_comparison_requires_both_darwin_baselines_and_cannot_authorize_full(self):
+        self.fixture("pr")
+        self.selection.update(profile="pr", producers={s: self.selection["producers"][s] for s in producers("pr")})
+        report = verify_all(self.directory, self.source, self.selection, 7, "pr")
+        self.assertEqual(("pr", 17, 8), (report["profile"], len(report["producers"]), len(report["coordinates"])))
+        for profile in ("full", "unknown"):
+            with self.assertRaises(ValueError):
+                verify_all(self.directory, self.source, self.selection, 7, profile)
+        del self.selection["producers"]["project-reload-darwin-amd64-normal"]
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "pr")
 
     def test_all_coordinates_bind_complete_consumers_and_independent_sources(self):
         self.fixture()

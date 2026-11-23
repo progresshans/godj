@@ -157,14 +157,7 @@ replace github.com/progresshans/godj => %s
 		"GOPRIVATE":       "",
 	})
 	setupEnvironment = gobuild.Environment(setupEnvironment, os.Environ(), universe)
-	// The execution owner has already downloaded the locked repository graph.
-	// Preserve its verified checksums in this independent module rather than
-	// asking a fresh private HOME to contact the checksum service again.
-	checksums, err := os.ReadFile(filepath.Join(repository, "go.sum"))
-	if err != nil {
-		t.Fatal("read repository dependency checksums")
-	}
-	operatorWriteFile(t, filepath.Join(root, "go.sum"), checksums, 0o600)
+	verifyChecksums := testfixture.SeedModuleChecksums(t, repository, root)
 	operatorRunSetup(t, root, setupEnvironment, "go", "list", "-mod=mod", "-deps", "./cmd/projectrunner")
 
 	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
@@ -184,27 +177,7 @@ replace github.com/progresshans/godj => %s
 	operatorRunSetup(t, nested, generateEnvironment, globalBinary, "generate", "--project", filepath.Join(root, "godj.toml"))
 
 	operatorRunSetup(t, root, setupEnvironment, "go", "mod", "tidy")
-	preparedChecksums, err := os.ReadFile(filepath.Join(root, "go.sum"))
-	if err != nil {
-		t.Fatal("read prepared dependency checksums")
-	}
-	verified := make(map[string]bool)
-	for _, line := range strings.Split(string(checksums), "\n") {
-		line = strings.Join(strings.Fields(line), " ")
-		if line != "" {
-			verified[line] = true
-		}
-	}
-	for _, line := range strings.Split(string(preparedChecksums), "\n") {
-		line = strings.Join(strings.Fields(line), " ")
-		if line != "" && !verified[line] {
-			fields := strings.Fields(line)
-			if len(fields) != 3 {
-				t.Fatal("external fixture produced invalid dependency checksums")
-			}
-			t.Fatalf("external fixture selected a dependency outside repository checksums: %s %s", fields[0], fields[1])
-		}
-	}
+	verifyChecksums()
 
 	operatorAuditExternalSources(t, root)
 	project := &operatorExternalProject{

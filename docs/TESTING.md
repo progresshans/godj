@@ -32,10 +32,15 @@ go test ./orm -count=1
 `make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
 `make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
 Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. 빠른 검사의 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
-PR 생성·새 commit push·재개와 main push에서 전체 원격 CI를 자동 실행한다. Draft PR도 같은 검증을 받는다.
-수동 실행은 같은 전체 검증을 다시 요청한다. 라벨·부분 실행 범위·문서 경로에 따른 실행 선택은 없다.
-같은 PR이나 branch에 새 실행이 요청되면 진행 중인 이전 실행을 취소하고 최신 source를 검증한다.
-완료 판정은 해당 run의 실제 checkout과 모든 필수 job의 성공을 확인한다. 실패·취소·skip·누락은 전체 성공이 아니다.
+
+## 원격 CI 실행 범위
+
+일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
+macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
+
+PR이 루트 `go.mod`·`go.sum`, `*_darwin.go`·`*_darwin_*.go`·`*_unix.go`를 변경하거나 삭제하면 전체 플랫폼을 자동 실행한다. 계획기는 이벤트의 base·head와 실제 병합 커밋의 양쪽 부모를 확인하고, 이름 변경 전후 경로를 포함해 비교한다. main push와 수동 실행도 전체 플랫폼을 실행한다. 릴리스 후보는 해당 소스에서 전체 결과를 확인한다. [선택 기준](../scripts/ci/platform_policy.py)
+
+같은 PR의 새 push는 진행 중인 이전 실행을 취소한다. 최종 집계는 같은 소스에서 범위를 다시 계산하고 모든 필수 작업의 성공을 요구한다. 일반 PR의 결과는 `profile=pr`, 전체 플랫폼 성공은 `profile=full`과 `full_platform_verified=true`로 기록한다.
 
 Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
 [suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
@@ -45,7 +50,9 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
-일반 CI는 dependency/build cache를 재사용할 수 있다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
+공개 저장소의 표준 GitHub 호스팅 러너를 사용한다. Go 설정은 OS·CPU·Go 버전별로 루트 모듈과 OpenAPI 클라이언트의 `go.mod`·`go.sum` 조합을 공유하므로 같은 PR에서 Portable과 다른 Linux 작업이 같은 캐시를 복원할 수 있다. Python은 uv의 기존 캐시와 고정 lockfile을 사용한다. GitHub의 PR 캐시 접근 범위와 저장소의 10 GB 상한을 따른다. [GitHub 캐시 정책](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
+
+외부 operator·targeted migration fixture는 준비 단계에서 저장소의 검증된 Go 체크섬을 복사한다. 오프라인에서 실제 실행 파일의 의존성을 해석하고 사용된 합계를 원본과 대조한다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
 다운로드와 compile cache를 재사용한다. Cold build나 private workspace 격리가 검증 대상일 때만 그 경계를 따로 실행한다.
 Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cache로 저장하지 않는다.
 동일 소스를 다른 디렉터리에서 재현하는 일반 compile에는 `-trimpath`를 사용한다. 소스 경로 자체나 cold/private
@@ -73,9 +80,9 @@ OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-r
 단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료와 `--no-reload`의 명시적 재시작을,
 관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
-필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 12개 native 좌표의 원본을 다시 읽어 대조한다.
-비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 25개 작업이 모두 성공하고 각 작업의 업로드 로그에 기록된 artifact ID·SHA-256이 GitHub 메타데이터와 일치해야 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
-각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 25개 작업의 ID·시도·artifact ID·해시를 남긴다.
+필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
+비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 전체 25개)가 모두 성공하고 각 작업의 업로드 로그에 기록된 artifact ID·SHA-256이 GitHub 메타데이터와 일치해야 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
+각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 실행 범위와 모든 생산자의 ID·시도·artifact ID·해시를 남긴다.
 개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
 제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.
 SYS-003 등의 단일 worker 준비는 cold 의존성 컴파일을 포함해 최대 5분을 허용하고, 실제 worker 동작은 별도의
@@ -156,7 +163,7 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix는 Linux·macOS의 각 아키텍처와 모드에서 0번 작업이 일반 관계 패키지를 실행한다.
+전체 플랫폼의 관계 matrix와 일반 PR의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
 생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
 계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
 
@@ -175,7 +182,7 @@ Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전
 옛 fixture별 파일 수·이전 내부 ABI의 복제본을 유지하지 않는다. 현재 생성 조합의 일관성·잘못 섞인 snapshot 거부는
 `codegen/consumertest`, 소비자 타입 오류와 publication 실패 시 기존 결과 보존은 각각 compile·projectgenerate 검증이 맡는다.
 
-SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
+SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 Linux의 각 OS/CPU 좌표에서 실행한다. 전체 플랫폼에서는 Darwin의 같은 좌표에서도 실행한다.
 Conformance Go runner 전체는 project-check matrix가 실행하고 관계 matrix는 같은 runner subset을 반복하지 않는다.
 Linux amd64 checker 전체는 Portable이 맡고 관계 matrix의 같은 subset을 생략한다.
 Portable core/conformance는 `scripts/ci/portable_tests.py`가 normal/race/CGO0의 JSON 시작·종료와 package 완료를 대조한다.
@@ -183,7 +190,7 @@ Core의 필수 root/child는 `portable-core-required.txt`에 두고 모두 실�
 기존 선택적 검사의 skip은 core 결과에 구분해 기록한다. Conformance는 옮겨진 checker의 필수 sentinel·package no-skip을 유지한다.
 원격 job은 JSON 전체·stderr·실제 package/필수 목록·결과와 파일 hash를 portable test evidence artifact로 보존한다.
 다른 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
-aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. Darwin CGO-disabled lifecycle도 관계/project-check matrix가 소유한다.
+aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. 일반 PR의 Darwin CGO-disabled lifecycle은 네이티브 필수 검사에서, 전체 플랫폼에서는 관계/project-check matrix에서 검증한다.
 
 ## 남겨야 하는 검증
 
@@ -355,7 +362,7 @@ CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>
 
 ## 문서와 과거 증거
 
-문서-only 변경의 로컬 검증은 link·상태 일관성과 `git diff --check`로 제한한다. PR/main push에는 같은 원격 CI가 적용된다.
+문서-only 변경의 로컬 검증은 link·상태 일관성과 `git diff --check`로 제한한다. PR과 main push에는 위의 원격 CI 실행 범위를 적용한다.
 현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
 명령, source, 환경, 결과, 실패/skip, 미실행 범위를 남기면 된다. 작은 수정마다 여러 activation/checkpoint/terminal EVID를 만들지 않는다.
 

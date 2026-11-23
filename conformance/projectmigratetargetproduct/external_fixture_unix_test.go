@@ -150,6 +150,11 @@ replace github.com/progresshans/godj => %s
 		"GOENV":           "off",
 		"GOFLAGS":         "",
 		"GOCACHEPROG":     "",
+		"GOPROXY":         "off",
+		"GOSUMDB":         "off",
+		"GONOPROXY":       "none",
+		"GONOSUMDB":       "none",
+		"GOPRIVATE":       "",
 	}),
 		targetPostgresTestURLEnvironment,
 		targetPostgresRequiredEnvironment,
@@ -160,15 +165,14 @@ replace github.com/progresshans/godj => %s
 		targetCatalogEnvironment,
 		targetMarkerEnvironment,
 	)
-	// Dependency resolution is fixture setup. Every product invocation after
-	// this point runs with both the proxy and checksum database disabled.
+	// Every process uses the prewarmed module graph, including fixture setup.
 	setupEnv = gobuild.Environment(setupEnv, os.Environ(), universe)
-	targetRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
+	verifyChecksums := testfixture.SeedModuleChecksums(t, repository, root)
+	targetRunSuccess(t, root, setupEnv, "go", "list", "-mod=mod", "-deps", "./cmd/projectrunner")
+	verifyChecksums()
 
 	secret := "target-migrate-secret-canary-5d7e248ca1"
 	baseEnv := testenv.With(setupEnv, map[string]string{
-		"GOPROXY":                         "off",
-		"GOSUMDB":                         "off",
 		targetSecretEnvironment:           secret,
 		targetFailDeleteTableEnvironment:  "",
 		targetFailBackendOpenEnvironment:  "",
