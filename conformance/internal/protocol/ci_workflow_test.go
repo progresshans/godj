@@ -348,11 +348,10 @@ func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
 	}
 }
 
-func TestRunserverKeepsNormalRaceAndCGOZeroProductCoverage(t *testing.T) {
+func TestPortableProductTargetsRunAllThreeModesOutsideQuickFeedback(t *testing.T) {
 	makefile := ciRead(t, "Makefile")
-	for target, mode := range map[string]string{"go-test-products": "", "go-race-products": "-race", "cgo-zero-build-products": "CGO_ENABLED=0"} {
-		body := ciMakeTarget(t, makefile, target)
-		ciRequire(t, target, body, "scripts/ci/packages.py portable-products", "go test", mode)
+	for target, mode := range map[string]string{"go-test-products": "normal", "go-race-products": "race", "cgo-zero-build-products": "cgo0"} {
+		ciRequire(t, target, ciMakeTarget(t, makefile, target), "python3 scripts/ci/portable_tests.py products "+mode)
 	}
 	quick := ciMakeTarget(t, makefile, "quick")
 	for _, heavy := range []string{"godj-conformance", "go-test-products", "go-test-platform"} {

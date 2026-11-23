@@ -5,6 +5,8 @@
 
 ## M1 모델 삭제와 빈 테이블 복원
 
+#14의 `a0d5ef59`에서 제품 테스트의 세 Make target이 공통 실행기로 이동했지만 프로토콜 검사가 이전 shell 명령을 찾아 실패했다. 공개 target이 normal·race·CGO=0을 각각 올바르게 전달하는지 대조한다. 공통 실행기 검사는 실제 인자·package 목록·필수 SQLite 외부 writer와 모델 삭제의 통과, 누락·실패·잘린 이벤트의 거부를 확인한다. [기존 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294924440) · [실행기 검증](../../scripts/ci/test_portable_tests.py)
+
 고정 Django 6.1에서 선언 중간의 모델에 고유 열과 자동 다대다 관계를 만들고, 행을 넣은 뒤 삭제·역적용했다. Python 3.14.3과 SQLite 3.50.4에서 기존 역사 관측 15개와 새 관측 8개가 기대값에 일치했다. 새 관측은 초기 행, 삭제·복원 DDL 순서, 뒤 연산 실패 후 롤백, 재접속 뒤 남은 테이블, 빈 테이블 복원, 재삽입, 고유 제약이다. 원본 JSON의 SHA-256은 `93d85750b76e15fe3c45fc55a9cfb8ebfd5f0ad210740774e6e454bf151352de`다. 별도 로컬 PostgreSQL 17.5와 psycopg 3.3.6에서 같은 8개 관측이 일치했다. 공통 기대값의 SHA-256은 `822b2ea71a7061032ba299040e1b5eaa30bcc2dcb14d834707518ae52d0290b4`다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_deletion.py) · [관측값](../../internal/migrationdefaulttest/testdata/model-deletion-django61.json) · [고정 소스·라이선스](../SOURCES.md)
 
 GoDj에는 같은 관측값을 사용하는 양 DB 검사와 프로젝트 명령 검사를 추가했다. 관리 밖 FK와 뷰가 삭제를 막는지, 오류 시 행·스키마·기록이 함께 롤백되는지, 재접속 후 저장된 정의를 바꾸면 역적용이 중단되는지를 확인한다. SQLite 공개 명령은 다른 앱의 참조 해제부터 삭제 정의 작성·재실행·SQL 표시·적용·빈 테이블 복원까지 수행한다. PostgreSQL 공개 명령은 지정한 schema의 DDL과 복원 뒤 새 키를 확인한다. 이 소스의 실제 Go 실행 및 고정 PostgreSQL 17.10 비교는 원격 CI 수용 대상이다. [양 DB 검사](../../internal/migrationdefaulttest/delete_model.go) · [SQLite 공개 명령](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
