@@ -31,6 +31,8 @@ MIG-107은 같은 앱에서 모델이 사라지고 다른 모델이 추가되는
 
 ## M1 역방향 SQL 표시
 
+#13 `e1a0dff2`의 Linux 명령 작업에서 필수 SQL 출력 검사가 실행되지 않아 결과 집계가 실패했다. SQLite 대상 Go 실행 필터가 기존 테스트 한 개만 선택하고 있었다. 명령 작업은 필수 목록의 최상위 테스트 이름으로 실행 필터를 만들고 전체 하위 이름으로 성공을 검증한다. PostgreSQL operator-target도 동일한 출력 검사와 실제 스키마를 사용하는 역방향 명령을 함께 검증한다. 로컬에서는 실제 workflow 스텝에 테스트용 이벤트를 제공해 세 모드 모두 두 테스트를 선택하고, 필수 성공 이벤트 하나를 빼면 거부하는지 확인했다. [실패 로그](https://github.com/progresshans/godj/actions/runs/45187158796/job/137735795990)
+
 PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명령의 공통 비공개 값 검사에서 실패했다. 소스에서 정상 SQL에 필요한 스키마 이름도 모든 출력의 금지 목록에 들어 있었다. 이 사례는 독립적으로 정한 SQL 전체, 성공 종료, 빈 stderr와 한 번의 스키마 한정자를 요구한다. 연결 URL·암호·경로·비밀 표식은 원문에서 계속 검사하고, 파일과 다른 명령의 출력에는 스키마 이름도 허용하지 않는다. 오류 응답과 DB 미접속·사전/사후 상태는 같은 제품 사례에서 검사한다. [기존 PostgreSQL 실패](https://github.com/progresshans/godj/actions/runs/45044922465/job/137277397625)
 
 `godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
