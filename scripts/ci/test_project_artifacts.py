@@ -48,6 +48,28 @@ class ProjectArtifactTests(unittest.TestCase):
             self.assertEqual(row["job_id"] + 100, row["artifact_id"])
         self.assertEqual(selection["producers"][self.target]["job_id"], self.jobs[-1]["id"])
 
+    def test_partial_rerun_keeps_the_actual_archive_and_job_for_retained_producers(self):
+        original = self.jobs[0]
+        original.update(created_at="2026-11-23T08:41:40Z", started_at="2026-11-23T08:41:44Z",
+                        completed_at="2026-11-23T09:45:36Z", runner_id=17)
+        retained = copy.deepcopy(original)
+        retained.update(id=91, run_attempt=2, created_at="2026-11-23T10:16:12Z")
+        self.jobs.append(retained)
+        receipt = self.resolve()["producers"][self.archives[0]["name"].rsplit("-", 1)[0]]
+        self.assertEqual((receipt["producer_attempt"], receipt["job_id"], receipt["artifact_id"]),
+                         (1, original["id"], self.archives[0]["id"]))
+        for field, different in (("runner_id", 18), ("started_at", "2026-11-23T08:42:01Z"),
+                                 ("conclusion", "failure"), ("steps", self.jobs[-2]["steps"])):
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "retained producer"):
+                self.jobs[-1] = retained | {field: different}
+                self.resolve()
+        self.jobs[-1] = retained | {"created_at": original["completed_at"]}
+        self.assertEqual(self.resolve()["producers"][self.archives[0]["name"].rsplit("-", 1)[0]], receipt)
+        self.jobs[-1] = retained
+        self.jobs.remove(original)
+        with self.assertRaisesRegex(ValueError, "retained producer"):
+            self.resolve()
+
     def test_an_earlier_success_cannot_hide_a_failed_or_unpublished_replacement(self):
         self.previous["conclusion"] = "success"
         latest = self.jobs[-1]

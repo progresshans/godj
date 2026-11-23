@@ -50,6 +50,25 @@ def validated_producers(selection, source, repository_id, profile):
     return selected
 
 
+def executed_jobs(attempts):
+    """GitHub gives retained jobs new IDs when only failed jobs are rerun."""
+    executed = {}
+    previous = None
+    for attempt, job in sorted(attempts.items()):
+        created, finished = job.get("created_at"), job.get("completed_at")
+        if created and finished and created >= finished:
+            # A retained check was created after its execution had finished.
+            # Bind it to the preceding execution, including the upload receipt.
+            fields = ("started_at", "completed_at", "runner_id", "status", "conclusion", "steps")
+            if (previous is not None and job.get("started_at") and job.get("runner_id") and job.get("steps")
+                    and all(job.get(key) == previous.get(key) for key in fields)):
+                continue
+            if created > finished:
+                raise ValueError(f"retained producer differs from its original execution: {job['name']}")
+        executed[attempt] = previous = job
+    return executed
+
+
 def resolve(source, repository_id, profile, fetch=github_records):
     repository = source["repository"]
     run, current = int(source["run_id"]), int(source["run_attempt"])
@@ -68,6 +87,8 @@ def resolve(source, repository_id, profile, fetch=github_records):
                 or job["run_id"] != run or job["head_sha"] != source["event_head"]):
             raise ValueError(f"unexpected or duplicate producer for {name}")
         jobs[name][attempt] = job
+    for name in jobs:
+        jobs[name] = executed_jobs(jobs[name])
     archives = defaultdict(list)
     for artifact in fetch(base + "/artifacts", "artifacts"):
         stem, _, version = artifact["name"].rpartition("-")
