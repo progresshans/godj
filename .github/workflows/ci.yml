@@ -379,9 +379,11 @@ jobs:
         with:
           go-version: "1.26.5"
           check-latest: false
+          cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
       - name: Prepare the locked browser and offline Go dependencies
         run: |
-          go mod download all
+          make project-command-dependencies
           mkdir "$RUNNER_TEMP/starter-browser-tools"
           cp examples/helpdesk/testdata/browser/tools/package{,-lock}.json "$RUNNER_TEMP/starter-browser-tools/"
           npm ci --prefix "$RUNNER_TEMP/starter-browser-tools" --ignore-scripts --no-audit --no-fund
@@ -549,7 +551,7 @@ jobs:
             *) exit 1 ;;
           esac
           selected_packages="$(go list ./... | python3 scripts/ci/packages.py relation)"
-          go mod download all
+          make project-command-dependencies
           packages=()
           while IFS= read -r package; do packages+=("$package"); done <<< "$selected_packages"
           expected=("${packages[@]}")
@@ -710,7 +712,7 @@ jobs:
 
       - name: Prewarm project scaffold dependencies
         timeout-minutes: 3
-        run: go mod download all
+        run: make project-command-dependencies
 
       - name: Run and inventory product project-check mode
         env:
@@ -937,7 +939,7 @@ jobs:
 
       - name: Prewarm external app dependencies
         timeout-minutes: 3
-        run: go mod download all
+        run: make project-command-dependencies
 
       - name: Run and inventory complete reload flows
         run: |
@@ -1053,7 +1055,7 @@ jobs:
 
       - name: Prewarm project command dependencies
         id: dependencies
-        run: go mod download all
+        run: make project-command-dependencies
 
       - name: Run and inventory project operator product mode
         id: operator
@@ -1729,7 +1731,7 @@ jobs:
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )
-          go mod download all
+          make project-command-dependencies
           case "$shard" in
             core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-consumers-2|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"

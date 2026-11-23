@@ -278,7 +278,7 @@ class ExecutionOwnerTests(unittest.TestCase):
 
     def postgres_workflow_flags(self, root, workflow, mode, shard, **inventories):
         declarations = workflow.index('          operator_target_required_passes=(')
-        download = workflow.index('          go mod download all', declarations)
+        download = workflow.index('          make project-command-dependencies', declarations)
         setup = workflow.index('          case "$shard" in', download)
         selection = workflow.index('          required_tests=()', setup)
         end = workflow.index('          case "$mode" in', selection)
