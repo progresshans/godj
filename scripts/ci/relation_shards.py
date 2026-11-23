@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 
 from go_test_events import discover_roots, events, inspect
+from platform_policy import PLATFORMS, PROFILES
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
@@ -40,17 +41,23 @@ ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountRootThroughCreation',
     'TestGeneratedAccountTransitionThroughCreation',
 )
-PLATFORMS = (
-    ('ubuntu-24.04', 'linux', 'amd64'),
-    ('ubuntu-24.04-arm', 'linux', 'arm64'),
-    ('macos-15-intel', 'darwin', 'amd64'),
-    ('macos-26', 'darwin', 'arm64'),
-)
 
 
-def matrix():
+def matrix(profile='full'):
+    if profile not in PROFILES:
+        raise ValueError('unknown relation profile: ' + repr(profile))
     rows = []
     for runner, goos, goarch in PLATFORMS:
+        platform = {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch}
+        if profile == 'native' and goos == 'darwin':
+            # Project reload owns the same native boundary suite on its Darwin
+            # race and CGO0 coordinates. Linux retains every relation shard.
+            continue
+        if profile == 'pr' and goos == 'darwin':
+            for mode in ('race', 'cgo0'):
+                rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
+                             'shard': 'native', 'job_timeout': 40})
+            continue
         for mode in ('normal', 'race', 'cgo0'):
             # Keep ordinary consumer owners separate from the runtime owner.
             # Linux race's ordinary owner accumulated 1,999.52s/2,088.07s
@@ -107,7 +114,7 @@ def matrix():
                     sqlite_timeout = '45m'
                     job_timeout = 70
                 rows.append({
-                    'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
+                    'platform': platform, 'scope': 'relation',
                     'mode': mode, 'shard': shard, 'shards': count,
                     'isolate_accounts': isolate_accounts,
                     'job_timeout': job_timeout,

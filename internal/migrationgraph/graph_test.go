@@ -29,6 +29,35 @@ func graphTestTarget(field ir.Field, target MigrationModel) MigrationTarget {
 	return MigrationTarget{SourceField: field, TargetModel: target.Model, TargetKey: target.Model.Fields[0]}
 }
 
+func TestFieldRenameKeepsReverseOwnershipBetweenOperations(t *testing.T) {
+	author := graphTestModel(t, "graph", "author")
+	article := func(name string) MigrationModel {
+		fk := graphTestFK(name, "graph", "author")
+		fk.Relation.Reverse = ir.ReverseRelation{Name: "items"}
+		return graphTestModel(t, "graph", "article", fk)
+	}
+	old, next := article("writer"), article("editor")
+	rename := MigrationOperation{Kind: MigrationRenameField, Before: old.Model, After: next.Model,
+		Targets: []MigrationTarget{graphTestTarget(next.Model.Fields[1], author)}}
+	for _, field := range []string{"nickname", "items"} {
+		withField := graphTestModel(t, "graph", "author", ir.Field{Name: field, GoName: "Label", Kind: ir.FieldText})
+		// The add and remove only carry the author. The referencing article
+		// stays present and both overall boundaries have the original author.
+		intent := MigrationIntent{Operations: []MigrationOperation{
+			rename,
+			{OperationIndex: 1, Kind: MigrationAddField, Before: author.Model, After: withField.Model},
+			{OperationIndex: 2, Kind: MigrationRemoveField, Before: withField.Model, After: author.Model},
+		}}
+		_, err := ResolveMigrationGraphPlan("graph", "0002", false, intent)
+		if field == "nickname" && err != nil {
+			t.Fatal("renaming the owner of an existing reverse name", err)
+		}
+		if field == "items" && (err == nil || !strings.Contains(err.Error(), "reverse name") || !strings.Contains(err.Error(), "collides")) {
+			t.Fatal("accepted a temporary collision with the retained reverse name", err)
+		}
+	}
+}
+
 func TestMigrationRelationGraphCyclesAndDetachedSnapshots(t *testing.T) {
 	t.Parallel()
 	leaf := graphTestModel(t, "third", "item", ir.Field{Name: "label", GoName: "Label", Kind: ir.FieldChar, MaxLength: 20,

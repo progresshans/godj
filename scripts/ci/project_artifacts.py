@@ -3,20 +3,18 @@ from collections import defaultdict
 import re
 
 from capture_artifact import github_read, github_records
-from relation_shards import PLATFORMS
+from platform_policy import coordinates
 
 
 PYTHON = "python-project-reference-3.14.3"
-COORDINATES = tuple((system, arch, mode) for _, system, arch in PLATFORMS for mode in ("normal", "race", "cgo0"))
 
 
-def producers():
+def producers(profile):
     result = {PYTHON: ("Python compatibility (3.14.3)", "Publish Python project-reference evidence")}
-    for runner, system, arch in PLATFORMS:
-        for mode in ("normal", "race", "cgo0"):
-            suffix = f"{system}-{arch}-{mode}"
-            result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")
-            result[f"project-reload-{suffix}"] = (f"Product reload ({runner}, {mode})", "Publish project-reload evidence")
+    for runner, system, arch, mode in coordinates(profile):
+        suffix = f"{system}-{arch}-{mode}"
+        result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")
+        result[f"project-reload-{suffix}"] = (f"Product reload ({runner}, {mode})", "Publish project-reload evidence")
     return result
 
 
@@ -42,11 +40,12 @@ def verify_upload(log, artifact):
         raise ValueError(f"upload receipt differs for {artifact['name']}")
 
 
-def validated_producers(selection, source, repository_id):
+def validated_producers(selection, source, repository_id, profile):
     current = int(source["run_attempt"])
     selected = selection["producers"]
     if (selection["source"] != source or type(selection["repository_id"]) is not int
-            or selection["repository_id"] != repository_id or set(selected) != set(producers())):
+            or selection["repository_id"] != repository_id or selection["profile"] != profile
+            or set(selected) != set(producers(profile))):
         raise ValueError("project evidence selection differs from the run or required producers")
     ids, jobs = set(), set()
     for stem, record in selected.items():
@@ -61,13 +60,13 @@ def validated_producers(selection, source, repository_id):
     return selected
 
 
-def resolve(source, repository_id, fetch=github_records, read_log=job_log):
+def resolve(source, repository_id, profile, fetch=github_records, read_log=job_log):
     repository = source["repository"]
     run, current = int(source["run_id"]), int(source["run_attempt"])
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII) or min(run, current, repository_id) < 1:
         raise ValueError("invalid project comparison run identity")
     base = f"repos/{repository}/actions/runs/{run}"
-    expected = producers()
+    expected = producers(profile)
     names = {job for job, _ in expected.values()}
     jobs = defaultdict(dict)
     for job in fetch(base + "/jobs?filter=all", "jobs"):
@@ -111,8 +110,8 @@ def resolve(source, repository_id, fetch=github_records, read_log=job_log):
         selected[stem] = {"producer_attempt": attempt, "job_id": job["id"], "artifact_id": artifact["id"],
                           "archive_sha256": artifact["digest"].removeprefix("sha256:")}
         uploads.append((job["id"], artifact))
-    selection = {"source": source, "repository_id": repository_id, "producers": selected}
-    validated_producers(selection, source, repository_id)
+    selection = {"source": source, "repository_id": repository_id, "profile": profile, "producers": selected}
+    validated_producers(selection, source, repository_id, profile)
     for job_id, artifact in uploads:
         verify_upload(read_log(repository, job_id), artifact)
     return selection

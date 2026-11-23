@@ -11,11 +11,11 @@ class ProjectArtifactTests(unittest.TestCase):
 
     def setUp(self):
         self.jobs, self.archives, self.logs = [], [], {}
-        for stem, (name, step) in producers().items():
+        for stem, (name, step) in producers("full").items():
             self.add(stem, name, step, 1)
-        self.previous = next(job for job in self.jobs if job["name"] == producers()[self.target][0])
+        self.previous = next(job for job in self.jobs if job["name"] == producers("full")[self.target][0])
         self.previous["conclusion"] = "cancelled"
-        self.add(self.target, *producers()[self.target], 2)
+        self.add(self.target, *producers("full")[self.target], 2)
 
     def add(self, stem, name, step, attempt):
         job_id = len(self.jobs) + 1
@@ -37,11 +37,11 @@ class ProjectArtifactTests(unittest.TestCase):
             expected = {"jobs": "/jobs?filter=all", "artifacts": "/artifacts"}
             self.assertEqual(path, "repos/example/project/actions/runs/19" + expected[key])
             return self.jobs if key == "jobs" else self.archives
-        return resolve(self.source, 41, fetch, lambda repo, identifier: self.logs[identifier])
+        return resolve(self.source, 41, "full", fetch, lambda repo, identifier: self.logs[identifier])
 
     def test_newest_actual_job_authorizes_each_immutable_archive(self):
         selection = self.resolve()
-        self.assertEqual(set(selection["producers"]), set(producers()))
+        self.assertEqual(set(selection["producers"]), set(producers("full")))
         self.assertEqual(len(selection["producers"]), 25)
         for stem, row in selection["producers"].items():
             self.assertEqual(row["producer_attempt"], 2 if stem == self.target else 1)
@@ -99,11 +99,11 @@ class ProjectArtifactTests(unittest.TestCase):
             changed = copy.deepcopy(selection)
             changed["producers"][self.target][field] = bad
             with self.subTest(field=field), self.assertRaises(ValueError):
-                validated_producers(changed, self.source, 41)
+                validated_producers(changed, self.source, 41, "full")
         with self.assertRaises(ValueError):
-            validated_producers(selection, self.source | {"run_id": "20"}, 41)
+            validated_producers(selection, self.source | {"run_id": "20"}, 41, "full")
         with self.assertRaises(ValueError):
-            validated_producers(selection, self.source, 42)
+            validated_producers(selection, self.source, 42, "full")
         del selection["producers"][other]
         with self.assertRaises(ValueError):
-            validated_producers(selection, self.source, 41)
+            validated_producers(selection, self.source, 41, "full")

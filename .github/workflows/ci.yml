@@ -17,6 +17,11 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
+  GODJ_GO_CACHE_INPUTS: |
+    go.mod
+    go.sum
+    api/openapi/consumertest/testdata/client/go.mod
+    api/openapi/consumertest/testdata/client/go.sum
 
 jobs:
   validation-plan:
@@ -25,11 +30,17 @@ jobs:
     outputs:
       jobs: ${{ steps.plan.outputs.jobs }}
       relation_matrix: ${{ steps.plan.outputs.relation_matrix }}
+      product_matrix: ${{ steps.plan.outputs.product_matrix }}
+      profile: ${{ steps.plan.outputs.profile }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
       - id: plan
+        env:
+          GODJ_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/ci/workflow.py plan
 
   conformance-validation:
@@ -59,6 +70,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -264,9 +276,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
-          cache-dependency-path: |
-            go.sum
-            api/openapi/consumertest/testdata/client/go.sum
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Assert runner coordinate
         run: |
@@ -427,6 +437,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -474,7 +485,7 @@ jobs:
 
   relation-product-matrix:
     needs: validation-plan
-    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }}${{ matrix.shards > 1 && (matrix.shard == 0 && ', runtime' || format(', shard {0}/{1}', matrix.shard, matrix.shards)) || '' }})
+    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }}${{ matrix.scope == 'darwin-native' && ', native' || matrix.shards > 1 && (matrix.shard == 0 && ', runtime' || format(', shard {0}/{1}', matrix.shard, matrix.shards)) || '' }})
     runs-on: ${{ matrix.platform.runs_on }}
     timeout-minutes: ${{ matrix.job_timeout }}
     env:
@@ -496,6 +507,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Assert runner coordinate
         run: |
@@ -513,6 +525,11 @@ jobs:
           mode="${{ matrix.mode }}"
           shard="${{ matrix.shard }}"
           shards="${{ matrix.shards }}"
+          case "${{ matrix.scope }}" in
+            darwin-native) exec bash scripts/ci/darwin-native.sh "$mode" ;;
+            relation) ;;
+            *) exit 2 ;;
+          esac
           # Keep common arguments nonempty under macOS Bash 3.2 with nounset.
           partition_args=(--shard "$shard" --shards "$shards")
           if [ "${{ matrix.isolate_accounts }}" = true ]; then partition_args+=(--isolate-accounts); fi
@@ -616,6 +633,7 @@ jobs:
             ${{ runner.temp }}/relation-packages.txt
             ${{ runner.temp }}/relation-shard/
             ${{ runner.temp }}/generated-consumer-diagnostics/
+            ${{ runner.temp }}/darwin-native*
           if-no-files-found: error
           retention-days: 90
 
@@ -628,7 +646,7 @@ jobs:
     needs: validation-plan
     name: Product project check (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.platform.runs_on }}
-    timeout-minutes: ${{ matrix.platform.timeout_minutes[matrix.mode] }}
+    timeout-minutes: ${{ matrix.platform.project_minutes }}
     env:
       LC_ALL: C
       TZ: UTC
@@ -636,37 +654,7 @@ jobs:
     # the 35m cumulative budget below to retain every sequential CLI test.
     strategy:
       fail-fast: false
-      matrix:
-        platform:
-          - runs_on: "ubuntu-24.04"
-            expected_goos: "linux"
-            expected_goarch: "amd64"
-            cmd_test_timeout: "35m"
-            flow_test_timeout: "25m"
-            timeout_minutes: {normal: 65, race: 75, cgo0: 65}
-          - runs_on: "ubuntu-24.04-arm"
-            expected_goos: "linux"
-            expected_goarch: "arm64"
-            cmd_test_timeout: "20m"
-            flow_test_timeout: "25m"
-            timeout_minutes: {normal: 60, race: 70, cgo0: 60}
-          - runs_on: "macos-15-intel"
-            expected_goos: "darwin"
-            expected_goarch: "amd64"
-            cmd_test_timeout: "30m"
-            flow_test_timeout: "40m"
-            # CI 40803902589 began fixed-module after 83m39s and hit the
-            # 115m job limit at 31m of its unchanged 40m flow budget.
-            timeout_minutes: {normal: 105, race: 140, cgo0: 105}
-          - runs_on: "macos-26"
-            expected_goos: "darwin"
-            expected_goarch: "arm64"
-            cmd_test_timeout: "20m"
-            # CI 40674776904 completed its app-registration child at 24m33s;
-            # the final independent publication-failure flow still remained.
-            flow_test_timeout: "40m"
-            timeout_minutes: {normal: 95, race: 105, cgo0: 95}
-        mode: [normal, race, cgo0]
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.product_matrix) }}
 
     steps:
       - name: Checkout
@@ -680,6 +668,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Assert runner coordinate
         run: |
@@ -884,21 +873,7 @@ jobs:
       TZ: UTC
     strategy:
       fail-fast: false
-      matrix:
-        platform:
-          - runs_on: "ubuntu-24.04"
-            expected_goos: "linux"
-            expected_goarch: "amd64"
-          - runs_on: "ubuntu-24.04-arm"
-            expected_goos: "linux"
-            expected_goarch: "arm64"
-          - runs_on: "macos-15-intel"
-            expected_goos: "darwin"
-            expected_goarch: "amd64"
-          - runs_on: "macos-26"
-            expected_goos: "darwin"
-            expected_goarch: "arm64"
-        mode: [normal, race, cgo0]
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.product_matrix) }}
 
     steps:
       - name: Checkout
@@ -912,6 +887,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Assert runner coordinate
         run: |
@@ -986,6 +962,10 @@ jobs:
           python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
           test "$runserver_status" = 0
 
+      - name: Verify Darwin native boundaries in race and CGO-disabled modes
+        if: matrix.platform.expected_goos == 'darwin' && matrix.mode != 'normal'
+        run: bash scripts/ci/darwin-native.sh "${{ matrix.mode }}" "$RUNNER_TEMP/project-reload-evidence"
+
       - name: Seal project-reload evidence
         if: always() && steps.reload-evidence.outcome == 'success'
         run: |
@@ -1022,39 +1002,13 @@ jobs:
     needs: validation-plan
     name: Command products (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.platform.runs_on }}
-    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
+    timeout-minutes: ${{ matrix.platform.command_minutes }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
-      matrix:
-        platform:
-          - runs_on: "ubuntu-24.04"
-            expected_goos: "linux"
-            expected_goarch: "amd64"
-            operator_timeout: "30m"
-            target_timeout: "30m"
-            timeout_minutes: 75
-          - runs_on: "ubuntu-24.04-arm"
-            expected_goos: "linux"
-            expected_goarch: "arm64"
-            operator_timeout: "30m"
-            target_timeout: "30m"
-            timeout_minutes: 75
-          - runs_on: "macos-15-intel"
-            expected_goos: "darwin"
-            expected_goarch: "amd64"
-            operator_timeout: "45m"
-            target_timeout: "45m"
-            timeout_minutes: 105
-          - runs_on: "macos-26"
-            expected_goos: "darwin"
-            expected_goarch: "arm64"
-            operator_timeout: "35m"
-            target_timeout: "30m"
-            timeout_minutes: 80
-        mode: [normal, race, cgo0]
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.product_matrix) }}
 
     steps:
       - name: Checkout
@@ -1069,6 +1023,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Assert runner coordinate
         run: |
@@ -1316,6 +1271,7 @@ jobs:
       contents: read
       actions: read
     env:
+      GODJ_CI_PROFILE: ${{ needs.validation-plan.outputs.profile }}
       GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout
@@ -1338,7 +1294,7 @@ jobs:
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/project-comparison
 
-      - name: Compare all 12 complete native coordinates
+      - name: Compare every planned native project coordinate
         run: >
           python3 scripts/ci/project_reference.py verify "$RUNNER_TEMP/project-comparison"
           --selection "$RUNNER_TEMP/project-producers.json"
@@ -1576,6 +1532,7 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
       - name: Set up pinned Django reference runtime
         if: matrix.shard == 'core' || matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2' || (matrix.mode == 'normal' && matrix.shard == 'core-account-management')
@@ -1963,7 +1920,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
       - name: Require every CI job
         env:
+          GODJ_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           REQUIRED_RESULTS_JSON: ${{ toJSON(needs) }}
         run: python3 scripts/ci/workflow.py verify

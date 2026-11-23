@@ -5,42 +5,155 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from workflow import COMMAND_PRODUCTS, JOBS, verify, verify_command_products
+from workflow import COMMAND_PRODUCTS, JOBS, plan_outputs, verify, verify_command_products
+from platform_policy import coordinates, event_profile, pr_profile, product_matrix
+from relation_shards import matrix as relation_matrix
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_pr_and_full_matrices_own_every_declared_coordinate(self):
+        full, pr = (relation_matrix(scope)['include'] for scope in ('full', 'pr'))
+        linux = lambda rows: [r for r in rows if r['platform']['expected_goos'] == 'linux']
+        self.assertEqual(linux(full), linux(pr))
+        self.assertEqual(relation_matrix('native')['include'], linux(full))
+        for profile, expected in [('pr', 11), ('native', 19), ('full', 144)]:
+            products = product_matrix(profile)['include']
+            planned = {(r['platform']['expected_goos'], r['platform']['expected_goarch'], r['mode']) for r in products}
+            want = {(osname, arch, mode) for osname in ('linux', 'darwin') for arch in ('amd64', 'arm64')
+                    for mode in ('normal', 'race', 'cgo0') if osname == 'linux' or profile != 'pr' or mode == 'normal'}
+            self.assertEqual(planned, want)
+            self.assertEqual(len(planned), len(products))
+            self.assertEqual([tuple(row[1:]) for row in coordinates(profile)],
+                             [(r['platform']['expected_goos'], r['platform']['expected_goarch'], r['mode']) for r in products])
+            darwin = [r for r in relation_matrix(profile)['include'] if r['platform']['expected_goos'] == 'darwin']
+            self.assertEqual(1 + 3 * sum(osname == 'darwin' for osname, _, _ in planned) + len(darwin), expected)
+            if profile == 'pr':
+                self.assertEqual({(r['platform']['expected_goarch'], r['mode'], r['scope']) for r in darwin},
+                                 {(arch, mode, 'darwin-native') for arch in ('amd64', 'arm64') for mode in ('race', 'cgo0')})
+
+    def test_all_shared_unix_changes_expand_products_and_darwin_changes_take_precedence(self):
+        unix = 'internal/projectcheck/linked/sqlmigrate_unix.go'
+        self.assertEqual(pr_profile([unix]), 'native')
+        for path in ('go.mod', 'go.sum', 'fs/publish_darwin.go', 'tty/control_darwin_arm64_test.go'):
+            self.assertEqual(pr_profile([unix, path]), 'full')
+            self.assertEqual(pr_profile([path, unix]), 'full')
+        results = {name: {'result': 'success'} for name in JOBS | {'validation-plan'}}
+        results['validation-plan']['outputs'] = plan_outputs('native')
+        self.assertFalse(verify(results, 'native')['full_platform_verified'])
+        with self.assertRaises(ValueError):
+            verify(results, 'full')
+
+    def test_pr_profile_is_bound_to_both_merge_parents_and_deleted_native_sources(self):
+        with tempfile.TemporaryDirectory() as root:
+            def git(*args):
+                return subprocess.check_output(['git', '-C', root, '-c', 'user.name=ci', '-c', 'user.email=ci@example.test',
+                                                '-c', 'commit.gpgsign=false', *args], stderr=subprocess.PIPE, text=True).strip()
+            git('init', '-b', 'base')
+            native = Path(root, 'file_darwin.go')
+            native.write_text('package example\n')
+            git('add', '.')
+            git('commit', '-m', 'base')
+            base = git('rev-parse', 'HEAD')
+            git('switch', '-c', 'change')
+            Path(root, 'example.go').write_text('package example\n')
+            for expected in ('pr', 'full'):
+                if expected == 'full':
+                    git('switch', 'change')
+                    native.rename(Path(root, 'moved.go'))
+                git('add', '-A')
+                git('commit', '-m', expected)
+                head = git('rev-parse', 'HEAD')
+                git('checkout', '--detach', base)
+                git('merge', '--no-ff', '--no-edit', head)
+                with patch.dict(os.environ, GITHUB_EVENT_NAME='pull_request', GODJ_BASE_SHA=base, GODJ_SOURCE_HEAD=head,
+                                GIT_DIR=str(Path(root, '.git')), GIT_WORK_TREE=root):
+                    self.assertEqual(expected, event_profile())
+                    with patch.dict(os.environ, GODJ_SOURCE_HEAD=base), self.assertRaises(ValueError):
+                        event_profile()
+
+    def test_native_command_runs_both_modes_and_rejects_a_missing_child(self):
+        root = Path(__file__).resolve().parents[2]
+        script = root / 'scripts/ci/darwin-native.sh'
+        required = [line.split('|') for line in script.with_name('darwin-native-required.txt').read_text().splitlines()]
+        roots = {name.split('/')[0] for _, name in required}
+        packages = sorted({pkg for pkg, _ in required})
+        events = []
+        for package in packages:
+            events.append({'Action': 'start', 'Package': package})
+            for _, name in sorted({(pkg, test) for pkg, name in required if pkg == package
+                                   for test in (name.split('/')[0], name)}):
+                events.extend({'Action': action, 'Package': package, 'Test': name} for action in ('run', 'pass'))
+            events.append({'Action': 'pass', 'Package': package})
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            (work / 'go').write_text("""#!/bin/sh
+if [ "$1" = env ] && [ "$2" = GOOS ]; then echo darwin; exit 0; fi
+printf '%s\\n' "$CGO_ENABLED" "$@" > "$RUNNER_TEMP/args"
+cat "$RUNNER_TEMP/events"
+""")
+            (work / 'go').chmod(0o700)
+            for mode in ('race', 'cgo0'):
+                for missing in (False, True):
+                    with self.subTest(mode=mode, missing=missing):
+                        child = 'TestRenameNoReplacePreservesConcurrentDestination/directory'
+                        stream = [row for row in events if not missing or row.get('Test') != child]
+                        (work / 'events').write_text(''.join(json.dumps(row) + '\n' for row in stream))
+                        env = dict(os.environ, RUNNER_TEMP=directory, PATH=directory + os.pathsep + os.environ['PATH'], CGO_ENABLED='1')
+                        ran = subprocess.run(['bash', str(script), mode], cwd=root, env=env, capture_output=True, text=True)
+                        self.assertEqual(ran.returncode == 0, not missing, ran.stderr)
+                        args = (work / 'args').read_text().splitlines()
+                        self.assertEqual(args[:2], ['1' if mode == 'race' else '0', 'test'])
+                        self.assertEqual(args.count('-race'), int(mode == 'race'))
+                        self.assertIn('-count=1', args)
+                        self.assertEqual(args[args.index('-run') + 1], '^(' + '|'.join(sorted(roots)) + ')$')
+                        self.assertEqual(args[-len(packages):], packages)
+
+    def test_pr_success_cannot_attest_the_full_platform(self):
+        results = {name: {'result': 'success'} for name in JOBS | {'validation-plan'}}
+        results['validation-plan']['outputs'] = plan_outputs('pr')
+        self.assertFalse(verify(results, 'pr')['full_platform_verified'])
+        for wrong in ('full', '', 'unknown'):
+            with self.assertRaises(ValueError):
+                verify(results, wrong)
+        for key in ('jobs', 'relation_matrix', 'product_matrix'):
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                results['validation-plan']['outputs'] = dict(plan_outputs('pr'), **{key: '[]'})
+                verify(results, 'pr')
+
     def test_plan_always_includes_every_job(self):
         script = Path(__file__).with_name('workflow.py')
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / 'outputs'
-            environment = dict(os.environ, GITHUB_OUTPUT=str(output))
+            environment = dict(os.environ, GITHUB_OUTPUT=str(output), GITHUB_EVENT_NAME="workflow_dispatch")
             planned = subprocess.run([sys.executable, str(script), 'plan'], env=environment,
                                      capture_output=True, text=True, timeout=10)
             self.assertEqual(planned.returncode, 0, planned.stderr)
             values = dict(line.split('=', 1) for line in output.read_text().splitlines())
-            self.assertEqual(set(values), {'jobs', 'relation_matrix'})
+            self.assertEqual(set(values), {'profile', 'jobs', 'relation_matrix', 'product_matrix'})
             self.assertEqual(json.loads(values['jobs']), sorted(JOBS))
             self.assertTrue(json.loads(values['relation_matrix'])['include'])
 
     def test_each_workflow_job_and_plan_must_succeed(self):
         required = JOBS | {'validation-plan'}
         results = {name: {'result': 'success'} for name in required}
-        self.assertEqual(verify(results), {'full_platform_verified': True, 'verified_jobs': sorted(JOBS)})
+        results['validation-plan']['outputs'] = plan_outputs('full')
+        self.assertEqual(verify(results, 'full'), {'profile': 'full', 'full_platform_verified': True, 'verified_jobs': sorted(JOBS)})
         for name in required:
             for outcome in ('failure', 'cancelled', 'skipped', '', None):
                 with self.subTest(job=name, outcome=outcome), self.assertRaises(ValueError):
-                    verify(dict(results, **{name: {'result': outcome}}))
+                    verify(dict(results, **{name: {'result': outcome}}), 'full')
             missing = dict(results)
             missing.pop(name)
             with self.subTest(missing=name), self.assertRaises(ValueError):
-                verify(missing)
+                verify(missing, 'full')
             for malformed in (None, [], 'success', {}):
                 with self.subTest(job=name, malformed=malformed), self.assertRaises(ValueError):
-                    verify(dict(results, **{name: malformed}))
+                    verify(dict(results, **{name: malformed}), 'full')
         for invalid in ([], None, {}, dict(results, unknown={'result': 'success'})):
             with self.subTest(results=invalid), self.assertRaises(ValueError):
-                verify(invalid)
+                verify(invalid, 'full')
 
     def test_both_packed_command_products_must_succeed(self):
         results = {name: {'result': 'success'} for name in COMMAND_PRODUCTS}
@@ -64,8 +177,10 @@ class WorkflowTest(unittest.TestCase):
             ):
                 for outcome in ('success', 'failure', 'cancelled', 'skipped'):
                     results = {name: {'result': outcome} for name in required}
+                    if action == 'verify':
+                        results['validation-plan']['outputs'] = plan_outputs('full')
                     summary.unlink(missing_ok=True)
-                    environment = dict(os.environ, GITHUB_STEP_SUMMARY=str(summary))
+                    environment = dict(os.environ, GITHUB_STEP_SUMMARY=str(summary), GITHUB_EVENT_NAME="workflow_dispatch")
                     environment[key] = json.dumps(results)
                     checked = subprocess.run([sys.executable, str(script), action], env=environment,
                                              capture_output=True, text=True, timeout=10)
