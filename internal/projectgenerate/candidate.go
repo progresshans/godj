@@ -18,6 +18,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/gobuild"
@@ -572,12 +574,7 @@ func runCandidateCommand(
 	arguments ...string,
 ) (string, error) {
 	capture := &boundedCommandCapture{maximum: maximum}
-	command := exec.CommandContext(ctx, program, arguments...)
-	command.Dir = directory
-	command.Env = append([]string(nil), environment...)
-	command.Stdout = capture
-	command.Stderr = capture
-	err := command.Run()
+	err := runCandidateProcess(ctx, directory, environment, capture, capture, program, arguments...)
 	output, truncated := capture.result()
 	if truncated {
 		output += "\n[diagnostics truncated]"
@@ -595,12 +592,7 @@ func runCandidateStructuredCommand(
 ) (string, string, error) {
 	stdout := &boundedCommandCapture{maximum: maximum}
 	stderr := &boundedCommandCapture{maximum: maxCandidateDiagnosticBytes}
-	command := exec.CommandContext(ctx, program, arguments...)
-	command.Dir = directory
-	command.Env = append([]string(nil), environment...)
-	command.Stdout = stdout
-	command.Stderr = stderr
-	err := command.Run()
+	err := runCandidateProcess(ctx, directory, environment, stdout, stderr, program, arguments...)
 	output, outputTruncated := stdout.result()
 	diagnostics, diagnosticsTruncated := stderr.result()
 	if outputTruncated {
@@ -613,6 +605,28 @@ func runCandidateStructuredCommand(
 		diagnostics += "\n[diagnostics truncated]"
 	}
 	return output, diagnostics, err
+}
+
+func runCandidateProcess(ctx context.Context, directory string, environment []string, stdout, stderr io.Writer, program string, arguments ...string) error {
+	command := exec.CommandContext(ctx, program, arguments...)
+	command.Dir, command.Env = directory, append([]string(nil), environment...)
+	command.Stdout, command.Stderr = stdout, stderr
+	// The Go driver can have compilers or helpers writing to its private HOME
+	// and scratch directory. Cancel the group before the owner removes them.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		if errors.Is(err, syscall.ESRCH) {
+			return os.ErrProcessDone
+		}
+		return err
+	}
+	command.WaitDelay = 2 * time.Second
+	err := command.Run()
+	if err != nil && ctx.Err() != nil && !errors.Is(err, ctx.Err()) {
+		return errors.Join(ctx.Err(), err)
+	}
+	return err
 }
 
 type boundedCommandCapture struct {

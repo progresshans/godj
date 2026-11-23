@@ -172,7 +172,7 @@ func ciPlan(t *testing.T) map[string]string {
 	outputPath := filepath.Join(t.TempDir(), "plan.txt")
 	command := exec.CommandContext(t.Context(), "python3", "scripts/ci/workflow.py", "plan")
 	command.Dir = conformanceRepositoryRoot(t)
-	command.Env = append(os.Environ(), "GITHUB_OUTPUT="+outputPath, "PYTHONDONTWRITEBYTECODE=1")
+	command.Env = append(os.Environ(), "GITHUB_OUTPUT="+outputPath, "PYTHONDONTWRITEBYTECODE=1", "GITHUB_EVENT_NAME=workflow_dispatch")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("read CI execution plan: %v\n%s", err, output)
 	}
@@ -189,26 +189,29 @@ func ciPlan(t *testing.T) map[string]string {
 	return values
 }
 
-func ciRelationMatrix(t *testing.T, job string) []map[string]string {
+func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
 	t.Helper()
-	ciRequire(t, "relation matrix", job, "matrix: ${{ fromJSON(needs.validation-plan.outputs.relation_matrix) }}")
-	ciRequire(t, "relation matrix output", ciJob(t, ciJobs(t), "validation-plan"), "relation_matrix: ${{ steps.plan.outputs.relation_matrix }}")
+	ciRequire(t, key, job, "matrix: ${{ fromJSON(needs.validation-plan.outputs."+key+") }}")
+	ciRequire(t, key, ciJob(t, ciJobs(t), "validation-plan"), key+": ${{ steps.plan.outputs."+key+" }}")
 	var matrix struct {
 		Include []struct {
-			Platform map[string]string `json:"platform"`
-			Mode     string            `json:"mode"`
+			Platform struct {
+				Runner string `json:"runs_on"`
+				OS     string `json:"expected_goos"`
+				Arch   string `json:"expected_goarch"`
+			} `json:"platform"`
+			Mode string `json:"mode"`
 		} `json:"include"`
 	}
-	if err := json.Unmarshal([]byte(ciPlan(t)["relation_matrix"]), &matrix); err != nil {
+	if err := json.Unmarshal([]byte(ciPlan(t)[key]), &matrix); err != nil {
 		t.Fatal(err)
 	}
 	if len(matrix.Include) == 0 {
-		t.Fatal("relation matrix has no execution coordinates")
+		t.Fatalf("%s has no execution coordinates", key)
 	}
 	var rows []map[string]string
 	for _, entry := range matrix.Include {
-		entry.Platform["mode"] = entry.Mode
-		rows = append(rows, entry.Platform)
+		rows = append(rows, map[string]string{"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch, "mode": entry.Mode})
 	}
 	return rows
 }
@@ -258,36 +261,22 @@ func TestWorkflowRequiredJobsReachAggregate(t *testing.T) {
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
 	coordinates := []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
-	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "command-product-matrix"} {
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "product-reload-matrix", "command-product-matrix"} {
 		job := ciJob(t, jobs, name)
-		var rows []map[string]string
-		var modes []string
+		key := "product_matrix"
 		if name == "relation-product-matrix" {
-			rows = ciRelationMatrix(t, job)
-			for _, row := range rows {
-				modes = append(modes, row["mode"])
-			}
-			ciRequire(t, name, job, "matrix.shard", "matrix.shards", "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log")
-		} else {
-			rows = ciMatrix(t, job, "platform")
-			modeAxis := regexp.MustCompile(`(?m)^        mode: \[([^\]]+)\]$`).FindStringSubmatch(job)
-			if len(modeAxis) != 2 {
-				t.Fatalf("%s lacks a mode axis", name)
-			}
-			modes = strings.FieldsFunc(modeAxis[1], func(r rune) bool { return r == ',' || r == ' ' || r == '\'' || r == '"' })
+			key = "relation_matrix"
+			ciRequire(t, name, job, "matrix.shard", "matrix.shards", "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh")
 		}
 		seen := make(map[string]bool)
-		for _, row := range rows {
-			seen[row["expected_goos"]+"/"+row["expected_goarch"]] = true
+		for _, row := range ciPlannedMatrix(t, job, key) {
+			seen[row["expected_goos"]+"/"+row["expected_goarch"]+"/"+row["mode"]] = true
 		}
 		for _, coordinate := range coordinates {
-			if !seen[coordinate] {
-				t.Fatalf("%s misses %s", name, coordinate)
-			}
-		}
-		for _, mode := range []string{"normal", "race", "cgo0"} {
-			if !containsString(modes, mode) {
-				t.Fatalf("%s misses mode %s", name, mode)
+			for _, mode := range []string{"normal", "race", "cgo0"} {
+				if !seen[coordinate+"/"+mode] {
+					t.Fatalf("full %s misses %s/%s", name, coordinate, mode)
+				}
 			}
 		}
 		ciRequire(t, name, job, "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
@@ -488,9 +477,9 @@ func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.
 		job := ciJob(t, jobs, name)
 		var rows []map[string]string
 		if name == "relation-product-matrix" {
-			rows = ciRelationMatrix(t, job)
+			rows = ciPlannedMatrix(t, job, "relation_matrix")
 		} else {
-			rows = ciMatrix(t, job, "platform")
+			rows = ciPlannedMatrix(t, job, "product_matrix")
 		}
 		for _, row := range rows {
 			if row["expected_goos"] == "linux" && row["expected_goarch"] == "amd64" && row["runs_on"] != image[1] {

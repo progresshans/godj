@@ -15,13 +15,29 @@ MIG-107은 같은 앱에서 모델이 사라지고 다른 모델이 추가되는
 
 ## M1 역방향 SQL 표시
 
+PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명령의 공통 비공개 값 검사에서 실패했다. 소스에서 정상 SQL에 필요한 스키마 이름도 모든 출력의 금지 목록에 들어 있었다. 이 사례는 독립적으로 정한 SQL 전체, 성공 종료, 빈 stderr와 한 번의 스키마 한정자를 요구한다. 연결 URL·암호·경로·비밀 표식은 원문에서 계속 검사하고, 파일과 다른 명령의 출력에는 스키마 이름도 허용하지 않는다. 오류 응답과 DB 미접속·사전/사후 상태는 같은 제품 사례에서 검사한다. [기존 PostgreSQL 실패](https://github.com/progresshans/godj/actions/runs/45044922465/job/137277397625)
+
 `godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
 
 로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)
 
 CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만든 MIG-128·MIG-129 원본에 대해 공통 바이트 고정값 99개, SQL 전용 고정값 3개, 체크섬 목록 24개 및 별도로 잠근 14개 항목을 Python으로 파일과 대조했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
 
+## 2026-11-23 PR 검증의 macOS 대기와 캐시
+
+#12의 `fc79da34`에서 Intel normal Notes reload 여섯 단계는 통과했지만 마지막 비공개 임시 디렉터리 검사에 `godj-candidate-*` 하나가 남았다. 원본에는 잔여 항목을 만든 프로세스가 기록되지 않았다. 후보 검증과 외부 앱 조회의 Go 명령은 취소할 때 드라이버 PID만 종료했다. 격리된 작업에서 드라이버를 종료하고 디렉터리를 삭제한 뒤 자식에게 쓰기를 허용하면 디렉터리가 다시 생겼고, 소유 프로세스 그룹을 종료하면 생기지 않았다. 두 도구 호출에 같은 그룹 취소를 적용하고 종료 뒤 쓰기를 요구하는 회귀 검사를 추가했다. [Intel reload 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626752) · [원본 이벤트](https://github.com/progresshans/godj/actions/runs/45140609540/artifacts/14802601506)
+
+#12의 `ad0df1ef`에서 ARM64 race와 CGO=0은 같은 467,948,357바이트 캐시를 복원했으나 작업 40분 제한에 닿았다. 두 ZIP의 Go 이벤트 8개는 맨 앞의 프로세스 그룹 검사와 패키지 완료까지다. 나머지 패키지의 테스트 시작 기록은 없다. 이전 ARM64 CGO=0 전체 관계 작업에도 직전 패키지 완료와 SQLite 시작 사이 34분 19초의 공백이 있었고 SQLite 테스트 자체는 5분 19초였다. 빌드 구간을 패키지별로 확인할 수 있게 실행 경계를 나눴다. [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14800960927) · [race 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14801391427) · [이전 ARM64 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
+같은 실행에서 비교 작업의 로그 API 호출이 실패했다. 이후 해당 소스·시도의 Python과 프로젝트 생산자 17개 모두에서 사용자 계정으로 원본 업로드 ID와 ZIP SHA-256을 확인했다. 비교기는 고정 업로드 액션의 두 출력을 같은 생산 작업의 다음 단계 이름에서 확인하도록 변경했다. 성공한 생산자·시도와 보관 원본의 ID·digest·내부 체크섬 조건을 유지한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45128918106/job/137563473527)
+
+PR마다 macOS 관계 작업 125개, 프로젝트 검사·reload·외부 명령 18개, 고정 Darwin 원본 재생 1개를 예약했다. 실행 `43659728789`에서 macOS 작업 시간 합계는 약 45.7시간, 전체 경과는 9시간 19분이었다. 겹친 실행 `44955313490`은 약 47.4 macOS 작업 시간과 17시간 6분의 전체 경과를 기록했다. 두 실행 모두 일부 작업이 실패하거나 취소됐다. [실행 43659728789](https://github.com/progresshans/godj/actions/runs/43659728789) · [실행 44955313490](https://github.com/progresshans/godj/actions/runs/44955313490)
+
+11월 23일 기존 PR #9~#12의 실행 4건을 취소하고 활성 실행 0건을 확인했다. PR #12의 `70800a5f`에서는 취소 전에 Linux 작업 222건이 성공했다. 전체 결과는 취소다. 저장소 API에서 Go 캐시 22개와 uv 캐시 14개, 총 11,959,024,665바이트와 설정 상한 10 GB를 확인했다. Linux amd64의 Portable과 나머지 작업은 서로 다른 의존성 키를 사용했다. [PR #12 기존 실행](https://github.com/progresshans/godj/actions/runs/45110329043) · [새 실행 기준](../TESTING.md#원격-ci-실행-범위)
+
 ## M1 필드 이름 변경과 역사 데이터 대조
+
+PR #12의 `af260101` 전체 실행에서 Linux 필수 작업 9개가 실패했다. Portable 세 모드는 재생 검사에 관리 앱 `content`가 빠져 초기 상태에서 멈췄다. Linux 양 아키텍처의 SQLite 세 모드는 필드 이름 변경 SQL을 만드는 단계에서 멈췄다. SQLite 검사가 FK의 이전 이름과 새 이름을 동시에 살아 있는 역참조 소유자로 등록했다. 자동 감지 검사에서 관리 앱을 지정하고, 공유 관계 그래프가 각 연산 경계의 이름 소유권을 검증하도록 수정했다. SQLite 통합 검사는 고정된 DB 열과 명시적 중간 모델을 포함한다. 시작·끝 상태는 모두 정상이어도 중간 연산이 살아 있는 역참조 이름을 사용하면 거부하는 대조군을 추가했다. 이 수정의 수용은 새 제품 커밋의 전체 CI에서 확인한다. [자동 감지 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355473360) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355477823) · [연산 경계 회귀 검사](../../internal/migrationgraph/graph_test.go)
 
 명시적인 필드 이름 변경을 definition 저장·해시, 역사 모델 복원, 양 DB의 트랜잭션, 정방향 SQL 및 외부 프로젝트 명령에 연결했다. 양 DB에서 다른 앱이 참조하는 기본 키, 명시적 중간 모델의 외래 키, 인덱스·고유 제약, 물리 열을 유지한 필드, 미등록 참조 거부, 후속 제약 실패·롤백과 재접속·역적용을 검사한다. [양 DB 검사](../../internal/migrationdefaulttest/rename.go) · [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go)
 
