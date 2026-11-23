@@ -4923,3 +4923,4 @@ github.com/progresshans/godj/migrations/definition|TestRenameModelDefinitionBind
 github.com/progresshans/godj/migrations|TestModelRenameKeepsItsPositionAndRequiresBothModelLifetimes
 github.com/progresshans/godj/db/sqlite|TestSQLiteHistoricalDataMigrations/rename_model_and_incoming_relations
 github.com/progresshans/godj/db/sqlite|TestSQLiteHistoricalDataMigrations/rename_model_with_fixed_table
+github.com/progresshans/godj/db/sqlite|TestSQLiteFixedTableOwnershipFollowsModelLifetimes

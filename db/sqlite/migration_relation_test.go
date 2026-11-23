@@ -2597,6 +2597,39 @@ func TestSQLiteRelationInitialReverseCollisionCannotBeRemovedBeforeDelete(t *tes
 	}
 }
 
+func TestSQLiteFixedTableOwnershipFollowsModelLifetimes(t *testing.T) {
+	old, _, _ := sqliteRelationTestModels()
+	next := old.Clone()
+	next.Name, next.GoName = "writer", "Writer"
+	for _, backwards := range []bool{false, true} {
+		before, after := old, next
+		createIndex, deleteIndex := 0, 1
+		if backwards {
+			before, after = next, old
+			createIndex, deleteIndex = 1, 0
+		}
+		request := migrationbackend.MigrationSQLRequest{App: "news", Name: "0002_transfer", Backwards: backwards}
+		request.Intent.Operations = []migrationbackend.MigrationOperation{
+			{Kind: migrationbackend.MigrationRenameModel, Before: before, After: after},
+		}
+		groups, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), request)
+		if err != nil || len(groups) != 1 || len(groups[0]) != 0 {
+			t.Fatalf("fixed-table rename backwards=%t: groups %v, error %v", backwards, groups, err)
+		}
+
+		// Both end states contain just one model. Creating the new owner before
+		// releasing the old one still collides in the middle of the migration.
+		request.Intent.Operations = []migrationbackend.MigrationOperation{
+			{OperationIndex: createIndex, Kind: migrationbackend.MigrationCreateModel, After: after},
+			{OperationIndex: deleteIndex, Kind: migrationbackend.MigrationDeleteModel, Before: before},
+		}
+		groups, err = NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), request)
+		if err == nil || !strings.Contains(err.Error(), "share SQLite table") || groups != nil {
+			t.Fatalf("overlapping owners backwards=%t: groups %v, error %v", backwards, groups, err)
+		}
+	}
+}
+
 func TestSQLiteRelationIdentifierFoldingMatchesSQLiteASCIIOnly(t *testing.T) {
 	if sqliteRelationIdentifierKey("News_Article") != sqliteRelationIdentifierKey("news_article") {
 		t.Fatal("ASCII identifier case was not folded")
