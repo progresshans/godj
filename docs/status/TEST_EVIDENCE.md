@@ -5,7 +5,7 @@
 
 ## M1 모델 삭제와 빈 테이블 복원
 
-#14의 Portable core에서 새 `DeleteModel`을 추가하자 capability 필드 수를 18개로 고정한 검사와 정상적인 정방향 모델 삭제를 위조로 취급한 검사가 실패했다. 기존 capability와 `DeleteModel`의 이름·불리언 타입을 확인하고, PostgreSQL 위조 사례는 삭제 후에도 모델이 남는 불법 선언을 거부하는지 확인한다. 정상 삭제·역적용은 양 DB의 기존 이력 검사에서 행·제약·빈 테이블 복원을 대조한다. [Portable core 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294918739) · [역사 모델 검사](../../internal/migrationdefaulttest/delete_model.go)
+#14의 Portable core에서 새 `DeleteModel`을 추가하자 capability 필드 수를 18개로 고정한 검사와 정상적인 정방향 모델 삭제를 위조로 취급한 검사가 실패했다. 기존 capability와 `DeleteModel`의 이름·불리언 타입을 확인하고, PostgreSQL 위조 사례는 삭제 후에도 모델이 남는 불법 선언을 거부하는지 확인한다. 정상 삭제·역적용은 양 DB의 기존 이력 검사에서 행·제약·빈 테이블 복원을 대조한다. 공개 삭제 명령의 SQL은 #13의 검사기로 정확한 스키마·테이블·SQL 전체와 빈 stderr를 확인한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294919543) · [Portable core 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294918739) · [역사 모델 검사](../../internal/migrationdefaulttest/delete_model.go)
 
 #14의 `a0d5ef59`에서 제품 테스트의 세 Make target이 공통 실행기로 이동했지만 프로토콜 검사가 이전 shell 명령을 찾아 실패했다. 공개 target이 normal·race·CGO=0을 각각 올바르게 전달하는지 대조한다. 공통 실행기 검사는 실제 인자·package 목록·필수 SQLite 외부 writer와 모델 삭제의 통과, 누락·실패·잘린 이벤트의 거부를 확인한다. [기존 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294924440) · [실행기 검증](../../scripts/ci/test_portable_tests.py)
 
