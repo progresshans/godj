@@ -51,8 +51,22 @@ def github_read(*arguments):
 
 def github_records(path, key):
     separator = '&' if '?' in path else '?'
-    pages = json.loads(github_read(path + separator + 'per_page=100', '--paginate', '--slurp'))
-    return [record for page in pages for record in page[key]]
+    # Job records include every step, even for jobs retained on a retry.
+    # Retry a failed page without repeatedly downloading the preceding pages.
+    size = 30 if key == 'jobs' else 100
+    records = []
+    page = 1
+    while True:
+        response = json.loads(github_read(f"{path}{separator}per_page={size}&page={page}"))
+        batch, total = response[key], response['total_count']
+        if not isinstance(batch, list) or len(batch) > size or type(total) is not int or total < 0:
+            raise ValueError(f'invalid GitHub {key} page {page}')
+        records.extend(batch)
+        if len(records) == total:
+            return records
+        if len(records) > total or len(batch) < size:
+            raise ValueError(f'incomplete GitHub {key} page {page}')
+        page += 1
 
 
 def resolve(filename, run, fetch=github_records):
