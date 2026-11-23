@@ -96,7 +96,8 @@ func TestMigrationWriterExternalProjectSQLitePublicSurface(t *testing.T) {
 	})
 	testfixture.AssertSeparateRoot(t, repository, universe)
 
-	projectRoot := filepath.Join(universe, "consumer")
+	fixtureRoot := filepath.Join(universe, "baseline")
+	projectRoot := filepath.Join(fixtureRoot, "consumer")
 	for _, directory := range []string{
 		projectRoot,
 		filepath.Join(projectRoot, "cmd", "projectrunner"),
@@ -170,8 +171,8 @@ replace github.com/progresshans/godj => %s
 	runnerBinary := filepath.Join(universe, "projectrunner")
 	externalRunSuccess(t, projectRoot, baseEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", runnerBinary, "./cmd/projectrunner")
 
-	databasePath := filepath.Join(universe, "sqlite-secret-path-93b4f7.sqlite3")
-	backendMarker := filepath.Join(universe, "backend-opened.log")
+	databasePath := filepath.Join(fixtureRoot, "sqlite-secret-path-93b4f7.sqlite3")
+	backendMarker := filepath.Join(fixtureRoot, "backend-opened.log")
 	descriptor := filepath.Join(projectRoot, "godj.toml")
 	commandEnvironment := testenv.With(baseEnvironment, map[string]string{
 		externalDatabaseEnvironment: databasePath,
@@ -319,42 +320,55 @@ replace github.com/progresshans/godj => %s
 	externalAssertSuccessAndRedacted(t, reapplied, sensitive...)
 	externalAssertConsumerReceipt(t, reapplied, "TestGeneratedCycleAfterReapply")
 	t.Run("authored_model_rename_and_generated_consumer", func(t *testing.T) {
-		env := testenv.With(commandEnvironment, map[string]string{"GODJ_EXTERNAL_RENAME_BLOG": "1"})
+		// Rename and deletion start from the same populated history. Give the
+		// rename its own application and closed database so either can fail independently.
+		dbstate.AssertNoSQLiteSidecars(t, databasePath)
+		renameFixture := filepath.Join(universe, "model-rename")
+		externalRunSuccess(t, universe, setupEnvironment, "cp", "-Rp", fixtureRoot, renameFixture)
+		root := filepath.Join(renameFixture, "consumer")
+		dbPath := filepath.Join(renameFixture, filepath.Base(databasePath))
+		baselineEnv := testenv.With(commandEnvironment, map[string]string{
+			externalDatabaseEnvironment: dbPath,
+			externalBackendMarker:       filepath.Join(renameFixture, filepath.Base(backendMarker)),
+		})
+		renameEnv := testenv.With(baselineEnv, map[string]string{"GODJ_EXTERNAL_RENAME_BLOG": "1"})
+		renameSensitive := append([]string{dbPath, filepath.ToSlash(dbPath)}, sensitive...)
 		run := func(environment []string, args ...string) externalCommandResult {
 			t.Helper()
-			result := externalRun(t, projectRoot, environment, globalBinary, append(args, "--project", descriptor)...)
-			externalAssertSuccessAndRedacted(t, result, sensitive...)
+			result := externalRun(t, root, environment, globalBinary, append(args, "--project", filepath.Join(root, "godj.toml"))...)
+			externalAssertSuccessAndRedacted(t, result, renameSensitive...)
 			return result
 		}
-		prefix := dbstate.CaptureSQLite(t, databasePath)
-		clean := externalDecodeOne[externalMakemigrationsResult](t, run(env, "makemigrations").stdout)
+		prefix := dbstate.CaptureSQLite(t, dbPath)
+		if prefix.Digest != externalDigestFile(t, databasePath) {
+			t.Fatal("rename did not start from the populated database")
+		}
+		clean := externalDecodeOne[externalMakemigrationsResult](t, run(renameEnv, "makemigrations").stdout)
 		if clean.Status != "clean" || clean.CandidateCount != 0 {
 			t.Fatal("authored rename produced writer drift", clean)
 		}
-		if got := dbstate.CaptureSQLite(t, databasePath); got.Digest != prefix.Digest {
+		if got := dbstate.CaptureSQLite(t, dbPath); got.Digest != prefix.Digest {
 			t.Fatal("writer touched populated database")
 		}
-		run(env, "migrate")
-		run(env, "generate")
-		testDir, err := os.MkdirTemp(projectRoot, "renameconsumer-")
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() {
-			if err := os.RemoveAll(testDir); err != nil {
-				t.Error(err)
-			}
-		})
-		externalWriteFile(t, filepath.Join(testDir, "rename_test.go"), []byte(externalRenamedModelConsumer), 0o600)
-		result := externalRun(t, testDir, env, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedPublication$", ".")
-		externalAssertSuccessAndRedacted(t, result, sensitive...)
+		run(renameEnv, "migrate")
+		consumerFile := filepath.Join(root, "cycle_test.go")
+		externalWriteFile(t, consumerFile, []byte(externalRenamedModelConsumer), 0o600)
+		run(renameEnv, "generate")
+		result := externalRun(t, root, renameEnv, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedPublication$", ".")
+		externalAssertSuccessAndRedacted(t, result, renameSensitive...)
 		externalAssertConsumerReceipt(t, result, "TestGeneratedPublication")
-		externalAuditApplicationSources(t, repository, projectRoot)
-		run(env, "migrate", "blog", "0001_initial")
-		run(commandEnvironment, "generate")
-		verify := externalRun(t, projectRoot, commandEnvironment, runnerBinary, "verify-restored-post")
-		externalAssertSuccessAndRedacted(t, verify, sensitive...)
+		externalAuditApplicationSources(t, repository, root)
+		run(renameEnv, "migrate", "blog", "0001_initial")
+		externalWriteFile(t, consumerFile, []byte(externalCycleConsumerSource), 0o600)
+		run(baselineEnv, "generate")
+		verify := externalRun(t, root, baselineEnv, runnerBinary, "verify-restored-post")
+		externalAssertSuccessAndRedacted(t, verify, renameSensitive...)
 		externalDecodePID(t, verify.stdout, "renamed-write-restored")
+		externalAuditApplicationSources(t, repository, root)
+		testfixture.AssertArtifactsRedacted(t, root, renameSensitive...)
+		if got := externalDigestFile(t, databasePath); got != prefix.Digest {
+			t.Fatal("rename changed the deletion fixture database")
+		}
 	})
 	t.Run("write_delete_and_restore_model", func(t *testing.T) {
 		env := testenv.With(commandEnvironment, map[string]string{"GODJ_EXTERNAL_RETIRE_BLOG": "1"})
@@ -660,7 +674,7 @@ func strconvUnquote(value string) (string, error) {
 	return decoded, nil
 }
 
-const externalRenamedModelConsumer = `package renameconsumer
+const externalRenamedModelConsumer = `package consumer_test
 
 import (
     "os"
