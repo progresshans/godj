@@ -15,6 +15,8 @@ CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만�
 
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 
+#12의 `fc79da34`에서 Intel normal Notes reload 여섯 단계는 통과했지만 마지막 비공개 임시 디렉터리 검사에 `godj-candidate-*` 하나가 남았다. 원본에는 잔여 항목을 만든 프로세스가 기록되지 않았다. 후보 검증과 외부 앱 조회의 Go 명령은 취소할 때 드라이버 PID만 종료했다. 격리된 작업에서 드라이버를 종료하고 디렉터리를 삭제한 뒤 자식에게 쓰기를 허용하면 디렉터리가 다시 생겼고, 소유 프로세스 그룹을 종료하면 생기지 않았다. 두 도구 호출에 같은 그룹 취소를 적용하고 종료 뒤 쓰기를 요구하는 회귀 검사를 추가했다. [Intel reload 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626752) · [원본 이벤트](https://github.com/progresshans/godj/actions/runs/45140609540/artifacts/14802601506)
+
 #12의 `ad0df1ef`에서 ARM64 race와 CGO=0은 같은 467,948,357바이트 캐시를 복원했으나 작업 40분 제한에 닿았다. 두 ZIP의 Go 이벤트 8개는 맨 앞의 프로세스 그룹 검사와 패키지 완료까지다. 나머지 패키지의 테스트 시작 기록은 없다. 이전 ARM64 CGO=0 전체 관계 작업에도 직전 패키지 완료와 SQLite 시작 사이 34분 19초의 공백이 있었고 SQLite 테스트 자체는 5분 19초였다. 빌드 구간을 패키지별로 확인할 수 있게 실행 경계를 나눴다. [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14800960927) · [race 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14801391427) · [이전 ARM64 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
 
 같은 실행에서 비교 작업의 로그 API 호출이 실패했다. 이후 해당 소스·시도의 Python과 프로젝트 생산자 17개 모두에서 사용자 계정으로 원본 업로드 ID와 ZIP SHA-256을 확인했다. 비교기는 고정 업로드 액션의 두 출력을 같은 생산 작업의 다음 단계 이름에서 확인하도록 변경했다. 성공한 생산자·시도와 보관 원본의 ID·digest·내부 체크섬 조건을 유지한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45128918106/job/137563473527)
