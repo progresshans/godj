@@ -537,6 +537,7 @@ jobs:
           # Keep common arguments nonempty under macOS Bash 3.2 with nounset.
           partition_args=(--shard "$shard" --shards "$shards")
           if [ "${{ matrix.isolate_accounts }}" = true ]; then partition_args+=(--isolate-accounts); fi
+          if [ "${{ matrix.balance_by_duration }}" = true ]; then partition_args+=(--balance-by-duration); fi
           consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
           # Partitioned coordinates split generated consumers across jobs.
