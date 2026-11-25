@@ -18,7 +18,7 @@ class WorkflowTest(unittest.TestCase):
         linux = lambda rows: [r for r in rows if r['platform']['expected_goos'] == 'linux']
         self.assertEqual(linux(full), linux(pr))
         self.assertEqual(relation_matrix('native')['include'], linux(full))
-        for profile, expected in [('pr', 11), ('native', 19), ('full', 89)]:
+        for profile, expected in [('pr', 11), ('native', 19), ('full', 53)]:
             products = product_matrix(profile)['include']
             planned = {(r['platform']['expected_goos'], r['platform']['expected_goarch'], r['mode']) for r in products}
             want = {(osname, arch, mode) for osname in ('linux', 'darwin') for arch in ('amd64', 'arm64')
@@ -134,7 +134,7 @@ if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runse
         for wrong in ('full', '', 'unknown'):
             with self.assertRaises(ValueError):
                 verify(results, wrong)
-        for key in ('jobs', 'relation_matrix', 'product_matrix'):
+        for key in ('jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix'):
             with self.subTest(missing=key), self.assertRaises(ValueError):
                 results['validation-plan']['outputs'] = dict(plan_outputs('pr'), **{key: '[]'})
                 verify(results, 'pr')
@@ -148,7 +148,7 @@ if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runse
                                      capture_output=True, text=True, timeout=10)
             self.assertEqual(planned.returncode, 0, planned.stderr)
             values = dict(line.split('=', 1) for line in output.read_text().splitlines())
-            self.assertEqual(set(values), {'profile', 'jobs', 'relation_matrix', 'product_matrix'})
+            self.assertEqual(set(values), {'profile', 'jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix'})
             self.assertEqual(json.loads(values['jobs']), sorted(JOBS))
             self.assertTrue(json.loads(values['relation_matrix'])['include'])
 
@@ -171,6 +171,38 @@ if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runse
         for invalid in ([], None, {}, dict(results, unknown={'result': 'success'})):
             with self.subTest(results=invalid), self.assertRaises(ValueError):
                 verify(invalid, 'full')
+
+    def test_worker_steps_run_every_planned_part_after_failure_and_require_exact_outcomes(self):
+        from worker_parts import verify_outcomes
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
+        for job, script in [('relation-product-matrix', 'relation-product.sh run'), ('postgresql-product', 'postgres-product.sh')]:
+            body = workflow.split('\n  ' + job + ':\n', 1)[1]
+            body = body.split('      - name: Verify every planned part completed', 1)
+            self.assertIn('id: prepare', body[0])
+            for index, step in enumerate(('first', 'second', 'third')):
+                block = body[0].split('        id: ' + step + '\n', 1)[1].split('\n      - ', 1)[0]
+                condition = "if: ${{ !cancelled() && steps.prepare.outcome == 'success'"
+                if index:
+                    condition += f' && matrix.parts[{index}] != null'
+                self.assertIn(condition + ' }}', block)
+                self.assertIn('PART: ${{ matrix.parts[' + str(index) + '] }}', block)
+                self.assertIn('timeout-minutes: ${{ matrix.step_minutes }}', block)
+                self.assertIn('run: bash scripts/ci/' + script, block)
+                self.assertIn(step.upper() + ': ${{ steps.' + step + '.outcome }}', body[1].split('\n      - ', 1)[0])
+            self.assertIn('verify-parts "$FIRST" "$SECOND" "$THIRD"', body[1].split('\n      - ', 1)[0])
+
+        for parts in ([0], ['native'], [4, 9], [7, 12, 3]):
+            outcomes = ['success'] * len(parts) + ['skipped'] * (3 - len(parts))
+            verify_outcomes(parts, outcomes)
+            for index, valid in enumerate(outcomes):
+                for outcome in {'success', 'failure', 'cancelled', 'skipped', ''} - {valid}:
+                    changed = list(outcomes)
+                    changed[index] = outcome
+                    with self.subTest(parts=parts, outcomes=changed), self.assertRaises(ValueError):
+                        verify_outcomes(parts, changed)
+        for parts in ([], [1, 1], [1, 2, 3, 4]):
+            with self.assertRaises(ValueError):
+                verify_outcomes(parts, ['success'] * 3)
 
     def test_both_packed_command_products_must_succeed(self):
         results = {name: {'result': 'success'} for name in COMMAND_PRODUCTS}

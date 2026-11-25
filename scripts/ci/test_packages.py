@@ -1,3 +1,4 @@
+import json
 import unittest
 import re
 from pathlib import Path
@@ -218,11 +219,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         import sys
         observed = []
         workflow = (root / '.github/workflows/ci.yml').read_text()
-        # Read actual scheduled owners independently of postgres_shards.py;
-        # every listed file must survive the real shell-array boundary.
-        postgres_job = re.search(r'(?ms)^  postgresql-product:\n.*?(?=^  [a-zA-Z][a-zA-Z0-9_-]*:|\Z)', workflow)
-        self.assertIsNotNone(postgres_job)
-        shards = re.findall(r'^\s+- mode: normal\n\s+shard: (core(?:-[a-z0-9-]+)?)\n', postgres_job[0], re.MULTILINE)
+        shards = [part for mode, part in self.postgres_scheduled(workflow) if mode == 'normal' and part != 'operator-target']
         self.assertTrue(shards)
         self.assertEqual(len(shards), len(set(shards)))
         for shard in shards:
@@ -276,16 +273,21 @@ class ExecutionOwnerTests(unittest.TestCase):
         self.assertEqual(packages, selected(packages, 'core', JOBS))
         self.assertEqual([], selected(packages, 'relation', JOBS))
 
+    def postgres_scheduled(self, workflow):
+        from workflow import plan_outputs
+        self.assertIn('matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}', workflow)
+        matrix = json.loads(plan_outputs('full')['postgres_matrix'])
+        return [(row['mode'], part) for row in matrix['include'] for part in row['parts']]
+
     def postgres_workflow_flags(self, root, workflow, mode, shard, **inventories):
-        declarations = workflow.index('          operator_target_required_passes=(')
-        download = workflow.index('          make project-command-dependencies', declarations)
-        setup = workflow.index('          case "$shard" in', download)
-        selection = workflow.index('          required_tests=()', setup)
-        end = workflow.index('          case "$mode" in', selection)
-        # Exercise the workflow's real plan reader and operator configuration.
-        # Building the selector needs neither downloaded modules nor a Go process.
-        script = workflow[declarations:download] + workflow[setup:selection]
-        script += 'capture_flags() {\n' + workflow[selection:end] + '''
+        self.assertIn('run: bash scripts/ci/postgres-product.sh', workflow)
+        product = (root / 'scripts/ci/postgres-product.sh').read_text()
+        declarations = product.index('operator_target_required_passes=(')
+        selection = product.index('required_tests=()', declarations)
+        end = product.index('case "$mode" in', selection)
+        # Execute the same manifest loader and shell selector as the product.
+        script = product[declarations:selection]
+        script += 'capture_flags() {\n' + product[selection:end] + '''
             printf '%s\\n' "${required_passes[@]}" > "$RUNNER_TEMP/required-$1"
             printf '%s\\n' "${test_flags[@]}" > "$RUNNER_TEMP/flags-$1"
         }
@@ -316,9 +318,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         # but no separate top-level sentinel. Never rely on that duplication.
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
-        postgres_job = re.search(r'(?ms)^  postgresql-product:\n.*?(?=^  [a-zA-Z][a-zA-Z0-9_-]*:|\Z)', workflow)
-        self.assertIsNotNone(postgres_job)
-        scheduled = re.findall(r'^\s+- mode: (normal|race|cgo0)\n\s+shard: ([a-z0-9-]+)\n', postgres_job[0], re.MULTILINE)
+        scheduled = self.postgres_scheduled(workflow)
         self.assertTrue(scheduled)
         self.assertEqual(len(scheduled), len(set(scheduled)))
         for mode, shard in scheduled:

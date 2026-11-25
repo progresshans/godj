@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 
 from go_test_events import discover_roots, events, inspect
+from worker_parts import pack
 from platform_policy import NATIVE_STEP_MINUTES, PLATFORMS, PROFILES
 
 
@@ -109,18 +110,22 @@ DARWIN_CONSUMER_SHARDS = {
 CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race', 'darwin-balanced')
 
 
-def submission_priority(row):
-    if row.get('sqlite_timeout'):
-        return 0
-    if row.get('consumer_layout') == 'linux-arm64-race' and row['shard'] > 0:
-        owner = row['shard'] - 1
-        if (owner >= len(ISOLATED_ACCOUNT_ROOTS)
-                or ARM64_RACE_SECONDS.get(ISOLATED_ACCOUNT_ROOTS[owner], 0) >= 15 * 60):
-            return 1
-    # Long Mac runtime jobs can take over 100 minutes on a cold builder.
-    if row.get('consumer_layout') == 'darwin-balanced' and row['shard'] == 0:
-        return 2
-    return 3
+def consumer_weight(layout, shard):
+    # Round multi-run Linux race timings to broad bands. Only placement on VMs
+    # uses these estimates. Partitioning and package deadlines are independent.
+    if layout == 'darwin-balanced':
+        return 3 if shard <= len(DARWIN_CATALOG_ROOTS) else 2
+    if shard > len(ISOLATED_ACCOUNT_ROOTS):
+        return 4
+    root = ISOLATED_ACCOUNT_ROOTS[shard - 1]
+    if root == 'TestGeneratedFirstAccountUsesRequiredProfiles':
+        return 4
+    if root in DARWIN_CATALOG_ROOTS or root in ('TestGeneratedAccountTransitionTargetReferences',
+                                                'TestGeneratedAccountTransitionCatalogFields'):
+        return 3
+    if root in ('TestGeneratedFirstAccountParentDefault', 'TestGeneratedFirstAccountParentCustom'):
+        return 1
+    return 2
 
 
 def matrix(profile='full'):
@@ -129,53 +134,44 @@ def matrix(profile='full'):
     rows = []
     for runner, goos, goarch in PLATFORMS:
         platform = {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch}
-        if profile == 'native' and goos == 'darwin':
-            # Project reload owns the same native boundary suite on its Darwin
-            # race and CGO0 coordinates. Linux retains every relation shard.
-            continue
-        if profile == 'pr' and goos == 'darwin':
-            for mode in ('race', 'cgo0'):
-                rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
-                             'shard': 'native', 'native_minutes': NATIVE_STEP_MINUTES[goarch],
-                             'job_timeout': NATIVE_STEP_MINUTES[goarch] + 10})
+        if goos == 'darwin' and profile != 'full':
+            if profile == 'pr':
+                for mode in ('race', 'cgo0'):
+                    minutes = NATIVE_STEP_MINUTES[goarch]
+                    rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
+                                 'worker': 'native', 'parts': ['native'],
+                                 'step_minutes': minutes, 'job_timeout': minutes + 10})
             continue
         for mode in ('normal', 'race', 'cgo0'):
-            if goos == 'darwin':
+            darwin = goos == 'darwin'
+            darwin_race = darwin and mode == 'race'
+            if darwin:
                 layout = 'darwin-balanced'
                 count = DARWIN_CONSUMER_SHARDS[goarch][mode]
             else:
-                # Linux account flows retain one process each. Five ordinary
-                # race owners avoid a cumulative package timeout in either arch.
                 layout = 'linux-arm64-race' if (goarch, mode) == ('arm64', 'race') else 'isolated-accounts'
                 count = len(ISOLATED_ACCOUNT_ROOTS) + (5 if mode == 'race' else 3)
-            darwin_race = goos == 'darwin' and mode == 'race'
-            # Shard 0 owns the non-consumer packages so their runtime does not
-            # accumulate after a consumer partition in the same job.
-            for shard in range(count + 1):
-                # In CI 40636193670 the macOS ARM64 runtime reached
-                # internal/compiletest only after 43m34s of build/runtime work.
-                job_timeout = 90 if darwin_race or goos == 'darwin' and shard == 0 else 45
-                if shard == 0 and goos == 'darwin':
-                    # With a cold ARM64 build, run 44962424321 reached protocol
-                    # at minute 89. Intel race passed SQLite in 3,798s and still
-                    # had packages to build. Keep every package deadline intact.
-                    job_timeout = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
-                                   ('amd64', 'race'): 135}.get((goarch, mode), job_timeout)
-                sqlite_timeout = ''
-                if goos == 'linux' and mode == 'race' and shard == 0:
-                    # Both architectures have exhausted a 35m SQLite package run.
-                    # Run the entire package alone before the other runtime packages.
-                    sqlite_timeout = '45m'
-                    job_timeout = 70
-                rows.append({
-                    'platform': platform, 'scope': 'relation',
-                    'mode': mode, 'shard': shard, 'shards': count,
-                    'consumer_layout': layout,
-                    'job_timeout': job_timeout,
-                    'test_timeout': '70m' if darwin_race else '35m',
-                    'sqlite_timeout': sqlite_timeout,
-                })
-    rows.sort(key=submission_priority)
+            common = {'platform': platform, 'mode': mode, 'scope': 'relation',
+                      'shards': count, 'consumer_layout': layout, 'test_timeout': '70m' if darwin_race else '35m'}
+            sqlite_timeout = '45m' if not darwin and mode == 'race' else ''
+            # Keep a dedicated VM for runtime, including the complete SQLite
+            # package. Cold Mac runtime has exceeded 100 minutes.
+            if darwin:
+                runtime_minutes = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
+                                   ('amd64', 'race'): 135}.get((goarch, mode), 90)
+            else:
+                runtime_minutes = 70 if sqlite_timeout else 45
+            rows.append({**common, 'worker': 'runtime', 'parts': [0], 'sqlite_timeout': sqlite_timeout,
+                         'step_minutes': runtime_minutes, 'job_timeout': runtime_minutes + 10})
+            minutes = 90 if darwin_race else 45
+            weights = {part: consumer_weight(layout, part) for part in range(1, count + 1)}
+            for parts in pack(weights, 2 if darwin_race else 3):
+                rows.append({**common, 'worker': 'parts-' + '-'.join(map(str, parts)), 'parts': parts,
+                             'sqlite_timeout': '', 'step_minutes': minutes, 'job_timeout': len(parts) * minutes + 15})
+    # Submit the two Linux SQLite race owners, slow ARM race groups and Mac
+    # runtime owners first within their respective runner pools.
+    rows.sort(key=lambda r: (not r.get('sqlite_timeout'), r.get('consumer_layout') != 'linux-arm64-race',
+                             r['worker'] != 'runtime', r['mode'] != 'race'))
     return {'include': rows}
 
 

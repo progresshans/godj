@@ -30,6 +30,7 @@ jobs:
     outputs:
       jobs: ${{ steps.plan.outputs.jobs }}
       relation_matrix: ${{ steps.plan.outputs.relation_matrix }}
+      postgres_matrix: ${{ steps.plan.outputs.postgres_matrix }}
       product_matrix: ${{ steps.plan.outputs.product_matrix }}
       profile: ${{ steps.plan.outputs.profile }}
     steps:
@@ -488,12 +489,19 @@ jobs:
 
   relation-product-matrix:
     needs: validation-plan
-    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }}${{ matrix.scope == 'darwin-native' && ', native' || matrix.shards > 1 && (matrix.shard == 0 && ', runtime' || format(', shard {0}/{1}', matrix.shard, matrix.shards)) || '' }})
+    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }}, ${{ matrix.worker }})
     runs-on: ${{ matrix.platform.runs_on }}
     timeout-minutes: ${{ matrix.job_timeout }}
     env:
       LC_ALL: C
       TZ: UTC
+      MODE: ${{ matrix.mode }}
+      SCOPE: ${{ matrix.scope }}
+      SHARDS: ${{ matrix.shards }}
+      CONSUMER_LAYOUT: ${{ matrix.consumer_layout }}
+      TEST_TIMEOUT: ${{ matrix.test_timeout }}
+      SQLITE_TIMEOUT: ${{ matrix.sqlite_timeout }}
+      PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.validation-plan.outputs.relation_matrix) }}
@@ -519,123 +527,50 @@ jobs:
           test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
-      - name: Run relation product mode
-        timeout-minutes: ${{ matrix.native_minutes || matrix.job_timeout }}
+      - name: Prepare relation packages and discover consumer tests
+        id: prepare
+        run: bash scripts/ci/relation-product.sh prepare
+
+      - name: Run relation part 1
+        id: first
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        timeout-minutes: ${{ matrix.step_minutes }}
         env:
-          PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
-          GODJ_GENERATED_CONSUMER_CAPTURE_DIR: ${{ runner.temp }}/generated-consumer-diagnostics
-        run: |
-          set -euo pipefail
-          mode="${{ matrix.mode }}"
-          shard="${{ matrix.shard }}"
-          shards="${{ matrix.shards }}"
-          case "${{ matrix.scope }}" in
-            darwin-native) exec bash scripts/ci/darwin-native.sh "$mode" ;;
-            relation) ;;
-            *) exit 2 ;;
-          esac
-          # Keep common arguments nonempty under macOS Bash 3.2 with nounset.
-          partition_args=(--shard "$shard" --shards "$shards" --layout "${{ matrix.consumer_layout }}")
-          consumer_package=github.com/progresshans/godj/codegen/consumertest
-          relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          # Partitioned coordinates split generated consumers across jobs.
-          # Shard 0 owns all other relation packages on that coordinate.
-          # Every job discovers the binary's roots and checks exact execution.
-          test_timeout="${{ matrix.test_timeout }}"
-          test_flags=(-json -count=1)
-          case "$mode" in
-            normal) ;;
-            race) test_flags+=(-race) ;;
-            cgo0) export CGO_ENABLED=0 ;;
-            *) exit 1 ;;
-          esac
-          selected_packages="$(go list ./... | python3 scripts/ci/packages.py relation)"
-          make project-command-dependencies
-          packages=()
-          while IFS= read -r package; do packages+=("$package"); done <<< "$selected_packages"
-          expected=("${packages[@]}")
-          if [ "$PORTABLE_COVERED" != true ]; then
-            expected+=(./conformance/cmd/godjcheck)
-          fi
-          expected_packages="$RUNNER_TEMP/relation-packages.txt"
-          go list "${expected[@]}" > "$expected_packages"
-          required="$RUNNER_TEMP/relation-required.txt"
-          # Project-check owns the complete runner on every coordinate.
-          awk -F'|' -v portable="$PORTABLE_COVERED" '$1 != "github.com/progresshans/godj/conformance/runners/godj" && (portable != "true" || $1 != "github.com/progresshans/godj/conformance/cmd/godjcheck")' scripts/ci/relation-required.txt > "$required"
-          log="$RUNNER_TEMP/relation-product-tests.json"
-          if [ "$mode" != race ]; then
-            cat scripts/ci/compile-required.txt >> "$required"
-          fi
-          discovery="$RUNNER_TEMP/relation-consumer-discovery.json"
-          go test -timeout="$test_timeout" "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
-          shard_dir="$RUNNER_TEMP/relation-shard"
-          python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir" "${partition_args[@]}"
-          required="$shard_dir/required.txt"
-          expected_packages="$shard_dir/packages.txt"
-          if grep -Fqx "$consumer_package|TestGeneratedModelResources" "$required"; then
-            make api-client-dependencies
-          fi
-          stderr_log="$RUNNER_TEMP/relation-product.stderr"
-          status=0
-          : > "$log"
-          : > "$stderr_log"
-          run_tests() {
-            local package_timeout="$1"
-            shift
-            go test -timeout="$package_timeout" "${test_flags[@]}" "$@" >> "$log" 2>> "$stderr_log" || status=$?
-          }
-          if [ "$shards" -eq 1 ]; then
-            run_tests "$test_timeout" "${packages[@]}"
-          elif [ "$shard" -eq 0 ]; then
-            sqlite_timeout="${{ matrix.sqlite_timeout }}"
-            sqlite_package=github.com/progresshans/godj/db/sqlite
-            if [ -n "$sqlite_timeout" ]; then grep -Fxq "$sqlite_package" "$expected_packages"; fi
-            runtime_packages=()
-            for package in "${packages[@]}"; do
-              if [ "$package" = "$consumer_package" ]; then continue; fi
-              if [ -n "$sqlite_timeout" ] && [ "$package" = "$sqlite_package" ]; then
-                echo "Running $package with Go package timeout $sqlite_timeout"
-                run_tests "$sqlite_timeout" "$package"
-              else
-                runtime_packages+=("$package")
-              fi
-            done
-            if [ "${#runtime_packages[@]}" -gt 0 ]; then
-              run_tests "$test_timeout" "${runtime_packages[@]}"
-            else
-              test -n "$sqlite_timeout"
-            fi
-          else
-            run_tests "$test_timeout" -run "$(cat "$shard_dir/run.txt")" "$consumer_package"
-          fi
-          runtime_owner=false
-          if [ "$shards" -eq 1 ] || [ "$shard" -eq 0 ]; then runtime_owner=true; fi
-          if [ "$status" -eq 0 ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
-            run_tests "$test_timeout" -p=1 -run "$relation_godjcheck" ./conformance/cmd/godjcheck
-          fi
-          if [ "$status" -ne 0 ]; then
-            python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
-            exit "$status"
-          fi
-          python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
-          python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --packages "$expected_packages" --log "$log" "${partition_args[@]}"
-          if [ "$mode" = normal ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
-            go vet ./migrations ./db/sqlite
-          fi
+          PART: ${{ matrix.parts[0] }}
+        run: bash scripts/ci/relation-product.sh run
+
+      - name: Run relation part 2
+        id: second
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && matrix.parts[1] != null }}
+        timeout-minutes: ${{ matrix.step_minutes }}
+        env:
+          PART: ${{ matrix.parts[1] }}
+        run: bash scripts/ci/relation-product.sh run
+
+      - name: Run relation part 3
+        id: third
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && matrix.parts[2] != null }}
+        timeout-minutes: ${{ matrix.step_minutes }}
+        env:
+          PART: ${{ matrix.parts[2] }}
+        run: bash scripts/ci/relation-product.sh run
+
+      - name: Verify every planned part completed
+        if: ${{ !cancelled() }}
+        env:
+          WORKER_PARTS: ${{ toJSON(matrix.parts) }}
+          FIRST: ${{ steps.first.outcome }}
+          SECOND: ${{ steps.second.outcome }}
+          THIRD: ${{ steps.third.outcome }}
+        run: python3 scripts/ci/workflow.py verify-parts "$FIRST" "$SECOND" "$THIRD"
 
       - name: Publish relation test logs and execution plan
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: relation-product-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          name: relation-product-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ matrix.worker }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/relation-product-tests.json
-            ${{ runner.temp }}/relation-product.stderr
-            ${{ runner.temp }}/relation-consumer-discovery.json
-            ${{ runner.temp }}/relation-required.txt
-            ${{ runner.temp }}/relation-packages.txt
-            ${{ runner.temp }}/relation-shard/
-            ${{ runner.temp }}/generated-consumer-diagnostics/
+            ${{ runner.temp }}/relation/
             ${{ runner.temp }}/darwin-native*
           if-no-files-found: error
           retention-days: 90
@@ -1350,6 +1285,8 @@ jobs:
     env:
       LC_ALL: C
       TZ: UTC
+      MODE: ${{ matrix.mode }}
+      PRIVATE_DATABASE: ${{ startsWith(matrix.shard, 'accounts-') }}
     services:
       postgres:
         image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
@@ -1366,191 +1303,7 @@ jobs:
           - 5432
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - mode: normal
-            shard: core
-            timeout_minutes: 60
-          - mode: normal
-            shard: core-consumers
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-consumers-2
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-consumers
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-management
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-reset
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-through
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-root-through
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-transition-through
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-transition
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-catalog
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-catalog-creation
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-shared-through
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-target-references
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-catalog-fields
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-catalog-cycles
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-account-profiles
-            timeout_minutes: 40
-          - mode: normal
-            shard: core-consumer-writes
-            timeout_minutes: 40
-          - mode: normal
-            shard: operator-target
-            timeout_minutes: 35
-          - mode: race
-            shard: core
-            timeout_minutes: 60
-          - mode: race
-            shard: core-postgres-1
-            timeout_minutes: 45
-          - mode: race
-            shard: core-postgres-2
-            timeout_minutes: 45
-          - mode: race
-            shard: core-helpdesk-postgres
-            timeout_minutes: 60
-          - mode: race
-            shard: core-consumers
-            timeout_minutes: 40
-          - mode: race
-            shard: core-consumers-2
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-consumers
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-management
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-reset
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-through
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-root-through
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-transition-through
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-transition
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-catalog
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-catalog-creation
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-shared-through
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-target-references
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-catalog-fields
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-catalog-cycles
-            timeout_minutes: 40
-          - mode: race
-            shard: core-account-profiles
-            timeout_minutes: 40
-          - mode: race
-            shard: core-consumer-writes
-            timeout_minutes: 40
-          - mode: race
-            shard: core-processes
-            timeout_minutes: 45
-          - mode: race
-            shard: operator-target
-            timeout_minutes: 35
-          - mode: cgo0
-            shard: core
-            timeout_minutes: 60
-          - mode: cgo0
-            shard: core-consumers
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-consumers-2
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-consumers
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-management
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-reset
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-through
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-root-through
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-transition-through
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-transition
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-catalog
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-catalog-creation
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-shared-through
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-target-references
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-catalog-fields
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-catalog-cycles
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-account-profiles
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: core-consumer-writes
-            timeout_minutes: 40
-          - mode: cgo0
-            shard: operator-target
-            timeout_minutes: 35
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}
 
     steps:
       - name: Checkout
@@ -1700,158 +1453,48 @@ jobs:
         if: matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         run: python3 scripts/ci/s3_service.py build --directory "$RUNNER_TEMP/s3-reference"
 
-      - name: Run and inventory PostgreSQL actual product tests
+      - name: Prepare shared Go project dependencies
+        id: prepare
+        run: make project-command-dependencies
+
+      - name: Run PostgreSQL part 1
+        id: first
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        timeout-minutes: ${{ matrix.step_minutes }}
         env:
-          GODJ_RELATED_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/related-expression-reference
-          GODJ_COLLECTION_AGGREGATE_REFERENCE_DIR: ${{ runner.temp }}/collection-aggregate-reference
-          GODJ_DECIMAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/decimal-expression-reference
-          GODJ_TEMPORAL_EXPRESSION_REFERENCE_DIR: ${{ runner.temp }}/temporal-expression-reference
-          GODJ_CALENDAR_EXTRACTION_REFERENCE_DIR: ${{ runner.temp }}/calendar-extraction-reference
-          GODJ_NAMED_ANNOTATION_CAPTURE_DIR: ${{ runner.temp }}/named-annotation-native
-          GODJ_ANNOTATION_REFERENCE_DIR: ${{ runner.temp }}/annotation-reference
-          GODJ_ADMIN_CHOICE_REFERENCE_DIR: ${{ runner.temp }}/admin-choice-reference
-          GODJ_ADMIN_CHOICE_CAPTURE_DIR: ${{ runner.temp }}/admin-choice-native
-          GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
-          GODJ_GENERATED_CONSUMER_CAPTURE_DIR: ${{ runner.temp }}/generated-consumer-diagnostics
-          GODJ_MODEL_RESOURCE_CLIENT_EVIDENCE: ${{ runner.temp }}/model-resource-client
-          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
-          GODJ_REQUIRE_POSTGRES: "1"
-          GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
-          GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-sqlite-external-operator-v1.json
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
-        run: |
-          set -euo pipefail
-          mode="${{ matrix.mode }}"
-          shard="${{ matrix.shard }}"
-          operator_target_required_passes=(
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput"
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/historical_reverse_sql_uses_project_schema_without_opening_database"
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/public_delete_model_recreates_empty_storage"
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/public_model_rename_preserves_rows"
-            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
-            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
-          )
-          make project-command-dependencies
-          case "$shard" in
-            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-consumers-2|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes|core-processes)
-              partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
-              python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
-                --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
-              test_timeout="$(jq -er '.test_timeout' "$partition/plan.json")"
-              required_passes=()
-              while IFS= read -r sentinel; do required_passes+=("$sentinel"); done < "$partition/required.txt"
-              packages=()
-              while IFS= read -r package; do packages+=("$package"); done < "$partition/packages.txt"
-              ;;
-            operator-target)
-              test_timeout=18m
-              required_passes=("${operator_target_required_passes[@]}")
-              packages=(
-                ./conformance/projectmigratetargetproduct
-                ./conformance/projectoperatorproduct
-              )
-              ;;
-            *)
-              echo "unsupported PostgreSQL product shard: $shard" >&2
-              exit 1
-              ;;
-          esac
-          required_tests=()
-          for sentinel in "${required_passes[@]}"; do
-            test_name="${sentinel#*|}"
-            test_root="${test_name%%/*}"
-            # Select the enclosing test even when only a child is a sentinel.
-            # Keep complete child names in the inventory checked after Go exits.
-            case " ${required_tests[*]-} " in
-              *" $test_root "*) ;;
-              *) required_tests+=("$test_root") ;;
-            esac
-          done
-          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
-          test_flags=(-p=1 -timeout="$test_timeout" -json -count=1 -run "$required_regex")
-          case "$mode" in
-            normal)
-              ;;
-            race)
-              test_flags+=(-race)
-              ;;
-            cgo0)
-              export CGO_ENABLED=0
-              ;;
-            *)
-              echo "unsupported PostgreSQL product mode: $mode" >&2
-              exit 1
-              ;;
-          esac
-          log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.json"
-          stderr_log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.stderr"
-          required="$RUNNER_TEMP/postgresql-${mode}-${shard}-required-tests.txt"
-          printf '%s\n' "${required_passes[@]}" > "$required"
-          case " ${required_tests[*]} " in
-            *" TestGeneratedModelResources "*) make api-client-dependencies ;;
-          esac
-          status=0
-          if [ "$shard" = "core" ] || [ "$shard" = "core-consumers" ] || [ "$shard" = "core-consumers-2" ]; then
-            python3 scripts/ci/s3_service.py run --directory "$RUNNER_TEMP/s3-reference" -- \
-              go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
-          else
-            go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
-          fi
-          if [ "$status" -ne 0 ]; then
-            python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
-            exit "$status"
-          fi
-          python3 scripts/ci/go_test_events.py "$log" --required "$required" --no-skips
-          if [ "$mode" != "normal" ]; then
-            exit 0
-          fi
-          case "$shard" in
-            core-consumers) go vet "${packages[@]}"; exit 0 ;;
-            core-consumers-2|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes) exit 0 ;;
-          esac
-          if [ "$shard" = "core" ]; then
-            test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
-            export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
-            project_runner="$RUNNER_TEMP/postgres-projectrunner"
-            go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
-            "$project_runner" prepare
-            docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
-            # GitHub services publish an ephemeral host port that Docker may
-            # reallocate when the container stops and starts.
-            postgres_host_port="$(
-              docker inspect --format '{{with (index .NetworkSettings.Ports "5432/tcp")}}{{(index . 0).HostPort}}{{end}}' \
-                "$POSTGRES_CONTAINER_ID"
-            )"
-            case "$postgres_host_port" in
-              ""|*[!0-9]*)
-                echo "restarted PostgreSQL service has no numeric published port" >&2
-                exit 1
-                ;;
-            esac
-            if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then
-              echo "restarted PostgreSQL service published port is outside the valid range" >&2
-              exit 1
-            fi
-            export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
-            ready=0
-            for attempt in $(seq 1 30); do
-              if timeout 3s "$project_runner" probe >/dev/null 2>&1; then
-                ready=1
-                break
-              fi
-              sleep 1
-            done
-            test "$ready" -eq 1
-            "$project_runner" resume
-            "$project_runner" verify
-            "$project_runner" cleanup
-            go vet "${packages[@]}"
-            exit 0
-          fi
-          test "$shard" = "operator-target"
-          test -f "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE"
-          go vet "${packages[@]}"
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+          PART: ${{ matrix.parts[0] }}
+        run: bash scripts/ci/postgres-product.sh
+
+      - name: Run PostgreSQL part 2
+        id: second
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && matrix.parts[1] != null }}
+        timeout-minutes: ${{ matrix.step_minutes }}
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+          PART: ${{ matrix.parts[1] }}
+        run: bash scripts/ci/postgres-product.sh
+
+      - name: Run PostgreSQL part 3
+        id: third
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && matrix.parts[2] != null }}
+        timeout-minutes: ${{ matrix.step_minutes }}
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+          PART: ${{ matrix.parts[2] }}
+        run: bash scripts/ci/postgres-product.sh
+
+      - name: Verify every planned part completed
+        if: ${{ !cancelled() }}
+        env:
+          WORKER_PARTS: ${{ toJSON(matrix.parts) }}
+          FIRST: ${{ steps.first.outcome }}
+          SECOND: ${{ steps.second.outcome }}
+          THIRD: ${{ steps.third.outcome }}
+        run: python3 scripts/ci/workflow.py verify-parts "$FIRST" "$SECOND" "$THIRD"
 
       - name: Package current PostgreSQL capture
         if: matrix.mode == 'normal' && (matrix.shard == 'core' || matrix.shard == 'operator-target')
@@ -1903,10 +1546,11 @@ jobs:
         with:
           name: postgres-product-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/postgresql-product-${{ matrix.mode }}-${{ matrix.shard }}.json
-            ${{ runner.temp }}/postgresql-product-${{ matrix.mode }}-${{ matrix.shard }}.stderr
-            ${{ runner.temp }}/postgresql-${{ matrix.mode }}-${{ matrix.shard }}-required-tests.txt
-            ${{ runner.temp }}/postgresql-plan-${{ matrix.mode }}-${{ matrix.shard }}/
+            ${{ runner.temp }}/postgresql-product-${{ matrix.mode }}-*.json
+            ${{ runner.temp }}/postgresql-product-${{ matrix.mode }}-*.stderr
+            ${{ runner.temp }}/postgresql-${{ matrix.mode }}-*-required-tests.txt
+            ${{ runner.temp }}/postgresql-plan-${{ matrix.mode }}-*/
+            ${{ runner.temp }}/postgres-parts/
             ${{ runner.temp }}/generated-consumer-diagnostics/
             ${{ runner.temp }}/identity-reference/
             ${{ runner.temp }}/migration-data-reference/

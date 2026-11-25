@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 import re
 
+from worker_parts import pack
+
 MODULE = 'github.com/progresshans/godj/'
 FRAMEWORK = (
     './storage', './admin', './forms', './forms/model', './orm', './conformance/internal/dbstate', './cmd/godj',
@@ -106,6 +108,29 @@ def partitions(mode):
     if mode not in ('normal', 'race', 'cgo0'):
         raise ValueError('unknown PostgreSQL execution mode')
     return RACE_PARTITIONS if mode == 'race' else BASE_PARTITIONS
+
+
+def matrix():
+    # Weights are rounded race timings. Keep reference, vet, restart and
+    # attestation producers on dedicated services with their original names.
+    account_weights = {'catalog-creation': 5, 'catalog': 4, 'through': 4, 'target-references': 4,
+                       'catalog-fields': 4, 'reset': 2, 'transition': 2, 'transition-through': 2,
+                       'catalog-cycles': 2}
+    rows = []
+    for mode in ('normal', 'race', 'cgo0'):
+        accounts = {}
+        for owner in (*partitions(mode), 'operator-target'):
+            if owner.startswith('core-account-') and owner != 'core-account-management':
+                accounts[owner] = account_weights.get(owner.removeprefix('core-account-'), 3)
+                continue
+            minutes = {'core': 60, 'core-helpdesk-postgres': 60, 'core-postgres-1': 45, 'core-postgres-2': 45,
+                       'core-processes': 45, 'operator-target': 35}.get(owner, 40)
+            rows.append({'mode': mode, 'shard': owner, 'parts': [owner],
+                         'step_minutes': minutes, 'timeout_minutes': minutes + 10})
+        for number, parts in enumerate(pack(accounts, 3), 1):
+            rows.append({'mode': mode, 'shard': f'accounts-{number}', 'parts': parts,
+                         'step_minutes': 40, 'timeout_minutes': 40 * len(parts) + 15})
+    return {'include': rows}
 
 
 def matches(package, pattern):

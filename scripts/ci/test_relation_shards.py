@@ -6,7 +6,6 @@ import re
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 
 from go_test_events import discover_roots
@@ -145,14 +144,10 @@ class RelationShardTest(unittest.TestCase):
         for profile in ('pr', 'native', 'full'):
             submitted = matrix(profile)['include']
             first = submitted[:2]
-            self.assertEqual([(r['platform']['runs_on'], r['mode'], r['shard']) for r in first],
-                             [('ubuntu-24.04', 'race', 0), ('ubuntu-24.04-arm', 'race', 0)])
-            long_dedicated = {'TestGeneratedFirstAccountUsesRequiredProfiles', 'TestGeneratedAccountCatalogCreation',
-                              'TestGeneratedAccountCatalogTransition'}
-            early = {i for i, root in enumerate(ISOLATED_ACCOUNT_ROOTS, 1) if root in long_dedicated}
-            early.update(range(len(ISOLATED_ACCOUNT_ROOTS) + 1, len(ISOLATED_ACCOUNT_ROOTS) + 6))
-            self.assertCountEqual([(r['platform']['runs_on'], r['mode'], r['shard']) for r in submitted[2:2 + len(early)]],
-                                  [('ubuntu-24.04-arm', 'race', shard) for shard in early])
+            self.assertCountEqual([(r['platform']['runs_on'], r['mode'], r['parts']) for r in first],
+                             [('ubuntu-24.04', 'race', [0]), ('ubuntu-24.04-arm', 'race', [0])])
+            early = [r for r in submitted if r.get('consumer_layout') == 'linux-arm64-race' and r['worker'] != 'runtime']
+            self.assertEqual(submitted[2:2 + len(early)], early)
         expected_counts = {
             ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
             ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
@@ -162,7 +157,10 @@ class RelationShardTest(unittest.TestCase):
         seen = {}
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])
-            seen.setdefault(coordinate, []).append(row['shard'])
+            parts = row['parts']
+            runtime_part = parts == [0]
+            self.assertEqual(runtime_part, row['worker'] == 'runtime')
+            seen.setdefault(coordinate, []).extend(parts)
             count = expected_counts[(coordinate[0], coordinate[3])]
             self.assertEqual(row['shards'], count)
             darwin = coordinate[1] == 'darwin'
@@ -171,12 +169,14 @@ class RelationShardTest(unittest.TestCase):
             if coordinate[0] == 'ubuntu-24.04-arm' and race:
                 layout = 'linux-arm64-race'
             self.assertEqual(row['consumer_layout'], layout)
-            job_minutes = 90 if darwin and (race or row['shard'] == 0) else 45
-            if row['shard'] == 0:
+            self.assertTrue(1 <= len(parts) <= (2 if darwin and race else 3))
+            job_minutes = 90 if darwin and (race or runtime_part) else 45
+            if runtime_part:
                 job_minutes = {('macos-26', 'normal'): 180, ('macos-26', 'race'): 180,
                                ('macos-15-intel', 'race'): 135}.get((coordinate[0], coordinate[3]), job_minutes)
-            separate_sqlite = coordinate[1] == 'linux' and race and row['shard'] == 0
-            self.assertEqual(row['job_timeout'], 70 if separate_sqlite else job_minutes)
+            separate_sqlite = coordinate[1] == 'linux' and race and runtime_part
+            self.assertEqual(row['step_minutes'], 70 if separate_sqlite else job_minutes)
+            self.assertGreaterEqual(row['job_timeout'], row['step_minutes'] * len(parts))
             self.assertEqual(row['test_timeout'], '70m' if darwin and race else '35m')
             self.assertEqual(row['sqlite_timeout'], '45m' if separate_sqlite else '')
         expected = {(runner, goos, arch, mode): list(range(expected_counts[(runner, mode)] + 1))
@@ -195,8 +195,8 @@ class RelationShardTest(unittest.TestCase):
             selected = [row for row in actual['include'] if (
                 row['platform']['runs_on'], row['platform']['expected_goos'],
                 row['platform']['expected_goarch'], row['mode']) == coordinate]
-            plans = [plan(self.roots, required, [CONSUMER, runtime], row['shard'], row['shards'],
-                          row['consumer_layout']) for row in selected]
+            plans = [plan(self.roots, required, [CONSUMER, runtime], part, row['shards'],
+                          row['consumer_layout']) for row in selected for part in row['parts']]
             self.assertEqual(Counter(root for item in plans for root in item['roots']), Counter(self.roots))
             self.assertEqual(Counter(entry for item in plans for entry in item['required']),
                              Counter(required + [CONSUMER + '|' + root for root in self.roots]))
@@ -206,16 +206,14 @@ class RelationShardTest(unittest.TestCase):
         for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == 'race']
             count = 5 + len(ISOLATED_ACCOUNT_ROOTS)
-            self.assertCountEqual(range(count + 1), [row['shard'] for row in rows])
+            self.assertCountEqual(range(count + 1), [part for row in rows for part in row['parts']])
             self.assertTrue(all(row['shards'] == count for row in rows))
             for row in rows[1:]:
-                self.assertEqual((row['test_timeout'], row['job_timeout'], row['sqlite_timeout']), ('35m', 45, ''))
+                self.assertEqual((row['test_timeout'], row['step_minutes'], row['sqlite_timeout']), ('35m', 45, ''))
 
     def test_runtime_runs_the_whole_sqlite_package_once_and_keeps_each_result(self):
-        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
-        step = workflow.split('- name: Run relation product mode', 1)[1].split('\n      - name:', 1)[0]
-        body = textwrap.dedent(step.split('run: |\n', 1)[1])
-        flags = body[body.index('test_timeout='):body.index('selected_packages=')]
+        body = Path(__file__).with_name('relation-product.sh').read_text()
+        flags = body[body.index('test_timeout='):body.index('case "$1" in', body.index('test_timeout='))]
         dispatch = body[body.index('status=0'):body.index('if [ "$status" -ne 0 ]; then')]
         sqlite = 'github.com/progresshans/godj/db/sqlite'
         ordinary = 'github.com/progresshans/godj/orm'
@@ -229,7 +227,7 @@ class RelationShardTest(unittest.TestCase):
                                                   ('amd64', sqlite, False, 23), ('amd64', ordinary, False, 23),
                                                   ('amd64', '', True, 1), ('arm64', '', True, 1)]:
             with self.subTest(arch=arch, failure=failure, missing=missing):
-                row = next(row for row in matrix()['include'] if row['mode'] == 'race' and row['shard'] == 0
+                row = next(row for row in matrix()['include'] if row['mode'] == 'race' and row['parts'] == [0]
                            and row['platform']['runs_on'] == ('ubuntu-24.04-arm' if arch == 'arm64' else 'ubuntu-24.04'))
                 planned.write_text('\n'.join([ordinary, neighbor] if missing else [sqlite, ordinary, neighbor]) + '\n')
                 log.write_text('stale\n')
@@ -243,9 +241,8 @@ class RelationShardTest(unittest.TestCase):
                     }
                     packages=("$SQLITE" "$consumer_package" "$ORDINARY" "$NEIGHBOR")
                 ''' + flags + dispatch + 'exit "$status"\n'
-                script = script.replace('${{ matrix.test_timeout }}', row['test_timeout'])
-                script = script.replace('${{ matrix.sqlite_timeout }}', row['sqlite_timeout'])
                 env = dict(os.environ, mode='race', shard='0', shards=str(row['shards']),
+                           TEST_TIMEOUT=row['test_timeout'], SQLITE_TIMEOUT=row['sqlite_timeout'],
                            SQLITE=sqlite, ORDINARY=ordinary, NEIGHBOR=neighbor, consumer_package=CONSUMER,
                            FAIL_PACKAGE=failure, expected_packages=str(planned), relation_godjcheck='^TestChecker$',
                            PORTABLE_COVERED='true' if arch == 'amd64' else 'false', log=str(log), stderr_log=str(stderr))
@@ -288,13 +285,13 @@ class RelationShardTest(unittest.TestCase):
             for mode in ('normal', 'cgo0'):
                 rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
                 count = 3 + len(ISOLATED_ACCOUNT_ROOTS)
-                self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
-                self.assertTrue(all(row['shards'] == count and row['consumer_layout'] == 'isolated-accounts' and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+                self.assertCountEqual(range(count + 1), [part for row in rows for part in row['parts']])
+                self.assertTrue(all(row['shards'] == count and row['consumer_layout'] == 'isolated-accounts' and row['test_timeout'] == '35m' and row['step_minutes'] == 45 for row in rows))
 
     def test_macos_schedules_runtime_early_and_keeps_slow_consumers_separate(self):
         rows = matrix('full')['include']
         mac = [r for r in rows if r['platform']['expected_goos'] == 'darwin']
-        self.assertEqual([r['shard'] for r in mac[:6]], [0] * 6)
+        self.assertEqual([r['parts'] for r in mac[:6]], [[0]] * 6)
         discovered = list(ISOLATED_ACCOUNT_ROOTS) + ['TestNewConsumer' + str(i) for i in range(30)]
         for count in {r['shards'] for r in mac}:
             layouts = [partition(discovered, shard, count, 'darwin-balanced') for shard in range(1, count + 1)]
@@ -327,17 +324,19 @@ class RelationShardTest(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
         body = workflow.split('- name: Publish relation test logs and execution plan', 1)[1].split('\n      - name:', 1)[0]
         self.assertIn('if: always()', body)
-        for name in ('relation-product-tests.json', 'relation-product.stderr', 'relation-consumer-discovery.json',
-                     'relation-required.txt', 'relation-packages.txt', 'relation-shard/', 'generated-consumer-diagnostics/'):
-            self.assertIn('${{ runner.temp }}/' + name, body)
+        self.assertIn('${{ runner.temp }}/relation/', body)
+        self.assertIn('${{ runner.temp }}/darwin-native*', body)
         self.assertIn('if-no-files-found: error', body)
-        self.assertIn('${{ matrix.shard }}-${{ github.run_attempt }}', body)
+        self.assertIn('${{ matrix.worker }}-${{ github.run_attempt }}', body)
+        script = Path(__file__).with_name('relation-product.sh').read_text()
+        for path in ('work="$RUNNER_TEMP/relation"', 'part="$work/part-$shard"', '$part/relation-product-tests.json',
+                     '$part/relation-product.stderr', '$work/relation-consumer-discovery.json', '$work/relation-required.txt',
+                     '$work/relation-packages.txt', '$part/relation-shard', '$part/generated-consumer-diagnostics'):
+            self.assertIn(path, script)
 
     def test_workflow_shell_preserves_partition_arguments_with_nounset(self):
-        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
-        step = workflow.split('- name: Run relation product mode', 1)[1].split('\n      - name:', 1)[0]
-        body = textwrap.dedent(step.split('run: |\n', 1)[1])
-        prefix = body.split('consumer_package=', 1)[0]
+        body = Path(__file__).with_name('relation-product.sh').read_text()
+        prefix = body[body.index('shard="$PART"'):body.index('part="$work/part-')]
         commands = [line for line in body.splitlines() if line.startswith('python3 scripts/ci/relation_shards.py ')]
         self.assertEqual(len(commands), 2)
         # Execute the actual workflow's expansion, including on macOS Bash 3.2.
@@ -351,11 +350,9 @@ class RelationShardTest(unittest.TestCase):
         for layout, shard, shards in (('round-robin', 2, 3), ('isolated-accounts', 7, 19),
                                       ('linux-arm64-race', 19, 21), ('darwin-balanced', 6, 13)):
             with self.subTest(layout=layout):
-                values = {'mode': 'race' if layout == 'linux-arm64-race' else 'normal',
-                          'shard': str(shard), 'shards': str(shards), 'scope': 'relation', 'consumer_layout': layout}
-                script = capture + prefix + '\n'.join(commands) + '\n'
-                script = re.sub(r'\$\{\{\s*matrix\.(\w+)\s*\}\}', lambda match: values[match[1]], script)
-                environment = {**os.environ, **paths, 'PARTITION_PYTHON': sys.executable}
+                script = 'set -eu\n' + capture + prefix + '\n'.join(commands) + '\n'
+                environment = dict(os.environ, **paths, PARTITION_PYTHON=sys.executable, PART=str(shard),
+                                   SHARDS=str(shards), CONSUMER_LAYOUT=layout)
                 result = subprocess.run(['/bin/bash', '-c', script], env=environment,
                                         capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, 0, result.stderr)

@@ -172,23 +172,15 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-전체 플랫폼의 관계 matrix와 두 PR 범위의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
-생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
-계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
+관계 검사에서 각 OS·아키텍처·모드는 자체 바이너리의 `go test -list .` 결과로 Test·Example·Fuzz를 배정한다. Runtime 전용 러너가 생성 소비자를 제외한 관계 패키지를 담당한다. 소비자 러너는 checkout, Go 빌드 캐시, 모듈 다운로드와 바이너리 발견을 한 번 수행한다. 한 러너에서 최대 세 묶음, macOS race에서는 최대 두 묶음을 실행한다. 각 묶음은 독립된 Go 프로세스와 시간 제한을 갖는다. [관계 실행기](../scripts/ci/relation-product.sh) · [배정 함수](../scripts/ci/relation_shards.py)
 
-Linux ARM64 race에서는 전용 계정 테스트 16개를 각각 단독 실행한다. 나머지 상위 테스트는 예상 시간이 긴 순서로 5개 작업 중 누적 예상 시간이 가장 짧은 곳에 배정한다. 두 Hosted 실행에서 평균 90초 이상 걸린 일반 테스트는 15초 단위 실측값을 쓰고, 새 테스트를 포함한 나머지는 30초로 계산한다. 매 실행의 바이너리 발견 목록으로 배정 대상이 정해진다.
-두 Linux race runtime 다음에는 ARM64의 일반 소비자 5개 작업과 평균 15분 이상 걸린 전용 소비자 작업을 먼저 제출한다. 실제 러너 배정 시각은 GitHub 대기열에 따라 달라진다. [측정과 재배치 근거](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
+Linux에서는 오래 걸리는 계정 테스트 16개를 각각 단독 Go 프로세스에서 실행한다. ARM64 race의 나머지 상위 테스트는 예상 시간으로 균형을 맞춘 다섯 묶음에 배정한다. 두 Linux race runtime과 ARM64 race의 소비자 묶음을 먼저 제출한다. [Linux 시간 측정](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
 
-전체 플랫폼에서는 Intel Mac과 Apple Silicon 각각 normal·race·CGO=0에서 생성 소비자 전체를 실행한다. Intel은 모드별로 소비자 작업 13개를 실행하고, Apple Silicon은 모드 순서대로 8·9·8개를 실행한다. 각 조합에서 카탈로그 생성과 전환은 각각 단독으로 실행한다. 나머지는 실제 바이너리 발견 목록을 실행시간 가중치로 분배한다. 새 테스트도 배정되며, 하위 검사와 필수 목록은 해당 상위 테스트를 따라간다. Mac의 관계 runtime 6개는 나머지 Mac 소비자보다 먼저 제출한다. [Mac 작업 배정의 근거](status/TEST_EVIDENCE.md#macos-전체-플랫폼의-생성-소비자-재배치)
+전체 플랫폼과 릴리스 후보에서는 Intel Mac과 Apple Silicon의 normal·race·CGO=0에서 생성 소비자 전체를 실행한다. 두 카탈로그 테스트는 각각 단독 Go 프로세스에서 실행하고, 나머지는 실행시간 가중치로 배정한다. 새 상위 테스트와 필수 하위 테스트도 바이너리 발견과 필수 목록을 통해 배정한다. Mac runtime은 소비자보다 먼저 제출한다. [Mac 시간 측정](status/TEST_EVIDENCE.md#macos-전체-플랫폼의-생성-소비자-재배치)
 
-기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
-macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
-Linux amd64·arm64 race의 runtime 작업은 full·PR 실행 계획의 맨 앞에 등록한다. 두 좌표 모두 작업 제한은 70분이다. `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고, 나머지 패키지는 35분으로 실행한다.
-두 호출의 Go 이벤트와 stderr를 같은 원본에 보관하고 전체 필수 목록을 대조한다. [SQLite 패키지 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
-각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
-실제 package 집합의 정확한 일치를 요구한다. 실행용 필수 목록은 파일로 보존하고 로그에는 목록의 개수와 상위 테스트 지문을 남긴다.
-모든 shard의 성공은 기존 관계 owner와 최종 집계가 요구한다. 누락·중복·실패·skip·잘린 로그는 성공이 아니다.
-다른 좌표의 전체 package 실행, normal/race/CGO=0 범위·자식 race 전달·필수 child·no-skip 검사는 유지한다.
+일반 소비자 한 묶음의 step 제한은 45분, Go 패키지 제한은 35분이다. macOS race는 각각 90분·70분이다. Mac runtime의 step 제한은 ARM64 normal·race 180분, Intel race 135분, 나머지 90분이다. Linux 양 아키텍처의 race runtime은 70분 안에 `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고 나머지 패키지를 35분 제한으로 실행한다. [SQLite 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
+
+묶음마다 Go 이벤트·stderr·진단·필수 목록을 별도 경로에 보관한다. 실행기는 발견한 상위 테스트와 배정한 패키지의 정확한 실행·통과 및 필수 하위 테스트 결과를 대조한다. 첫 묶음이 실패해도 취소되지 않은 러너는 다음 묶음을 실행한다. 마지막 검사는 계획에 있는 모든 step의 성공과 사용하지 않은 step의 생략을 확인한다. 실패했을 때도 원본을 게시한다. [묶음 결과 검사](../scripts/ci/worker_parts.py)
 
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.
@@ -329,6 +321,8 @@ core에 유지한다. 필수 목록의 각 검사는 모드마다 한 작업에 
 이 함수가 나머지 일반 생성 소비자를 `core-consumers`와 `core-consumers-2`에 상위 테스트 단위로 나눈다.
 생성 소비자, normal/CGO-disabled의 core, native PostgreSQL credential 검사를 맡은 작업의 Go 패키지 제한은 30분이고
 나머지는 18분이다. 모든 작업이 필수 테스트의 실행·통과와 skip 유무를 확인한다. 일반 생성 소비자 패키지의 vet는 normal/core-consumers가 맡는다.
+
+계정 소비자 여러 묶음이 한 러너의 PostgreSQL 서비스를 공유할 때는 각 묶음 전용 DB를 `template0`으로 생성한다. Go는 묶음마다 필수 목록을 읽어 독립 프로세스로 실행하며, 생성 앱 진단과 테스트 로그도 따로 보관한다. Django 대조, S3 참조 서비스, DB 재기동과 실행 증거 생산 작업은 각각 전용 서비스에서 실행한다. [PostgreSQL 실행기](../scripts/ci/postgres-product.sh)
 
 normal/core-account-management에서 [Django 계정 관측기 실행 도구](../scripts/ci/identity_reference.py)가 모델 권한·관리·카탈로그,
 계정 생성·로그인, 비밀번호 변경·재설정·HTTP·사용 불가 비밀번호를 SQLite와 PostgreSQL에서 각각 실행한다.

@@ -200,7 +200,8 @@ func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
 				OS     string `json:"expected_goos"`
 				Arch   string `json:"expected_goarch"`
 			} `json:"platform"`
-			Mode string `json:"mode"`
+			Mode  string `json:"mode"`
+			Shard string `json:"shard"`
 		} `json:"include"`
 	}
 	if err := json.Unmarshal([]byte(ciPlan(t)[key]), &matrix); err != nil {
@@ -211,7 +212,7 @@ func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
 	}
 	var rows []map[string]string
 	for _, entry := range matrix.Include {
-		rows = append(rows, map[string]string{"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch, "mode": entry.Mode})
+		rows = append(rows, map[string]string{"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch, "mode": entry.Mode, "shard": entry.Shard})
 	}
 	return rows
 }
@@ -266,7 +267,9 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		key := "product_matrix"
 		if name == "relation-product-matrix" {
 			key = "relation_matrix"
-			ciRequire(t, name, job, "matrix.shard", "matrix.shards", "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh")
+			ciRequire(t, name, job, "matrix.parts[0]", "matrix.shards", "bash scripts/ci/relation-product.sh prepare", "bash scripts/ci/relation-product.sh run")
+			job += "\n" + ciRead(t, "scripts/ci/relation-product.sh")
+			ciRequire(t, name, job, "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh")
 		}
 		seen := make(map[string]bool)
 		for _, row := range ciPlannedMatrix(t, job, key) {
@@ -305,7 +308,7 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		}
 	}
 	seen := make(map[string]bool)
-	for _, row := range ciMatrix(t, ciJob(t, jobs, "postgresql-product"), "include") {
+	for _, row := range ciPlannedMatrix(t, ciJob(t, jobs, "postgresql-product"), "postgres_matrix") {
 		seen[row["shard"]+"/"+row["mode"]] = true
 	}
 	for _, shard := range []string{"core", "operator-target"} {
@@ -432,6 +435,10 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 		{"postgresql-product", "", "operator_target_required_passes", "", postgresOperatorTargetRequiredSentinels},
 	} {
 		job := ciJob(t, jobs, inventory.job)
+		if inventory.job == "postgresql-product" {
+			ciRequire(t, inventory.job, job, "bash scripts/ci/postgres-product.sh")
+			job = ciRead(t, "scripts/ci/postgres-product.sh")
+		}
 		if inventory.step != "" {
 			job = ciStep(t, job, inventory.step)
 		}
@@ -487,7 +494,7 @@ func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.
 		}
 		ciRequire(t, name, job, "PORTABLE_COVERED:", "matrix.platform.expected_goos == 'linux'", "matrix.platform.expected_goarch == 'amd64'")
 	}
-	relation := ciJob(t, jobs, "relation-product-matrix")
+	relation := ciJob(t, jobs, "relation-product-matrix") + "\n" + ciRead(t, "scripts/ci/relation-product.sh")
 	ciRequire(t, "relation execution owner", relation, "scripts/ci/packages.py relation", "--required", "--packages", "--no-skips", `"$PORTABLE_COVERED" != true`)
 	makefile := ciRead(t, "Makefile")
 	for _, group := range []string{"core", "conformance"} {

@@ -3,6 +3,16 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## 전체 검사의 러너 공유
+
+`ea1274b6`에서 시작한 #1의 313개 작업은 Linux와 PostgreSQL까지 함께 최적화하기 위해 취소했다. 그 실행의 결과는 취소다. [#1 중간 실행](https://github.com/progresshans/godj/actions/runs/45572633027)
+
+새 전체 계획은 177개 작업이다. Linux는 224개에서 124개로, macOS는 89개에서 53개로 줄었다. 전체 계획에서 Linux 생성 소비자 118묶음은 42개 러너, Mac 생성 소비자 64묶음은 28개 러너를 사용한다. PostgreSQL은 61묶음을 37개 러너에 배정한다. 양 Linux·양 Mac의 세 모드와 전체 플랫폼 실행 조건은 그대로 적용된다. 일반 PR과 공용 Unix 변경의 계획은 각각 135·143개다. [워크플로](../../.github/workflows/ci.yml) · [배정 함수](../../scripts/ci/worker_parts.py)
+
+세 번의 통과한 Linux 실행에서 각 생성 소비자와 PostgreSQL 작업의 준비·본문·종료 시간을 새 배정과 대조했다. 실행 모드, 원래 Go 프로세스의 소유권과 시간 제한이 일치했다. PostgreSQL 필수 항목 5,955개는 각 모드에서 한 번씩 배정된다. 기존 실행 본문 시간을 모두 유지하고 같은 그룹의 가장 긴 준비·종료 시간을 한 번 적용한 추정치는 두 종류의 합계에서 약 58~59 러너분 절감이다. [#15 통합 실행](https://github.com/progresshans/godj/actions/runs/45542535698) · [#17 실행](https://github.com/progresshans/godj/actions/runs/45320508418) · [#15 이전 실행](https://github.com/progresshans/godj/actions/runs/45253620235)
+
+아래의 Mac 소비자 원본 360개에도 새 배정을 적용했다. 관측한 각 조합에서 상위 131개와 필수 목록 429개가 정확히 한 번씩 배정됐고, 각 Go 프로세스의 과거 본문 합계가 해당 패키지 제한 안에 들었다. 여섯 조합을 모두 관측한 두 실행으로 준비·종료만 공유한다고 추산하면 Mac 소비자는 기존 119개 작업 대비 총 2시간 14분~2시간 19분의 러너 시간을 절약한다. GitHub 대기와 실제 캐시 적중을 포함한 전체 경과 시간은 새 실행에서 측정한다. [첫 Mac 실행](https://github.com/progresshans/godj/actions/runs/43659728789) · [두 번째 Mac 실행](https://github.com/progresshans/godj/actions/runs/44955313490)
+
 ## macOS 전체 플랫폼의 생성 소비자 재배치
 
 11월 15일 `ad25f5ed`와 11월 21일 `512c17f1`의 macOS 생성 소비자 작업 119개씩을 확인했다. 두 전체 워크플로의 결론은 각각 실패와 취소다. 이 분석에 사용한 238개 소비자 작업에서는 실제 업로드 ID와 ZIP SHA-256, 검토용 checkout과 제출 소스, 바이너리 발견 목록, 상위·하위 항목의 실행과 통과를 대조했다. 각 실행에서 Intel·Apple Silicon의 normal·race·CGO=0 여섯 조합이 각각 상위 테스트 131개를 실행했다. [11월 15일 원본 예시](https://github.com/progresshans/godj/actions/runs/43659728789/artifacts/14143395731) · [11월 21일 원본 예시](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731265006)

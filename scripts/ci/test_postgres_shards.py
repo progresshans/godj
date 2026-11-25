@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -7,7 +8,7 @@ import unittest
 
 from postgres_shards import (
     ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
-    PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, THROUGH_CONSUMER_ROOTS, ISOLATED_ACCOUNT_CONSUMER_OWNERS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
+    PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, THROUGH_CONSUMER_ROOTS, ISOLATED_ACCOUNT_CONSUMER_OWNERS, WRITE_CONSUMER_ROOTS, audit, matches, matrix, partitions,
     plan, required_entries,
 )
 
@@ -275,22 +276,68 @@ class PostgreSQLPartitionTests(unittest.TestCase):
 
     def test_workflow_runs_every_partition_and_retains_canceled_logs(self):
         workflow = (self.root / '.github/workflows/ci.yml').read_text()
+        from workflow import plan_outputs
+        rows = json.loads(plan_outputs('full')['postgres_matrix'])['include']
+        self.assertEqual(rows, matrix()['include'])
         for mode in ('normal', 'race', 'cgo0'):
-            for shard in partitions(mode):
-                self.assertIn('mode: ' + mode + '\n            shard: ' + shard + '\n', workflow)
-        self.assertIn('python3 scripts/ci/postgres_shards.py', workflow)
+            scheduled = [row for row in rows if row['mode'] == mode]
+            self.assertCountEqual([part for row in scheduled for part in row['parts']], [*partitions(mode), 'operator-target'])
+            self.assertEqual(len({row['shard'] for row in scheduled}), len(scheduled))
+            for row in scheduled:
+                if row['shard'].startswith('accounts-'):
+                    self.assertTrue(1 < len(row['parts']) <= 3)
+                    self.assertTrue(all(part.startswith('core-account-') and part != 'core-account-management'
+                                        for part in row['parts']))
+                else:
+                    self.assertEqual(row['parts'], [row['shard']])
+        self.assertIn('matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}', workflow)
+        self.assertEqual(workflow.count('run: bash scripts/ci/postgres-product.sh'), 3)
+        script = (self.root / 'scripts/ci/postgres-product.sh').read_text()
+        self.assertIn('python3 scripts/ci/postgres_shards.py', script)
         for step in ('Publish PostgreSQL test logs and execution plan', 'Publish S3 service build and lifecycle receipts'):
             body = workflow[workflow.index('- name: ' + step):].split('\n      - name:', 1)[0]
             self.assertIn('if: always()', body)
         self.assertIn("matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')", workflow)
-        self.assertIn('test_flags=(-p=1 -timeout="$test_timeout"', workflow)
+        self.assertIn('test_flags=(-p=1 -timeout="$test_timeout"', script)
         self.assertTrue(FRAMEWORK and CONSUMERS and PROCESSES)
+
+    def test_colocated_accounts_get_distinct_databases_and_diagnostics(self):
+        product = (self.root / 'scripts/ci/postgres-product.sh').read_text()
+        setup = product.split('operator_target_required_passes=(', 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            databases = []
+            for owner in ('core-account-catalog', 'core-account-reset', 'core'):
+                private = owner != 'core'
+                script = 'docker() { echo "$*"; return "$DOCKER_STATUS"; }\n' + setup
+                script += 'printf "%s\\n" "$GODJ_TEST_POSTGRES_URL" "$GODJ_GENERATED_CONSUMER_CAPTURE_DIR"\n'
+                env = dict(os.environ, RUNNER_TEMP=directory, MODE='race', PART=owner, POSTGRES_CONTAINER_ID='pinned',
+                           POSTGRES_PORT='31415', PRIVATE_DATABASE=str(private).lower(), DOCKER_STATUS='0')
+                result = subprocess.run(['bash', '-c', script], env=env, capture_output=True, text=True, check=True)
+                lines = result.stdout.splitlines()
+                url, diagnostics = lines[-2:]
+                database = url.split('/')[-1].split('?')[0]
+                databases.append(database)
+                self.assertIn('@127.0.0.1:31415/', url)
+                self.assertTrue(url.endswith('?sslmode=disable'))
+                if private:
+                    self.assertEqual(lines[0], 'exec pinned createdb -U postgres -T template0 ' + database)
+                    self.assertEqual(Path(diagnostics).parent, Path(directory, 'postgres-parts', owner))
+                    env['DOCKER_STATUS'] = '9'
+                    failed = subprocess.run(['bash', '-c', script], env=env, capture_output=True, text=True)
+                    self.assertEqual(failed.returncode, 9)
+                    self.assertNotIn('postgresql://', failed.stdout)
+                else:
+                    self.assertEqual(database, 'postgres')
+                    self.assertEqual(len(lines), 2)
+                    self.assertEqual(Path(diagnostics).parent, Path(directory))
+            self.assertEqual(len(set(databases)), 3)
 
     def test_normal_consumers_keep_one_vet_owner_and_cannot_enter_capture_production(self):
         workflow = (self.root / '.github/workflows/ci.yml').read_text()
-        start = workflow.index('          if [ "$mode" != "normal" ]; then', workflow.index('  postgresql-product:'))
-        end = workflow.index('          if [ "$shard" = "core" ]; then', start)
-        dispatch = workflow[start:end]
+        product = (self.root / 'scripts/ci/postgres-product.sh').read_text()
+        start = product.index('if [ "$mode" != "normal" ]; then')
+        end = product.index('if [ "$shard" = "core" ]; then', start)
+        dispatch = product[start:end]
         for mode in ('normal', 'race', 'cgo0'):
             for shard in (*partitions(mode), 'operator-target'):
                 script = f'mode={mode}\nshard={shard}\npackages=(./example)\n'
