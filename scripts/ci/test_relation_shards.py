@@ -173,7 +173,7 @@ class RelationShardTest(unittest.TestCase):
             job_minutes = 90 if darwin and (race or runtime_part) else 45
             if runtime_part:
                 job_minutes = {('macos-26', 'normal'): 180, ('macos-26', 'race'): 180,
-                               ('macos-15-intel', 'race'): 135}.get((coordinate[0], coordinate[3]), job_minutes)
+                               ('macos-26', 'cgo0'): 135, ('macos-15-intel', 'race'): 135}.get((coordinate[0], coordinate[3]), job_minutes)
             separate_sqlite = coordinate[1] == 'linux' and race and runtime_part
             self.assertEqual(row['step_minutes'], 70 if separate_sqlite else job_minutes)
             self.assertGreaterEqual(row['job_timeout'], row['step_minutes'] * len(parts))

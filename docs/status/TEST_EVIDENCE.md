@@ -3,6 +3,16 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## 통합 CI에서 확인한 Mac 실행 제한
+
+`f79ab659`의 #1 전체 계획은 Linux 124개·macOS 53개다. Linux의 두 아키텍처와 세 모드에서 생성 소비자 42개 러너의 원본을 제출 소스와 대조했다. 각 조합이 상위 테스트 131개와 필수 항목 429개를 실행했다. PostgreSQL 계정 러너 15개의 원본에서도 모드마다 13개 묶음·상위 테스트 19개·필수 항목 189개의 실행과 통과를 확인했다. [워크플로 실행](https://github.com/progresshans/godj/actions/runs/45581362600)
+
+Intel Mac race에서 Notes reload는 통과했고, Article은 실제 비밀번호를 포함한 계정 생성 POST가 응답 헤더를 기다리다 5초 제한에 닿았다. 해당 요청에 로그인과 같은 30초 제한을 사용한다. 새 회귀 검사는 세션 쿠키, CSRF 전파, 계정 생성 POST 한 번과 이어지는 일반 요청의 별도 제한을 검증한다. 로컬 Darwin arm64 race에서 이전 5초 정책으로 회귀 검사의 실패를 재현했고 변경한 정책으로 통과했다. [Intel 실행 원본](https://github.com/progresshans/godj/actions/runs/45581362600/artifacts/15008322545)
+
+같은 Intel race의 고정 모듈 검사는 두 번째 버전의 독립 실행 파일 세 개와 서버 기동을 확인하고, 약 39분 19초에 시작한 저장 데이터 조회 중 누적 40분에 닿았다. 고정 버전의 `go install`과 직접 빌드에도 `-trimpath`를 전달한다. 로컬 파일 프록시의 같은 모듈과 별개 모듈 캐시 두 곳으로 시험해 race 빌드 ID가 기존 플래그에서는 달랐고 변경 후 일치함을 확인했다. Intel race의 해당 누적 한도는 50분이며 개별 명령의 제한과 두 방향의 호환성 거부 검사를 유지한다. [고정 모듈 실행 원본](https://github.com/progresshans/godj/actions/runs/45581362600/artifacts/15016058176)
+
+Apple Silicon CGO=0 관계 runtime은 Go 캐시 복원에 성공했다. Go 이벤트 15,316개에서 68개 패키지 중 61개가 종료됐고, SQLite의 계정 변경 회귀를 실행하던 중 Actions의 90분 step 제한에 닿았다. 당시 Go 실패나 테스트 단위 skip은 없었다. 같은 조합이 통과한 과거 원본에서는 SQLite 시작 이후 나머지 검사 종료까지 6분 49초가 더 걸렸다. 이 조합의 전체 step은 135분, 각 Go 패키지는 35분으로 실행한다. [#1 원본](https://github.com/progresshans/godj/actions/runs/45581362600/artifacts/15019837002) · [이전 통과 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
 ## 전체 검사의 러너 공유
 
 `ea1274b6`에서 시작한 #1의 313개 작업은 Linux와 PostgreSQL까지 함께 최적화하기 위해 취소했다. 그 실행의 결과는 취소다. [#1 중간 실행](https://github.com/progresshans/godj/actions/runs/45572633027)

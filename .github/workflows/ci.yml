@@ -733,7 +733,8 @@ jobs:
           for batch in runtime scaffold fixed-module; do
             batch_timeout=15m
             case "$batch" in
-              scaffold|fixed-module) batch_timeout="${{ matrix.platform.flow_test_timeout }}" ;;
+              scaffold) batch_timeout="${{ matrix.platform.flow_test_timeout }}" ;;
+              fixed-module) batch_timeout="${{ matrix.platform.fixed_module_timeout }}" ;;
             esac
             runserver_log="$evidence_dir/runserver-${batch}.json"
             stderr_log="$evidence_dir/runserver-${batch}.stderr"

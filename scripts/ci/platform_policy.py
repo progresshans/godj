@@ -17,10 +17,10 @@ NATIVE_STEP_MINUTES = {'amd64': 35, 'arm64': 80}
 # Package budgets belong to their actual platform. Preserve the allowances
 # for both sequential cold project flows and for the independent CLI suites.
 PROJECT_BUDGETS = {
-    'ubuntu-24.04': ('35m', '25m', (65, 75, 65), '30m', '30m', 75),
-    'ubuntu-24.04-arm': ('20m', '25m', (60, 70, 60), '30m', '30m', 75),
-    'macos-15-intel': ('30m', '40m', (105, 140, 105), '45m', '45m', 105),
-    'macos-26': ('20m', '40m', (95, 105, 95), '35m', '30m', 80),
+    'ubuntu-24.04': ('35m', 25, (65, 75, 65), '30m', '30m', 75),
+    'ubuntu-24.04-arm': ('20m', 25, (60, 70, 60), '30m', '30m', 75),
+    'macos-15-intel': ('30m', 40, (105, 140, 105), '45m', '45m', 105),
+    'macos-26': ('20m', 40, (95, 105, 95), '35m', '30m', 80),
 }
 
 
@@ -66,10 +66,13 @@ def product_matrix(profile):
     rows = []
     for runner, system, arch, mode in coordinates(profile):
         cmd, flow, project, operator, target, commands = PROJECT_BUDGETS[runner]
+        # The full two-version installation on Intel race was still verifying
+        # persisted data after 40 minutes. Its per-command deadlines stay local.
+        fixed = 50 if (system, arch, mode) == ('darwin', 'amd64', 'race') else flow
         rows.append({'platform': {'runs_on': runner, 'expected_goos': system, 'expected_goarch': arch,
-                                  'cmd_test_timeout': cmd, 'flow_test_timeout': flow,
+                                  'cmd_test_timeout': cmd, 'flow_test_timeout': f'{flow}m', 'fixed_module_timeout': f'{fixed}m',
                                   'operator_timeout': operator, 'target_timeout': target,
-                                  'project_minutes': project[MODES.index(mode)], 'command_minutes': commands,
+                                  'project_minutes': project[MODES.index(mode)] + (fixed - flow), 'command_minutes': commands,
                                   'native_minutes': NATIVE_STEP_MINUTES[arch],
                                   'reload_minutes': 65 + (NATIVE_STEP_MINUTES[arch] if system == 'darwin' and mode != 'normal' else 0)},
                      'mode': mode})

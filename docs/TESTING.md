@@ -79,6 +79,8 @@ Go audit는 시작 시각을 기록하고 준비 진단은 고정 phase 이름·
 새 프로젝트·고정 module·Notes의 최초 `startproject`도 같은 Go audit를 사용한다. 실패 전에 HTTP runtime이 없더라도
 bootstrap 의존성·candidate inventory/compile·module tidy·declaration/runtime build 중 마지막 시작 단계를 남긴다.
 이 진단은 기존 5분 명령·출력·process 회수 제한에서 동작하며 compiler 완료나 시간 초과 원인의 확정을 뜻하지 않는다.
+Article reload에서 로그인과 계정 생성은 실제 비밀번호 비용을 포함하므로 인증 정보가 담긴 POST를 30초 제한으로 한 번 보낸다. 일반 HTTP 요청의 제한은 5초다. 고정 버전 설치 검사는 전용 모듈 캐시와 파일 프록시를 사용하며 직접 빌드에도 `-trimpath`를 적용한다. 두 버전의 설치·기동·호환성 거부를 한 프로세스에서 검사하는 Intel Mac race의 누적 패키지 제한은 50분이다. [검증 근거](status/TEST_EVIDENCE.md#통합-ci에서-확인한-mac-실행-제한)
+
 Runserver의 기존 흐름과 reload 흐름은 별도 native CI owner가 같은 전체 binary discovery를 사용한다. 필수 manifest의
 root/child와 이후 추가된 root 모두 정확히 한 owner에서 실행해야 한다. PostgreSQL 전용 root는 별도 DB owner가 맡으며
 그 밖의 skip·누락·중복·잘린 결과는 실패다. 두 owner는 성공/실패 원 JSON과 source·환경·checksum을 artifact로 보존한다.
@@ -178,7 +180,7 @@ Linux에서는 오래 걸리는 계정 테스트 16개를 각각 단독 Go 프�
 
 전체 플랫폼과 릴리스 후보에서는 Intel Mac과 Apple Silicon의 normal·race·CGO=0에서 생성 소비자 전체를 실행한다. 두 카탈로그 테스트는 각각 단독 Go 프로세스에서 실행하고, 나머지는 실행시간 가중치로 배정한다. 새 상위 테스트와 필수 하위 테스트도 바이너리 발견과 필수 목록을 통해 배정한다. Mac runtime은 소비자보다 먼저 제출한다. [Mac 시간 측정](status/TEST_EVIDENCE.md#macos-전체-플랫폼의-생성-소비자-재배치)
 
-일반 소비자 한 묶음의 step 제한은 45분, Go 패키지 제한은 35분이다. macOS race는 각각 90분·70분이다. Mac runtime의 step 제한은 ARM64 normal·race 180분, Intel race 135분, 나머지 90분이다. Linux 양 아키텍처의 race runtime은 70분 안에 `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고 나머지 패키지를 35분 제한으로 실행한다. [SQLite 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
+일반 소비자 한 묶음의 step 제한은 45분, Go 패키지 제한은 35분이다. macOS race는 각각 90분·70분이다. Mac runtime의 step 제한은 ARM64 normal·race 180분, ARM64 CGO=0과 Intel race 135분, 나머지 90분이다. Linux 양 아키텍처의 race runtime은 70분 안에 `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고 나머지 패키지를 35분 제한으로 실행한다. [SQLite 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
 
 묶음마다 Go 이벤트·stderr·진단·필수 목록을 별도 경로에 보관한다. 실행기는 발견한 상위 테스트와 배정한 패키지의 정확한 실행·통과 및 필수 하위 테스트 결과를 대조한다. 첫 묶음이 실패해도 취소되지 않은 러너는 다음 묶음을 실행한다. 마지막 검사는 계획에 있는 모든 step의 성공과 사용하지 않은 step의 생략을 확인한다. 실패했을 때도 원본을 게시한다. [묶음 결과 검사](../scripts/ci/worker_parts.py)
 

@@ -135,10 +135,12 @@ class RunserverExecutionTests(unittest.TestCase):
             fields, mode = row['platform'], row['mode']
             platform = fields['runs_on']
             expected_minutes = 40 if platform.startswith('macos-') else 25
+            fixed_minutes = 50 if platform == 'macos-15-intel' and mode == 'race' else expected_minutes
             cmd_timeout = fields['cmd_test_timeout']
             flow_timeout = fields['flow_test_timeout']
             setup = initialization.replace('${{ matrix.platform.cmd_test_timeout }}', cmd_timeout)
             body = textwrap.dedent(setup + loop).replace('${{ matrix.platform.flow_test_timeout }}', flow_timeout)
+            body = body.replace('${{ matrix.platform.fixed_module_timeout }}', fields['fixed_module_timeout'])
             for fail_scaffold in ('0', '1'):
                 with self.subTest(platform=platform, mode=mode, fail_scaffold=fail_scaffold):
                     calls = self.root / 'calls'
@@ -171,9 +173,10 @@ python3() { return 0; }
                         self.assertEqual(1, arguments.count('-json'))
                         self.assertEqual(1, arguments.count('-count=1'))
                         self.assertEqual(int(mode == 'race'), arguments.count('-race'))
-                        expected = '15m' if batch == 'runtime' else str(expected_minutes) + 'm'
+                        expected = {'runtime': '15m', 'scaffold': f'{expected_minutes}m',
+                                    'fixed-module': f'{fixed_minutes}m'}[batch]
                         self.assertEqual(['-timeout=' + expected], [arg for arg in arguments if arg.startswith('-timeout=')])
-                    self.assertGreaterEqual(fields['project_minutes'], prior_jobs[platform][('normal', 'race', 'cgo0').index(mode)] + 2 * (expected_minutes - 15),
+                    self.assertGreaterEqual(fields['project_minutes'], prior_jobs[platform][('normal', 'race', 'cgo0').index(mode)] + (expected_minutes - 15) + (fixed_minutes - 15),
                                             'the job must retain its allowance outside the two complete flows')
 
 

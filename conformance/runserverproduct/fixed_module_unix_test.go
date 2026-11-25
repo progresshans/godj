@@ -62,7 +62,9 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	}
 	fixedModuleWrite(t, filepath.Join(proxy, filepath.FromSlash(version.Module), "@v/list"), []byte(strings.Join(versions, "\n")+"\n"))
 	fileURL := func(path string) string { return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String() }
-	flags := gobuild.InstrumentationFlags("-modcacherw")
+	// Match the linked CLI builds so dependencies in this fresh module cache
+	// can reuse compiled objects without embedding its temporary path.
+	flags := gobuild.InstrumentationFlags("-modcacherw -trimpath")
 	environment = testenv.With(environment, map[string]string{
 		"GOPROXY":    fileURL(proxy) + "," + fileURL(filepath.Join(caches.GOMODCACHE, "cache", "download")),
 		"GOMODCACHE": filepath.Join(root, "module-cache"), "GOCACHE": caches.GOCACHE,

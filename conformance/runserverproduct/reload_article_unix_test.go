@@ -63,6 +63,16 @@ func newReloadArticleClient(t *testing.T, process *reloadProcess, username, pass
 
 func (client *reloadArticleClient) request(t *testing.T, method, path, body, revision string, csrf bool) authenticatedRunserverHTTPResult {
 	t.Helper()
+	return client.requestWithClient(t, client.client, method, path, body, revision, csrf)
+}
+
+func (client *reloadArticleClient) createAccount(t *testing.T, body string) authenticatedRunserverHTTPResult {
+	t.Helper()
+	return client.requestWithClient(t, runserverCredentialClient(client.client), http.MethodPost, "/api/identity/accounts/", body, "", true)
+}
+
+func (client *reloadArticleClient) requestWithClient(t *testing.T, httpClient *http.Client, method, path, body, revision string, csrf bool) authenticatedRunserverHTTPResult {
+	t.Helper()
 	request, err := http.NewRequest(method, client.base+path, strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +87,7 @@ func (client *reloadArticleClient) request(t *testing.T, method, path, body, rev
 	if csrf {
 		request.Header.Set(websessionauth.DefaultCSRFHeader, client.csrf)
 	}
-	response, err := client.client.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		t.Fatal("reload authenticated HTTP", err)
 	}
@@ -97,6 +107,52 @@ func (client *reloadArticleClient) request(t *testing.T, method, path, body, rev
 		*client.sensitive = append(*client.sensitive, cookie.Value)
 	}
 	return authenticatedRunserverHTTPResult{status: response.StatusCode, header: response.Header.Clone(), body: data}
+}
+
+type reloadRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f reloadRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestReloadArticleAccountCreationUsesOneCredentialRequest(t *testing.T) {
+	origin, err := url.Parse("http://article.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jar.SetCookies(origin, []*http.Cookie{{Name: "fixture_session", Value: "known"}})
+	var methods []string
+	nextToken := strings.Repeat("A", 128)
+	browser := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	browser.Transport = reloadRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		methods = append(methods, r.Method)
+		deadline, ok := r.Context().Deadline()
+		remaining := time.Until(deadline)
+		cookie, err := r.Cookie("fixture_session")
+		if !ok || remaining <= 0 || err != nil || cookie.Value != "known" {
+			t.Fatal("request lost its deadline or browser session")
+		}
+		response := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: r}
+		if r.Method == http.MethodPost {
+			if r.URL.Path != "/api/identity/accounts/" || remaining <= 5*time.Second || remaining > 30*time.Second ||
+				r.Header.Get(websessionauth.DefaultCSRFHeader) != "prior" {
+				t.Fatal("account creation lost its credential budget or CSRF token")
+			}
+			response.StatusCode = http.StatusCreated
+			response.Header.Set(websessionauth.DefaultCSRFHeader, nextToken)
+		} else if remaining > 5*time.Second || r.Header.Get(websessionauth.DefaultCSRFHeader) != nextToken {
+			t.Fatal("ordinary request lost its own deadline or the refreshed CSRF token")
+		}
+		return response, nil
+	})
+	var sensitive []string
+	client := &reloadArticleClient{client: browser, base: origin.String(), csrf: "prior", sensitive: &sensitive}
+	if client.createAccount(t, "{}").status != http.StatusCreated || client.request(t, http.MethodGet, "/api/articles/", "", "", true).status != http.StatusOK ||
+		strings.Join(methods, " ") != "POST GET" || browser.Timeout != 5*time.Second {
+		t.Fatal("credential creation and the next ordinary request must each run once")
+	}
 }
 
 func (p *reloadProcess) articleMarker(t *testing.T, marker string) {
@@ -263,7 +319,7 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 	const readerPassword = "Reader-72p!sV9-secret"
 	sensitive = append(sensitive, readerPassword)
 	userJSON := `{"fields":{"username":"reload-reader","staff":true,"groups":[` + strconv.FormatInt(group.ID, 10) + `]},"credential":{"password":"` + readerPassword + `"}}`
-	userResponse := admin.request(t, "POST", "/api/identity/accounts/", userJSON, "", true)
+	userResponse := admin.createAccount(t, userJSON)
 	var user struct {
 		ID     int64
 		Groups []int64

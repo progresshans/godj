@@ -158,7 +158,7 @@ def matrix(profile='full'):
             # package. Cold Mac runtime has exceeded 100 minutes.
             if darwin:
                 runtime_minutes = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
-                                   ('amd64', 'race'): 135}.get((goarch, mode), 90)
+                                   ('arm64', 'cgo0'): 135, ('amd64', 'race'): 135}.get((goarch, mode), 90)
             else:
                 runtime_minutes = 70 if sqlite_timeout else 45
             rows.append({**common, 'worker': 'runtime', 'parts': [0], 'sqlite_timeout': sqlite_timeout,
