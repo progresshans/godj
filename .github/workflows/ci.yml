@@ -501,6 +501,7 @@ jobs:
       CONSUMER_LAYOUT: ${{ matrix.consumer_layout }}
       TEST_TIMEOUT: ${{ matrix.test_timeout }}
       SQLITE_TIMEOUT: ${{ matrix.sqlite_timeout }}
+      SERIAL_RUNTIME_PACKAGES: ${{ matrix.serial_runtime_packages }}
       PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
     strategy:
       fail-fast: false

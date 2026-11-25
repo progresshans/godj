@@ -13,6 +13,10 @@ Intel Mac race에서 Notes reload는 통과했고, Article은 실제 비밀번�
 
 Apple Silicon CGO=0 관계 runtime은 Go 캐시 복원에 성공했다. Go 이벤트 15,316개에서 68개 패키지 중 61개가 종료됐고, SQLite의 계정 변경 회귀를 실행하던 중 Actions의 90분 step 제한에 닿았다. 당시 Go 실패나 테스트 단위 skip은 없었다. 같은 조합이 통과한 과거 원본에서는 SQLite 시작 이후 나머지 검사 종료까지 6분 49초가 더 걸렸다. 이 조합의 전체 step은 135분, 각 Go 패키지는 35분으로 실행한다. [#1 원본](https://github.com/progresshans/godj/actions/runs/45581362600/artifacts/15019837002) · [이전 통과 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
 
+후속 #1 `c4f202db`에서 Intel race의 Notes 필수 8개·Article 필수 4개와 고정 모듈의 양방향 검사 모두 통과했다. 고정 모듈 단독 실행은 21분 25초였다. Apple Silicon CGO=0은 135분에 다시 중단됐다. 원본의 5,561개 Go 이벤트에서 68개 패키지 중 51개가 종료됐다. 생성 facade 두 패키지 앞에 각각 약 35분·39분의 공백이 있었고, 마지막 완료 뒤 59분 가까이 다음 패키지의 시작이 기록되지 않았다. 두 번의 중단 모두 해당 구간의 Hosted 메모리 사용량은 기록되지 않았다. [Intel reload](https://github.com/progresshans/godj/actions/runs/45611163183/artifacts/15026103872) · [고정 모듈](https://github.com/progresshans/godj/actions/runs/45611163183/artifacts/15027461467) · [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45611163183/artifacts/15044079377)
+
+로컬 Apple Silicon에서 같은 계정 삭제·연쇄 삭제·인증 fixture의 생성 project 세 개를 CGO=0과 세 CPU로 다시 빌드했다. 컴파일러 하나는 최대 약 2.9GiB RSS를 사용했다. Go 빌드 작업을 세 개까지 허용한 실행은 프로세스 그룹 RSS 표본 최대 4,816MiB, 하나씩 처리한 실행은 2,966MiB였다. 병렬 실행은 36초, 직렬 실행은 47초였다. GitHub의 표준 Apple Silicon 러너는 RAM이 7GB여서 이 runtime에만 `-p=1`을 적용한다. 패키지·필수 하위 테스트·Go vet·캐시·135분 step·35분 패키지 제한은 동일하다. [배정과 실행](../../scripts/ci/relation-product.sh) · [GitHub 러너 사양](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+
 ## 전체 검사의 러너 공유
 
 `ea1274b6`에서 시작한 #1의 313개 작업은 Linux와 PostgreSQL까지 함께 최적화하기 위해 취소했다. 그 실행의 결과는 취소다. [#1 중간 실행](https://github.com/progresshans/godj/actions/runs/45572633027)

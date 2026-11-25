@@ -94,7 +94,11 @@ elif [ "$shard" -eq 0 ]; then
     fi
   done
   if [ "${#runtime_packages[@]}" -gt 0 ]; then
-    run_tests "$test_timeout" "${runtime_packages[@]}"
+    # Large generated packages can each use several GiB during compilation.
+    # Limit simultaneous Go build actions on the small native runner.
+    runtime_args=("$test_timeout")
+    if [ "$SERIAL_RUNTIME_PACKAGES" = true ]; then runtime_args+=(-p=1); fi
+    run_tests "${runtime_args[@]}" "${runtime_packages[@]}"
   else
     test -n "$sqlite_timeout"
   fi

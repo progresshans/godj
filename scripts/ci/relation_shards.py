@@ -162,6 +162,7 @@ def matrix(profile='full'):
             else:
                 runtime_minutes = 70 if sqlite_timeout else 45
             rows.append({**common, 'worker': 'runtime', 'parts': [0], 'sqlite_timeout': sqlite_timeout,
+                         'serial_runtime_packages': (goos, goarch, mode) == ('darwin', 'arm64', 'cgo0'),
                          'step_minutes': runtime_minutes, 'job_timeout': runtime_minutes + 10})
             minutes = 90 if darwin_race else 45
             weights = {part: consumer_weight(layout, part) for part in range(1, count + 1)}
