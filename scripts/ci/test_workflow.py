@@ -18,7 +18,7 @@ class WorkflowTest(unittest.TestCase):
         linux = lambda rows: [r for r in rows if r['platform']['expected_goos'] == 'linux']
         self.assertEqual(linux(full), linux(pr))
         self.assertEqual(relation_matrix('native')['include'], linux(full))
-        for profile, expected in [('pr', 11), ('native', 19), ('full', 144)]:
+        for profile, expected in [('pr', 11), ('native', 19), ('full', 89)]:
             products = product_matrix(profile)['include']
             planned = {(r['platform']['expected_goos'], r['platform']['expected_goarch'], r['mode']) for r in products}
             want = {(osname, arch, mode) for osname in ('linux', 'darwin') for arch in ('amd64', 'arm64')

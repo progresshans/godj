@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Partition the slow relation consumer coordinate without dropping test roots.
+"""Partition relation consumers on each coordinate without dropping test roots.
 
 Discovery comes from the selected Go test binary, never from source text (which
 also contains generated child tests). Every child remains with its root. Ordinary
@@ -18,8 +18,7 @@ from platform_policy import NATIVE_STEP_MINUTES, PLATFORMS, PROFILES
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
 # These complete account consumers own hundreds of seconds of generated
-# builds and native/race work. Isolate them on the measured cumulative-timeout
-# coordinates; all other discovered roots keep the complete-root distribution.
+# builds and native/race work. Each has its own Go process on Linux.
 ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
@@ -72,16 +71,56 @@ ARM64_RACE_SECONDS = {
     'TestGeneratedUpdateOrCreate': 135,
 }
 
+# The two catalog flows took up to 32 and 28 minutes on Apple Silicon
+# with a 35-minute package limit. Keep them in separate Go processes.
+DARWIN_CATALOG_ROOTS = ('TestGeneratedAccountCatalogCreation', 'TestGeneratedAccountCatalogTransition')
+
+# Relative weights for all Mac modes. Take the larger normal Mac duration
+# from run 43659728789 and round to 30s for roots that took at least 3m.
+# Other roots weigh 45s. The binary listing determines membership.
+DARWIN_NORMAL_SECONDS = {
+    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels': 720,
+    'TestGeneratedAccountCatalogThroughCreation': 390,
+    'TestGeneratedAccountCreationInputPolicy': 240,
+    'TestGeneratedAccountProfileCollections': 300,
+    'TestGeneratedAccountResetUsesSelectedModels': 810,
+    'TestGeneratedAccountRoleThroughCreation': 390,
+    'TestGeneratedAccountRootThroughCreation': 540,
+    'TestGeneratedAccountSharedThroughTransition': 330,
+    'TestGeneratedAccountThroughIdentityCreation': 210,
+    'TestGeneratedAccountTransition': 330,
+    'TestGeneratedAccountTransitionCatalogCycles': 240,
+    'TestGeneratedAccountTransitionCatalogFields': 390,
+    'TestGeneratedAccountTransitionTargetReferences': 540,
+    'TestGeneratedAccountTransitionThroughCreation': 360,
+    'TestGeneratedBulkUpdateReference': 180,
+    'TestGeneratedFirstAccountParentCustom': 330,
+    'TestGeneratedFirstAccountParentDefault': 360,
+    'TestGeneratedFirstAccountUsesRequiredProfiles': 840,
+    'TestGeneratedHistoricalAccountHandoff': 450,
+}
+
+# Keep both catalog roots alone. The remaining bins were replayed against
+# two complete six-coordinate Mac inventories with the same 35m/70m limits.
+DARWIN_CONSUMER_SHARDS = {
+    'amd64': {'normal': 13, 'race': 13, 'cgo0': 13},
+    'arm64': {'normal': 8, 'race': 9, 'cgo0': 8},
+}
+CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race', 'darwin-balanced')
+
 
 def submission_priority(row):
     if row.get('sqlite_timeout'):
         return 0
-    if row.get('balance_by_duration') and row['shard'] > 0:
+    if row.get('consumer_layout') == 'linux-arm64-race' and row['shard'] > 0:
         owner = row['shard'] - 1
         if (owner >= len(ISOLATED_ACCOUNT_ROOTS)
                 or ARM64_RACE_SECONDS.get(ISOLATED_ACCOUNT_ROOTS[owner], 0) >= 15 * 60):
             return 1
-    return 2
+    # Long Mac runtime jobs can take over 100 minutes on a cold builder.
+    if row.get('consumer_layout') == 'darwin-balanced' and row['shard'] == 0:
+        return 2
+    return 3
 
 
 def matrix(profile='full'):
@@ -101,41 +140,14 @@ def matrix(profile='full'):
                              'job_timeout': NATIVE_STEP_MINUTES[goarch] + 10})
             continue
         for mode in ('normal', 'race', 'cgo0'):
-            # Keep ordinary consumer owners separate from the runtime owner.
-            # Linux race's ordinary owner accumulated 1,999.52s/2,088.07s
-            # of completed roots in CI 42266912162 before the 35m deadline.
-            # Five ordinary owners distribute those same complete roots;
-            # discovery, child ownership and all deadlines remain unchanged.
-            count = 5 if goos == 'linux' and mode == 'race' else 3
-            # CI 40980880097 exhausted Linux normal (both architectures) and
-            # amd64 CGO0 at 35m with a 0-22s consumer still running. Give the
-            # same complete account roots independent owners in every mode;
-            # no test or package deadline is removed or increased.
-            isolate_accounts = True
-            # CI 40454660304 reached 35 minutes with a 12-second root still
-            # running: first-account and reset alone had used 581 + 425 sec.
-            # Retain four ordinary owners and isolate the three long roots.
-            # CI 40248295204 exhausted two macOS cumulative package budgets
-            # while short individual roots were still progressing. Its full
-            # root timings show four Intel/CGO0 owners would already exceed
-            # 35 minutes before unobserved roots; use five there. Four ARM64
-            # race owners reduce the known account-heavy partition cost while
-            # retaining the 70-minute deadline; fresh CI verifies the full run.
-            # Every discovered root still runs exactly once.
-            # CI 40674776904's Intel normal ordinary owner had already spent
-            # 2,045s in 17 completed roots when its next root was interrupted.
-            # Give it the same five complete-root owners as Intel CGO0.
-            if goos == 'darwin' and goarch == 'amd64' and mode in ('normal', 'cgo0'):
-                count = 5
-            elif goos == 'darwin' and goarch == 'arm64' and mode == 'race':
-                count = 4
-            # CI 40636193670 also exhausted four macOS consumer coordinates.
-            # Account bindings, first-account and both transition roots used
-            # 1,637s of Intel normal and 1,894s of ARM64 normal before later
-            # roots ran. Keep them separate on macOS and Linux race, without
-            # changing any test deadline or dropping discovered roots.
-            if isolate_accounts:
-                count += len(ISOLATED_ACCOUNT_ROOTS)
+            if goos == 'darwin':
+                layout = 'darwin-balanced'
+                count = DARWIN_CONSUMER_SHARDS[goarch][mode]
+            else:
+                # Linux account flows retain one process each. Five ordinary
+                # race owners avoid a cumulative package timeout in either arch.
+                layout = 'linux-arm64-race' if (goarch, mode) == ('arm64', 'race') else 'isolated-accounts'
+                count = len(ISOLATED_ACCOUNT_ROOTS) + (5 if mode == 'race' else 3)
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
@@ -158,8 +170,7 @@ def matrix(profile='full'):
                 rows.append({
                     'platform': platform, 'scope': 'relation',
                     'mode': mode, 'shard': shard, 'shards': count,
-                    'isolate_accounts': isolate_accounts,
-                    'balance_by_duration': (goos, goarch, mode) == ('linux', 'arm64', 'race'),
+                    'consumer_layout': layout,
                     'job_timeout': job_timeout,
                     'test_timeout': '70m' if darwin_race else '35m',
                     'sqlite_timeout': sqlite_timeout,
@@ -168,11 +179,17 @@ def matrix(profile='full'):
     return {'include': rows}
 
 
-def partition(roots, shard, count, isolate_accounts=False, balance_by_duration=False):
+def partition(roots, shard, count, layout='round-robin'):
     if (not 1 <= count <= len(roots) or not 0 <= shard <= count
             or (shard == 0 and count == 1) or len(roots) != len(set(roots))):
         raise ValueError('invalid or empty consumer partition')
-    isolated = ISOLATED_ACCOUNT_ROOTS if isolate_accounts else ()
+    if layout not in CONSUMER_LAYOUTS:
+        raise ValueError('unknown consumer layout: ' + layout)
+    isolated = ()
+    if layout in ('isolated-accounts', 'linux-arm64-race'):
+        isolated = ISOLATED_ACCOUNT_ROOTS
+    elif layout == 'darwin-balanced':
+        isolated = DARWIN_CATALOG_ROOTS
     if isolated and (count <= len(isolated) or not set(isolated) <= set(roots)):
         raise ValueError('isolated account roots or ordinary owners are missing')
     if shard == 0:
@@ -184,10 +201,11 @@ def partition(roots, shard, count, isolate_accounts=False, balance_by_duration=F
     ordered = sorted((root for root in roots if root not in isolated), key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
     slots = count - len(isolated)
     slot = shard - len(isolated) - 1
-    if not balance_by_duration:
+    if layout in ('round-robin', 'isolated-accounts'):
         return sorted(ordered[slot::slots])
 
-    weights = {root: ARM64_RACE_SECONDS.get(root, 30) for root in ordered}
+    hints, default = (ARM64_RACE_SECONDS, 30) if layout == 'linux-arm64-race' else (DARWIN_NORMAL_SECONDS, 45)
+    weights = {root: hints.get(root, default) for root in ordered}
     groups = [[] for _ in range(slots)]
     seconds = [0] * slots
     for root in sorted(ordered, key=weights.__getitem__, reverse=True):
@@ -204,8 +222,8 @@ def read_lines(path):
     return result
 
 
-def plan(roots, required, packages, shard, count, isolate_accounts=False, balance_by_duration=False):
-    chosen = partition(roots, shard, count, isolate_accounts, balance_by_duration)
+def plan(roots, required, packages, shard, count, layout='round-robin'):
+    chosen = partition(roots, shard, count, layout)
     if CONSUMER not in packages or len(packages) != len(set(packages)):
         raise ValueError('consumer package is missing or package inventory is duplicated')
     runtime_owner = count == 1 or shard == 0
@@ -234,8 +252,7 @@ def plan(roots, required, packages, shard, count, isolate_accounts=False, balanc
     selected_required = sorted(set(selected_required) | {CONSUMER + '|' + root for root in chosen})
     return {
         'shard': shard, 'shards': count,
-        'isolate_accounts': isolate_accounts,
-        'balance_by_duration': balance_by_duration,
+        'consumer_layout': layout,
         'discovered_roots': len(roots),
         'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots)) + '\n').encode()).hexdigest(),
         'roots': chosen, 'required': selected_required, 'packages': owned,
@@ -243,8 +260,8 @@ def plan(roots, required, packages, shard, count, isolate_accounts=False, balanc
     }
 
 
-def verify(path, roots, shard, count, packages, isolate_accounts=False, balance_by_duration=False):
-    expected = Counter(partition(roots, shard, count, isolate_accounts, balance_by_duration))
+def verify(path, roots, shard, count, packages, layout='round-robin'):
+    expected = Counter(partition(roots, shard, count, layout))
     runs, passes = Counter(), Counter()
     inventory = inspect(path)
     errors = inventory.verify(packages=packages, no_skips=True)
@@ -276,8 +293,7 @@ def main():
         command.add_argument('--shard', type=int, required=True)
         command.add_argument('--shards', type=int, required=True)
         command.add_argument('--packages', required=True)
-        command.add_argument('--isolate-accounts', action='store_true')
-        command.add_argument('--balance-by-duration', action='store_true')
+        command.add_argument('--layout', choices=CONSUMER_LAYOUTS, default='round-robin')
         if action == 'plan':
             command.add_argument('--required', required=True)
             command.add_argument('--output-dir', required=True)
@@ -287,8 +303,7 @@ def main():
     try:
         roots = discover_roots(args.discovery, CONSUMER)
         if args.action == 'plan':
-            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards,
-                          args.isolate_accounts, args.balance_by_duration)
+            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards, args.layout)
             destination = Path(args.output_dir)
             destination.mkdir(parents=True, exist_ok=True)
             for name in ('required', 'packages'):
@@ -299,8 +314,7 @@ def main():
             result = {**{key: value for key, value in result.items() if key not in ('required', 'run')},
                       'required_tests': len(result['required'])}
         else:
-            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages),
-                            args.isolate_accounts, args.balance_by_duration)
+            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages), args.layout)
         print(json.dumps(result, sort_keys=True))
     except (ValueError, OSError) as error:
         parser.exit(1, str(error) + '\n')

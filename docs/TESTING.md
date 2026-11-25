@@ -179,6 +179,8 @@ PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각
 Linux ARM64 race에서는 전용 계정 테스트 16개를 각각 단독 실행한다. 나머지 상위 테스트는 예상 시간이 긴 순서로 5개 작업 중 누적 예상 시간이 가장 짧은 곳에 배정한다. 두 Hosted 실행에서 평균 90초 이상 걸린 일반 테스트는 15초 단위 실측값을 쓰고, 새 테스트를 포함한 나머지는 30초로 계산한다. 매 실행의 바이너리 발견 목록으로 배정 대상이 정해진다.
 두 Linux race runtime 다음에는 ARM64의 일반 소비자 5개 작업과 평균 15분 이상 걸린 전용 소비자 작업을 먼저 제출한다. 실제 러너 배정 시각은 GitHub 대기열에 따라 달라진다. [측정과 재배치 근거](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
 
+전체 플랫폼에서는 Intel Mac과 Apple Silicon 각각 normal·race·CGO=0에서 생성 소비자 전체를 실행한다. Intel은 모드별로 소비자 작업 13개를 실행하고, Apple Silicon은 모드 순서대로 8·9·8개를 실행한다. 각 조합에서 카탈로그 생성과 전환은 각각 단독으로 실행한다. 나머지는 실제 바이너리 발견 목록을 실행시간 가중치로 분배한다. 새 테스트도 배정되며, 하위 검사와 필수 목록은 해당 상위 테스트를 따라간다. Mac의 관계 runtime 6개는 나머지 Mac 소비자보다 먼저 제출한다. [Mac 작업 배정의 근거](status/TEST_EVIDENCE.md#macos-전체-플랫폼의-생성-소비자-재배치)
+
 기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
 macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
 Linux amd64·arm64 race의 runtime 작업은 full·PR 실행 계획의 맨 앞에 등록한다. 두 좌표 모두 작업 제한은 70분이다. `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고, 나머지 패키지는 35분으로 실행한다.
