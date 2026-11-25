@@ -223,6 +223,12 @@ func cloneMigrationOperation(operation Operation) Operation {
 	case AlterManyToMany:
 		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
 		return operation
+	case RenameModel:
+		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
+		return operation
+	case DeleteModel:
+		operation.Model = operation.Model.Clone()
+		return operation
 	case CreateModel:
 		operation.Model = operation.Model.Clone()
 		return operation
@@ -237,6 +243,9 @@ func cloneMigrationOperation(operation Operation) Operation {
 		return operation
 	case RemoveConstraint:
 		operation.Constraint = operation.Constraint.Clone()
+		return operation
+	case RenameField:
+		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
 		return operation
 	case AlterField:
 		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
@@ -272,6 +281,14 @@ func operationValue(operation Operation) Operation {
 		if value != nil {
 			return *value
 		}
+	case *RenameModel:
+		if value != nil {
+			return *value
+		}
+	case *DeleteModel:
+		if value != nil {
+			return *value
+		}
 	case *CreateModel:
 		if value != nil {
 			return *value
@@ -289,6 +306,10 @@ func operationValue(operation Operation) Operation {
 			return *value
 		}
 	case *RemoveConstraint:
+		if value != nil {
+			return *value
+		}
+	case *RenameField:
 		if value != nil {
 			return *value
 		}

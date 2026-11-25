@@ -49,8 +49,7 @@ Completed GDJ-0049..0052는 migration definition 생성, 상태 조회와 latest
 port이므로 둘 중 어느 것도 DB-free `sqlmigrate`의 올바른 abstraction이 아닙니다.
 
 Django 6.1의 `sqlmigrate`는 connection/schema editor를 사용하고 prefix/backwards와 conditional transaction wrapper를
-제공합니다. GoDj는 pinned Django의 overlapping observable SQL meaning을 reference로 삼되 exact-name, forward-only,
-built-in DB-free, wrapper-free profile을 독립적으로 결정해야 합니다.
+제공합니다. 최초 구현은 exact-name, 정방향, DB 연결 없는 내장 renderer와 transaction wrapper 생략을 선택했다. M1은 같은 경계에서 역방향 표시를 추가한다.
 
 ## 결정 기준
 
@@ -58,7 +57,7 @@ built-in DB-free, wrapper-free profile을 독립적으로 결정해야 합니다
   projection의 migration-domain input
 - Execution compiler와 SQL type/identifier/default/relation meaning 공유
 - Database opener/history/transaction/editor와 credential zero
-- Migration identity와 forward direction을 잃지 않는 backend request
+- Migration identity와 적용·역적용 방향을 함께 전달하는 backend request
 - Fail-closed typed-nil/unsupported/malformed renderer와 raw cause/secret redaction
 - Bounded deterministic output와 truthful one-write semantics
 - SQLite/PostgreSQL built-in과 repository-external project configuration의 같은 public contract
@@ -75,9 +74,9 @@ state에 따라 결과와 failure precedence가 달라지고 credential-free com
 Mutation port의 transaction/recorder ownership과 collector 의미가 섞입니다. Third-party editor가 no-I/O라는 성질도 보장할 수
 없고 execution side effect를 실수로 호출할 표면이 커집니다.
 
-### C. Pure forward materializer와 별도 identity-bearing renderer port
+### C. 역사 상태 복원과 별도 SQL renderer
 
-Root가 loaded catalog와 historical before-state에서 exactly-one forward request를 만들고, backend renderer가 current static
+Root가 loaded catalog에서 대상의 적용 직전 또는 직후 상태를 복원해 한 migration의 요청을 만들고, backend renderer가 current static
 support와 shared compiler를 통해 statement body만 반환합니다. Global owner가 결과를 재검증하고 canonical bytes를 한 번
 게시합니다.
 
@@ -85,15 +84,13 @@ support와 shared compiler를 통해 statement body만 반환합니다. Global o
 
 선택지 C를 채택합니다.
 
-1. Public command는 exact `godj sqlmigrate APP EXACT_NAME`과 optional trailing `--project PATH` 두 형태뿐입니다.
-   `zero`는 literal name이며 prefix/latest/reverse/app-zero 의미가 없습니다.
+1. `godj sqlmigrate APP EXACT_NAME`은 적용 방향이 기본이다. 이름 뒤에 `--backwards`와 `--project PATH`를 각 한 번, 어느 순서로든 지정할 수 있다.
+   `zero`는 정확히 그 이름인 migration을 선택한다. 프로젝트 runner v2 요청에는 `backwards` 불리언이 필수다.
 2. Complete source load, graph/chronology validation과 exact target lookup은 renderer availability/config failure보다 먼저입니다.
-3. Root는 target dependency-before historical state에서 ordered operations를 deep-clone해 exactly-one forward intent를
-   materialize합니다.
-4. Backend port는 migration `{App,Name}`과 `MigrationIntent`를 함께 받는 forward-only request입니다. Bare intent,
-   `AppliedMigration`과 public `HistoryTransition`은 사용하지 않습니다.
-   Private apply-validator sharing은 허용하되 PostgreSQL recorder-only 255-byte identity limit을 renderer에 유출하지 않고
-   loader-owned current identity bounds를 따릅니다.
+3. 정방향은 대상의 의존 상태에서 시작한다. 역방향은 대상까지 적용한 역사 상태에서 시작해 마지막 연산부터 역작업을 만든다.
+   `RunData`는 콜백 실행 없이 같은 위치에 주석을 남긴다. 역함수가 없으면 renderer 호출 전에 `migration_plan_error/irreversible_data_operation`으로 종료한다.
+4. `backend.MigrationSQLRequest`는 앱·이름·방향과 분리된 `MigrationIntent`를 전달한다. 내장 renderer는 실행과 같은 방향별 연산 순서와
+   역사 모델 검사를 사용한다. 이름 길이는 loader의 기준을 따른다.
 5. Existing execution `MigrationCapabilities`, `Executor.Plan`, lifecycle capability preflight, backend opener/session/history/
    transaction/recorder와 mutation `SchemaEditor`는 SQL projection에 재사용하지 않습니다.
 6. Built-in renderer는 execution compiler helper를 공유하고 backend-specific static representability를 fail-closed합니다.
@@ -119,10 +116,8 @@ support와 shared compiler를 통해 statement body만 반환합니다. Global o
     external literal impact와 constructor assignability를 별도 compile contract로 검증합니다.
 14. Root는 complete load/graph/chronology/target/materialization 뒤 renderer nil/typed-nil/configuration을 검사하고 renderer를
     정확히 한 번 호출합니다. Request와 returned strings는 모두 detached clone이며 built-in renderer value는 immutable/race-safe입니다.
-15. Current scope는 declarative before-state만으로 SQL body가 결정되는 CreateModel/AddField입니다. Required AddField를
-    projection해도 live table-empty/cardinality preflight나 적용 가능성을 주장하지 않으며 실제 execute가 fresh live preflight를
-    계속 소유합니다. Physical catalog에서 remake plan을 만들어야 하는 SQLite ForeignKey RemoveField는 stable capability failure와
-    SQL zero bytes로 닫습니다.
+15. 내장 renderer는 역사 정의로 결정되는 모델·필드·관계·제약의 SQL을 생성한다. SQLite 테이블 재구성에서는 행과 sequence를 옮기는 SQL도 표시한다.
+    실제 실행기는 현재 물리 catalog와 행을 검사한 뒤 각 migration을 트랜잭션으로 적용한다.
 16. Private wire의 JSON worst-case escape를 포함한 response hard cap 후보는 101 MiB입니다. Phase B는 root SQL
     category/code와 no-unwrap shape를 고정했습니다. Public exit 후보는 invalid argv/identity `2`, renderer unavailable/render
     failed/invalid rendered SQL `3`, capability/resource limit `1`이며 Phase C private/global publication 전에 exact test로
@@ -216,8 +211,8 @@ full milestone과 source binding을 다시 검증했습니다. EVID-177이 failu
 
 ## 의도적으로 결정하지 않은 것
 
-- Reverse/prefix/latest/app-only/multiple target SQL과 transaction wrapper
-- Applied/live schema-aware executability, explain/optimizer와 destructive/custom/data/raw SQL operation
+- Prefix/latest/app-only/multiple target SQL과 transaction wrapper
+- 실행 전 live schema 검사 결과 표시, explain/optimizer와 임의 raw SQL 작업
 - Multi-DB, MySQL/Windows와 arbitrary third-party renderer discovery
 - Custom renderer의 no-I/O/coherence 강제와 OS-level atomic stdout
 - General migration semver/upgrade/repair/adoption, Q-010/Q-012의 broader resolution

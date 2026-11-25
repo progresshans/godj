@@ -56,6 +56,11 @@ func TestParseSQLMigrateArgumentsExactFormsAndLiteralZero(t *testing.T) {
 			descriptor: "./godj.toml",
 			request:    sqlmigrateprotocol.Request{App: "blog", Name: "zero"},
 		},
+		{
+			argv:       []string{"sqlmigrate", "blog", "zero", "--backwards", "--project", "./godj.toml"},
+			descriptor: "./godj.toml",
+			request:    sqlmigrateprotocol.Request{App: "blog", Name: "zero", Backwards: true},
+		},
 	}
 	for _, test := range tests {
 		arguments, failure := parseSQLMigrateArguments(test.argv)
@@ -161,7 +166,10 @@ func TestParseSQLMigrateArgumentsRejectsInvalidForms(t *testing.T) {
 		{"sqlmigrate"},
 		{"sqlmigrate", "blog"},
 		{"sqlmigrate", "blog", "latest"},
-		{"sqlmigrate", "blog", "0001", "--backwards"},
+		{"sqlmigrate", "blog", "0001", "--backwards", "--backwards"},
+		{"sqlmigrate", "blog", "0001", "--project", "--backwards"},
+		{"sqlmigrate", "blog", "0001", "--backwards", "--project"},
+		{"sqlmigrate", "blog", "0001", "--project", "a", "--project", "b"},
 		{"sqlmigrate", "blog", "0001", "--plan"},
 		{"sqlmigrate", "blog", "0001", "--reverse"},
 		{"sqlmigrate", "--project", "godj.toml", "blog", "0001"},

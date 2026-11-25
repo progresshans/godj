@@ -85,6 +85,9 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldNullability:             true,
 		DefinitionHistory:                 true,
 		HistoricalData:                    true,
+		RenameField:                       true,
+		DeleteModel:                       true,
+		RenameModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -165,8 +168,8 @@ func (session *postgresRevisionFencedSession) BeginMigration(
 	if err != nil {
 		return nil, err
 	}
-	if err := migrationbackend.ValidateDataHistory(schema.intent, transition.Migration.HistoryDigest); err != nil {
-		return nil, postgresRevisionIntegrity("invalid data operation history", err)
+	if err := migrationbackend.ValidateRequiredHistory(schema.intent, transition); err != nil {
+		return nil, postgresRevisionIntegrity("invalid required operation history", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("begin PostgreSQL revision-fenced migration: %w", err)

@@ -109,6 +109,7 @@ func (p Plan) Migrations() []migrations.Migration {
 func (p Plan) BaseState() migrations.ProjectState { return p.baseState.Clone() }
 
 type appChange struct {
+	deletions  []ir.Model
 	operations []migrations.Operation
 	relations  []relationReference
 }
@@ -121,10 +122,9 @@ type relationReference struct {
 	targetFields []string
 }
 
-// Detect computes supported field and named-constraint changes to make every
-// managed historical app exactly equal Desired. Existing model order and the
-// relative order of retained fields are preserved. Deferred relations may be
-// inserted between retained fields without changing their metadata.
+// Detect computes model, field, relation and constraint changes for managed
+// apps. It preserves the relative order of retained models and fields and
+// requires an explicit migration for an ambiguous model replacement.
 func Detect(request Request) (Plan, error) {
 	if request.Definitions.Digest() == "" {
 		return Plan{}, detectionError(CodeInvalidRequest, "", "", "", fmt.Errorf("definition set is not initialized"))
@@ -312,11 +312,23 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 	if !beforeExists {
 		before = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: app}
 	}
-	if len(after.Models) < len(before.Models) {
-		return appChange{}, false, detectionError(CodeUnsupportedChange, app, "", "", fmt.Errorf("model removal is unsupported"))
-	}
-
 	change := appChange{}
+	wantedNames := make(map[string]bool, len(after.Models))
+	for _, model := range after.Models {
+		wantedNames[model.Name] = true
+	}
+	var retained []ir.Model
+	for _, old := range before.Models {
+		if wantedNames[old.Name] {
+			retained = append(retained, old)
+		} else {
+			change.deletions = append(change.deletions, old)
+		}
+	}
+	if len(change.deletions) != 0 && len(retained) != len(after.Models) {
+		return appChange{}, false, detectionError(CodeUnsupportedChange, app, "", "", fmt.Errorf("simultaneous model removal and addition requires an explicit migration to distinguish a rename"))
+	}
+	before.Models = retained
 	addedFields := make([]migrations.Operation, 0)
 	var removedConstraints, removedFields, addedConstraints, manyOperations []migrations.Operation
 	for index := range before.Models {
@@ -411,7 +423,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 	for _, operation := range manyOperations {
 		collectManyOperationReferences(&change.relations, operation)
 	}
-	return change, len(change.operations) != 0, nil
+	return change, len(change.operations) != 0 || len(change.deletions) != 0, nil
 }
 
 func safeExistingAddField(field ir.Field) bool {
@@ -481,7 +493,7 @@ func expectedProjectState(current, desired migrations.ProjectState, managed map[
 		// An installed app without models has no historical table operation.
 		// Keep its declaration/managed identity, but do not invent an empty
 		// migration merely to add an otherwise absent app to storage history.
-		if _, existed := current.Schema(app); !existed && len(schema.Models) == 0 {
+		if len(schema.Models) == 0 {
 			continue
 		}
 		schemas = append(schemas, schema)
@@ -522,6 +534,8 @@ func nextMigrationName(
 func operationSlug(operations []migrations.Operation) string {
 	if len(operations) == 1 {
 		switch operation := operations[0].(type) {
+		case migrations.DeleteModel:
+			return "delete_" + operation.Model.Name
 		case migrations.CreateModel:
 			return operation.Model.Name
 		case *migrations.CreateModel:
@@ -569,6 +583,7 @@ func operationSlug(operations []migrations.Operation) string {
 		Before      *ir.Field            `json:"before,omitempty"`
 		After       *ir.Field            `json:"after,omitempty"`
 		BeforeField string               `json:"before_field,omitempty"`
+		BeforeModel string               `json:"before_model,omitempty"`
 		Constraint  *ir.UniqueConstraint `json:"constraint,omitempty"`
 		Many        *ir.ManyToManyField  `json:"many,omitempty"`
 		ManyBefore  *ir.ManyToManyField  `json:"many_before,omitempty"`
@@ -588,6 +603,9 @@ func operationSlug(operations []migrations.Operation) string {
 		case migrations.AlterManyToMany:
 			before, after := value.Before.Clone(), value.After.Clone()
 			values = append(values, change{Kind: "alter_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &after, ManyBefore: &before})
+		case migrations.DeleteModel:
+			model := value.Model.Clone()
+			values = append(values, change{Kind: "delete_model", App: value.AppLabel, Model: model.Name, Value: &model, BeforeModel: value.BeforeModel})
 		case migrations.CreateModel:
 			model := value.Model.Clone()
 			values = append(values, change{Kind: "create_model", App: value.AppLabel, Model: value.Model.Name, Value: &model})
@@ -687,6 +705,15 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 			if value != nil {
 				copy := *value
 				copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
+				result[index] = &copy
+			}
+		case migrations.DeleteModel:
+			value.Model = value.Model.Clone()
+			result[index] = value
+		case *migrations.DeleteModel:
+			if value != nil {
+				copy := *value
+				copy.Model = copy.Model.Clone()
 				result[index] = &copy
 			}
 		case migrations.CreateModel:

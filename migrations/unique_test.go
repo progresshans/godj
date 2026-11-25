@@ -42,7 +42,7 @@ func TestUniqueHistoryRetainsExactForwardAndReversePreimages(t *testing.T) {
 	body := "CREATE UNIQUE INDEX reference_unique ON unique_entry (reference)"
 	for _, group := range [][]string{{body}, nil, {""}} {
 		renderer := &migrationSQLRendererSpy{groups: [][]string{group}}
-		sql, err := RenderMigrationSQL(t.Context(), loaded, change.Key(), renderer)
+		sql, err := RenderMigrationSQL(t.Context(), loaded, change.Key(), DirectionForward, renderer)
 		if renderer.calls != 1 || renderer.request.Intent.Operations[0].Before.Fields[1].Unique || !renderer.request.Intent.Operations[0].After.Fields[1].Unique {
 			t.Fatal("renderer lost the unique transition")
 		}

@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
@@ -38,6 +39,8 @@ const (
 var externalAllowedGoDjImports = map[string]struct{}{
 	"github.com/progresshans/godj/apps":                  {},
 	"github.com/progresshans/godj/codegen":               {},
+	"github.com/progresshans/godj/migrations":            {},
+	"github.com/progresshans/godj/migrations/definition": {},
 	"github.com/progresshans/godj/db/sqlite":             {},
 	"github.com/progresshans/godj/project":               {},
 	"github.com/progresshans/godj/project/compatibility": {},
@@ -93,7 +96,8 @@ func TestMigrationWriterExternalProjectSQLitePublicSurface(t *testing.T) {
 	})
 	testfixture.AssertSeparateRoot(t, repository, universe)
 
-	projectRoot := filepath.Join(universe, "consumer")
+	fixtureRoot := filepath.Join(universe, "baseline")
+	projectRoot := filepath.Join(fixtureRoot, "consumer")
 	for _, directory := range []string{
 		projectRoot,
 		filepath.Join(projectRoot, "cmd", "projectrunner"),
@@ -167,8 +171,8 @@ replace github.com/progresshans/godj => %s
 	runnerBinary := filepath.Join(universe, "projectrunner")
 	externalRunSuccess(t, projectRoot, baseEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", runnerBinary, "./cmd/projectrunner")
 
-	databasePath := filepath.Join(universe, "sqlite-secret-path-93b4f7.sqlite3")
-	backendMarker := filepath.Join(universe, "backend-opened.log")
+	databasePath := filepath.Join(fixtureRoot, "sqlite-secret-path-93b4f7.sqlite3")
+	backendMarker := filepath.Join(fixtureRoot, "backend-opened.log")
 	descriptor := filepath.Join(projectRoot, "godj.toml")
 	commandEnvironment := testenv.With(baseEnvironment, map[string]string{
 		externalDatabaseEnvironment: databasePath,
@@ -315,6 +319,100 @@ replace github.com/progresshans/godj => %s
 	reapplied := externalRun(t, projectRoot, commandEnvironment, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedCycleAfterReapply$", ".")
 	externalAssertSuccessAndRedacted(t, reapplied, sensitive...)
 	externalAssertConsumerReceipt(t, reapplied, "TestGeneratedCycleAfterReapply")
+	t.Run("authored_model_rename_and_generated_consumer", func(t *testing.T) {
+		// Rename and deletion start from the same populated history. Give the
+		// rename its own application and closed database so either can fail independently.
+		dbstate.AssertNoSQLiteSidecars(t, databasePath)
+		renameFixture := filepath.Join(universe, "model-rename")
+		externalRunSuccess(t, universe, setupEnvironment, "cp", "-Rp", fixtureRoot, renameFixture)
+		root := filepath.Join(renameFixture, "consumer")
+		dbPath := filepath.Join(renameFixture, filepath.Base(databasePath))
+		baselineEnv := testenv.With(commandEnvironment, map[string]string{
+			externalDatabaseEnvironment: dbPath,
+			externalBackendMarker:       filepath.Join(renameFixture, filepath.Base(backendMarker)),
+		})
+		renameEnv := testenv.With(baselineEnv, map[string]string{"GODJ_EXTERNAL_RENAME_BLOG": "1"})
+		renameSensitive := append([]string{dbPath, filepath.ToSlash(dbPath)}, sensitive...)
+		run := func(environment []string, args ...string) externalCommandResult {
+			t.Helper()
+			result := externalRun(t, root, environment, globalBinary, append(args, "--project", filepath.Join(root, "godj.toml"))...)
+			externalAssertSuccessAndRedacted(t, result, renameSensitive...)
+			return result
+		}
+		prefix := dbstate.CaptureSQLite(t, dbPath)
+		if prefix.Digest != externalDigestFile(t, databasePath) {
+			t.Fatal("rename did not start from the populated database")
+		}
+		clean := externalDecodeOne[externalMakemigrationsResult](t, run(renameEnv, "makemigrations").stdout)
+		if clean.Status != "clean" || clean.CandidateCount != 0 {
+			t.Fatal("authored rename produced writer drift", clean)
+		}
+		if got := dbstate.CaptureSQLite(t, dbPath); got.Digest != prefix.Digest {
+			t.Fatal("writer touched populated database")
+		}
+		run(renameEnv, "migrate")
+		consumerFile := filepath.Join(root, "cycle_test.go")
+		externalWriteFile(t, consumerFile, []byte(externalRenamedModelConsumer), 0o600)
+		run(renameEnv, "generate")
+		result := externalRun(t, root, renameEnv, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedPublication$", ".")
+		externalAssertSuccessAndRedacted(t, result, renameSensitive...)
+		externalAssertConsumerReceipt(t, result, "TestGeneratedPublication")
+		externalAuditApplicationSources(t, repository, root)
+		run(renameEnv, "migrate", "blog", "0001_initial")
+		externalWriteFile(t, consumerFile, []byte(externalCycleConsumerSource), 0o600)
+		run(baselineEnv, "generate")
+		verify := externalRun(t, root, baselineEnv, runnerBinary, "verify-restored-post")
+		externalAssertSuccessAndRedacted(t, verify, renameSensitive...)
+		externalDecodePID(t, verify.stdout, "renamed-write-restored")
+		externalAuditApplicationSources(t, repository, root)
+		testfixture.AssertArtifactsRedacted(t, root, renameSensitive...)
+		if got := externalDigestFile(t, databasePath); got != prefix.Digest {
+			t.Fatal("rename changed the deletion fixture database")
+		}
+	})
+	t.Run("write_delete_and_restore_model", func(t *testing.T) {
+		env := testenv.With(commandEnvironment, map[string]string{"GODJ_EXTERNAL_RETIRE_BLOG": "1"})
+		run := func(args ...string) externalCommandResult {
+			t.Helper()
+			result := externalRun(t, projectRoot, env, globalBinary, append(args, "--project", descriptor)...)
+			externalAssertSuccessAndRedacted(t, result, sensitive...)
+			return result
+		}
+		prior := dbstate.CaptureSQLite(t, databasePath)
+		write := externalDecodeOne[externalMakemigrationsResult](t, run("makemigrations").stdout)
+		if write.CandidateCount != 2 || len(write.Candidates) != 2 || write.Candidates[0].App != "authors" || write.Candidates[1].App != "blog" || write.Candidates[1].Name != "0002_delete_blog_post" {
+			t.Fatal("expected cross-app reference removal before model deletion", write)
+		}
+		name := write.Candidates[1].Name
+		if retry := externalDecodeOne[externalMakemigrationsResult](t, run("makemigrations").stdout); retry.CandidateCount != 0 {
+			t.Fatal("republished model deletion", retry)
+		}
+		if sql := run("sqlmigrate", "blog", name).stdout; sql != "DROP TABLE \"blog_blog_post\";\n" {
+			t.Fatal("drop SQL", sql)
+		}
+		if sql := run("sqlmigrate", "blog", name, "--backwards").stdout; !strings.Contains(sql, `CREATE TABLE "blog_blog_post"`) {
+			t.Fatal("restore SQL", sql)
+		}
+		if got := dbstate.CaptureSQLite(t, databasePath); got.Digest != prior.Digest {
+			t.Fatal("writer or SQL preview changed the database")
+		}
+		run("migrate")
+		removed := dbstate.CaptureSQLite(t, databasePath)
+		run("migrate", "blog", "0001_initial")
+		restored := dbstate.CaptureSQLite(t, databasePath)
+		count := func(state dbstate.Snapshot, table string) int64 {
+			for _, entry := range state.Counts {
+				if entry.Table == table {
+					return entry.Count
+				}
+			}
+			return -1
+		}
+		if count(prior, "authors_author") < 1 || count(prior, "authors_author") != count(removed, "authors_author") || count(prior, "authors_author") != count(restored, "authors_author") ||
+			count(removed, "blog_blog_post") != -1 || count(restored, "blog_blog_post") != 0 {
+			t.Fatal("public migration lost retained authors or restored old posts", removed.Counts, restored.Counts)
+		}
+	})
 	externalAuditApplicationSources(t, repository, projectRoot)
 	testfixture.AssertArtifactsRedacted(t, projectRoot, sensitive...)
 	entries, err := os.ReadDir(filepath.Join(universe, "scratch"))
@@ -576,9 +674,36 @@ func strconvUnquote(value string) (string, error) {
 	return decoded, nil
 }
 
+const externalRenamedModelConsumer = `package consumer_test
+
+import (
+    "os"
+    "testing"
+    "example.com/godj-migrationwriter-external/generated/authors"
+    "example.com/godj-migrationwriter-external/generated/blog"
+    "github.com/progresshans/godj/db/sqlite"
+)
+
+func TestGeneratedPublication(t *testing.T) {
+    ctx := t.Context()
+    db, err := sqlite.Open(ctx, os.Getenv("GODJ_EXTERNAL_SQLITE_DATABASE"))
+    if err != nil { t.Fatal(err) }
+    defer func() { if err := db.Close(); err != nil { t.Error(err) } }()
+    post, ok, err := blog.PublicationObjects.Using(db).Filter(blog.PublicationFields.ID.Exact(1)).OrderBy(blog.PublicationFields.ID.Asc()).First(ctx)
+    if err != nil || !ok || post.Title != "external restart survives" || post.AuthorID != 1 || post.ParentID == nil || *post.ParentID != post.ID { t.Fatal("historical row", post, err) }
+    author, ok, err := authors.AuthorObjects.Using(db).Filter(authors.AuthorFields.ID.Exact(post.AuthorID)).OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+    if err != nil || !ok { t.Fatal("historical author",err) }
+    author.FeaturedID = &post.ID
+    if err := authors.AuthorObjects.Save(ctx,db,&author,authors.AuthorUpdateFieldNames("featured")); err != nil {t.Fatal(err)}
+    post.Title = "written through Publication"
+    if err := blog.PublicationObjects.Save(ctx,db,&post,blog.PublicationUpdateFieldNames("title")); err != nil {t.Fatal(err)}
+}
+`
+
 const externalProjectRunnerSource = `package main
 
 import (
+	"database/sql"
  "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"encoding/json"
@@ -588,6 +713,8 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -608,7 +735,9 @@ func main() {
 		return
 	}
 	if len(os.Args) == 2 && os.Args[1] == "verify-base" { verifyBase(); return }
+	if len(os.Args) == 2 && os.Args[1] == "verify-restored-post" { verifyRestoredPost(); return }
 	config := project.Config{
+		MigrationSQLRenderer: sqlite.NewMigrationSQLRenderer(),
 		MigrationDefinitionRoots: []string{"migrations"},
 		LoadProjectSpec: loadProjectSpec,
 		OpenMigrationBackend: func(ctx context.Context) (project.MigrationBackend, error) {
@@ -628,6 +757,18 @@ func main() {
 			return sqlite.Open(ctx, os.Getenv(databaseEnvironment))
 		},
 	}
+	if os.Getenv("GODJ_EXTERNAL_RENAME_BLOG") == "1" {
+		old, err := ir.Normalize(externalSpec(false,false).Apps[0].Schema)
+		if err != nil {fatal()}
+		next, err := ir.Normalize(externalSpec(false,true).Apps[0].Schema)
+		if err != nil {fatal()}
+		change:=migrations.Migration{App:"blog",Name:"0002_rename_post",Dependencies:[]migrations.MigrationKey{
+			{App:"blog",Name:"0001_initial"},{App:"authors",Name:"0002_author_featured"},
+		},Operations:[]migrations.Operation{migrations.RenameModel{AppLabel:"blog",Before:old.Models[0],After:next.Models[0]}}}
+		doc,err:=definition.Encode(definition.Producer{Name:"external-app",Version:"1"},change)
+		if err!=nil {fatal()}
+		config.MigrationDefinitionSources=[]definition.Source{{SourceID:"authored-blog-rename",Document:doc}}
+	}
 	if err := project.Run(context.Background(), config, os.Args[1:], os.Stdin, os.Stdout); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
 		os.Exit(1)
@@ -635,6 +776,10 @@ func main() {
 }
 
 func loadProjectSpec(context.Context) (codegen.ProjectSpec, error) {
+	return externalSpec(os.Getenv("GODJ_EXTERNAL_RETIRE_BLOG")=="1",os.Getenv("GODJ_EXTERNAL_RENAME_BLOG")=="1"),nil
+}
+
+func externalSpec(retire, rename bool) codegen.ProjectSpec {
 	authors := ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel: "authors",
@@ -664,13 +809,33 @@ func loadProjectSpec(context.Context) (codegen.ProjectSpec, error) {
 			}},
 		}}},
 	}
+	if retire {
+		authors.Models[0].Fields = authors.Models[0].Fields[1:]
+		blog.Models = nil
+	} else if rename {
+		authors.Models[0].Fields[0].Relation.Target.ModelName="publication"
+		blog.Models[0].Name,blog.Models[0].GoName="publication","Publication"
+		blog.Models[0].Fields[1].Relation.Target.ModelName="publication"
+	}
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/godj-migrationwriter-external/generated/project", Directory: "generated/project"},
 		Apps: []codegen.AppSpec{
 			{Alias: "blog", Package: codegen.PackageSpec{PackageName: "blog", ImportPath: "example.com/godj-migrationwriter-external/generated/blog", Directory: "generated/blog"}, Schema: blog},
 			{Alias: "authors", Package: codegen.PackageSpec{PackageName: "authors", ImportPath: "example.com/godj-migrationwriter-external/generated/authors", Directory: "generated/authors"}, Schema: authors},
 		},
-	}, nil
+	}
+}
+
+func verifyRestoredPost() {
+	ctx:=context.Background()
+	db,err:=sql.Open("sqlite","file:"+os.Getenv(databaseEnvironment)+"?mode=ro")
+	if err!=nil {fatal()}
+	defer db.Close()
+	var title string
+	var parent,author,featured int64
+	row:=db.QueryRowContext(ctx, "SELECT p.title, p.parent_id, p.author_id, a.featured_id FROM blog_blog_post p JOIN authors_author a ON a.id=p.author_id WHERE p.id=1")
+	if err:=row.Scan(&title,&parent,&author,&featured);err!=nil || title!="written through Publication" || parent!=1 || author!=1 || featured!=1 {fatal()}
+	writeJSON(map[string]any{"status":"renamed-write-restored","pid":os.Getpid()})
 }
 
 func seed() {

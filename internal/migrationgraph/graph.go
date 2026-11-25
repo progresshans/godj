@@ -3,6 +3,7 @@ package migrationgraph
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/progresshans/godj/internal/irresource"
@@ -47,12 +48,21 @@ type RelationGraph struct {
 // performs no I/O and does not decide migration chronology or physical schema
 // compatibility; those checks remain with the intent and backend owners.
 func NewRelationGraph(source MigrationModel, related []MigrationModel) (RelationGraph, error) {
-	return newRelationGraph(source, related, true)
+	return newRelationGraph(source, related, graphFromSource)
 }
 
-func newRelationGraph(source MigrationModel, related []MigrationModel, requireReachability bool) (RelationGraph, error) {
+type graphReachability uint8
+
+const (
+	graphFromSource graphReachability = iota
+	graphWithIncoming
+	graphWithOwnedIncoming
+	graphForest
+)
+
+func newRelationGraph(source MigrationModel, related []MigrationModel, reachability graphReachability) (RelationGraph, error) {
 	modelLimit := migrationGraphMaxModels
-	if !requireReachability {
+	if reachability == graphForest {
 		modelLimit = migrationGraphMaxNodes
 	}
 	if len(related) >= modelLimit {
@@ -68,7 +78,7 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 	// caller-supplied occurrence before constructing this compact inventory.
 	apps := make(map[string]struct{})
 	scan := func(path string, model MigrationModel) error {
-		if requireReachability {
+		if reachability != graphForest {
 			return scanMigrationGraphModel(&budget, path, model)
 		}
 		if _, seen := apps[model.AppLabel]; !seen {
@@ -178,29 +188,31 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 	// Iterative traversal bounds work by vertices and fields, including cycles.
 	// Reverse ownership is global to each target model, even when two sources
 	// reach that target through different paths or different apps.
-	type reverseIdentity struct {
-		target ir.ModelIdentity
-		name   string
-	}
-	type reverseOwner struct {
-		source ir.ModelIdentity
-		field  string
-	}
-	owners := make(map[reverseIdentity]reverseOwner)
-	fieldNames := make(map[ir.ModelIdentity]map[string]struct{}, len(graph.models))
-	for identity, model := range graph.models {
-		names := make(map[string]struct{}, len(model.Fields))
-		for _, field := range model.Fields {
-			names[field.Name] = struct{}{}
+	names := make(relationNamespace)
+	for _, id := range graph.order {
+		if err := names.add(MigrationModel{AppLabel: id.AppLabel, Model: graph.models[id]}); err != nil {
+			return RelationGraph{}, err
 		}
-		for _, field := range model.ManyToMany {
-			names[field.Name] = struct{}{}
-		}
-		fieldNames[identity] = names
 	}
 	visited := map[ir.ModelIdentity]bool{graph.root: true}
 	queue := []ir.ModelIdentity{graph.root}
-	if !requireReachability {
+	if reachability == graphWithIncoming || reachability == graphWithOwnedIncoming {
+		renamed := map[ir.ModelIdentity]bool{graph.root: true}
+		if reachability == graphWithOwnedIncoming {
+			for _, field := range source.Model.ManyToMany {
+				if field.Through == nil {
+					renamed[field.StorageThrough(graph.root).Model] = true
+				}
+			}
+		}
+		for _, identity := range graph.order {
+			if identity != graph.root && slices.ContainsFunc(References(identity.AppLabel, graph.models[identity]), func(id ir.ModelIdentity) bool { return renamed[id] }) {
+				queue = append(queue, identity)
+				visited[identity] = true
+			}
+		}
+	}
+	if reachability == graphForest {
 		queue = append([]ir.ModelIdentity(nil), graph.order...)
 		for _, identity := range queue {
 			visited[identity] = true
@@ -217,16 +229,6 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 			_, exists := graph.models[targetIdentity]
 			if !exists {
 				return RelationGraph{}, fmt.Errorf("relation graph %s.%s.%s has missing target %s.%s", identity.AppLabel, identity.ModelName, field.Name, targetIdentity.AppLabel, targetIdentity.ModelName)
-			}
-			if name := field.Relation.Reverse.Name; name != "" {
-				if _, collision := fieldNames[targetIdentity][name]; collision {
-					return RelationGraph{}, fmt.Errorf("relation graph reverse name %q collides with %s.%s field", name, targetIdentity.AppLabel, targetIdentity.ModelName)
-				}
-				key := reverseIdentity{targetIdentity, name}
-				if previous, exists := owners[key]; exists {
-					return RelationGraph{}, fmt.Errorf("relation graph reverse name %q is owned by both %s.%s.%s and %s.%s.%s", name, previous.source.AppLabel, previous.source.ModelName, previous.field, identity.AppLabel, identity.ModelName, field.Name)
-				}
-				owners[key] = reverseOwner{identity, field.Name}
 			}
 			if !visited[targetIdentity] {
 				visited[targetIdentity] = true
@@ -280,6 +282,25 @@ type MigrationGraphPlan struct {
 	final      RelationGraph
 	operations []RelationGraph
 	storage    []ModelChange
+	inputs     []TableOrigin
+}
+
+// TableOrigin identifies the physical table backing an operation's Before
+// model. CreatedAt is -1 for a pre-existing table. A created table starts
+// with InitialFields columns, even if its name changes again in this step.
+type TableOrigin struct {
+	Name          string
+	CreatedAt     int
+	InitialFields int
+}
+
+// InputTables returns origins in execution order, including reverse plans.
+// An operation with no Before model has an empty name.
+func (plan MigrationGraphPlan) InputTables() []TableOrigin { return slices.Clone(plan.inputs) }
+
+type graphChange struct {
+	app string
+	ModelChange
 }
 
 // ResolveMigrationGraphPlan checks model continuity across the entire step.
@@ -293,10 +314,13 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 	if err := scanMigrationGraphIntent(app, name, intent); err != nil {
 		return MigrationGraphPlan{}, err
 	}
-	identity := func(model ir.Model) ir.ModelIdentity { return ir.ModelIdentity{AppLabel: app, ModelName: model.Name} }
+	identity := func(app string, model ir.Model) ir.ModelIdentity {
+		return ir.ModelIdentity{AppLabel: app, ModelName: model.Name}
+	}
 	initial, current := make(map[ir.ModelIdentity]ir.Model), make(map[ir.ModelIdentity]ir.Model)
 	scheduled := make(map[ir.ModelIdentity]bool)
-	changes := make([][]ModelChange, len(intent.Operations))
+	changes := make([][]graphChange, len(intent.Operations))
+	plan := MigrationGraphPlan{operations: make([]RelationGraph, len(intent.Operations))}
 	for index, operation := range intent.Operations {
 		for _, model := range []ir.Model{operation.Before, operation.After} {
 			if model.Name == "" && !reflect.DeepEqual(model, ir.Model{}) {
@@ -307,10 +331,47 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 		if err != nil {
 			return MigrationGraphPlan{}, err
 		}
-		changes[index] = append([]ModelChange{{Before: operation.Before, After: operation.After}}, owned...)
+		changes[index] = append(changes[index], graphChange{app, ModelChange{Before: operation.Before, After: operation.After}})
+		for _, change := range owned {
+			changes[index] = append(changes[index], graphChange{app, change})
+		}
+		if operation.Kind == MigrationRenameModel {
+			incoming, err := operation.modelRenameReferences(app, owned)
+			if err != nil {
+				return MigrationGraphPlan{}, err
+			}
+			changes[index] = append(changes[index], incoming...)
+		}
+		if operation.Kind == MigrationRenameField {
+			before, after, err := operation.RenamedField(app)
+			if err != nil {
+				return MigrationGraphPlan{}, err
+			}
+			if before.Relation != nil {
+				root := identity(app, operation.After)
+				seen := map[ir.ModelIdentity]bool{root: true}
+				// Every explicit through owner is the target of a source FK.
+				// The graph validation below binds these models to those fields.
+				for _, target := range operation.Targets {
+					if target.SourceField.Relation == nil {
+						continue
+					}
+					id := target.SourceField.Relation.Target
+					if seen[id] {
+						continue
+					}
+					seen[id] = true
+					model := target.TargetModel
+					previous, changed := ir.RenameThroughField(model, root, after.Name, before.Name)
+					if changed {
+						changes[index] = append(changes[index], graphChange{id.AppLabel, ModelChange{Before: previous, After: model}})
+					}
+				}
+			}
+		}
 		for _, change := range changes[index] {
 			if change.Before.Name != "" {
-				key := identity(change.Before)
+				key := identity(change.app, change.Before)
 				if !scheduled[key] {
 					initial[key] = change.Before
 					current[key] = change.Before
@@ -318,18 +379,39 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 				scheduled[key] = true
 			}
 			if change.After.Name != "" {
-				scheduled[identity(change.After)] = true
+				scheduled[identity(change.app, change.After)] = true
 			}
 		}
 	}
-	plan := MigrationGraphPlan{operations: make([]RelationGraph, 0, len(intent.Operations))}
-	for _, operation := range intent.Operations {
+
+	origins := make(map[string]TableOrigin)
+	origin := func(table string) TableOrigin {
+		if started, found := origins[table]; found {
+			return started
+		}
+		return TableOrigin{Name: table, CreatedAt: -1}
+	}
+	plan.inputs = make([]TableOrigin, len(intent.Operations))
+	for position, operation := range intent.Operations {
+		plan.inputs[position] = origin(operation.Before.DBTable)
 		storage, err := operation.StorageChanges(app)
 		if err != nil {
 			return MigrationGraphPlan{}, err
 		}
 		for _, change := range storage {
 			plan.storage = append(plan.storage, ModelChange{Before: change.Before.Clone(), After: change.After.Clone()})
+			before, after := change.Before.DBTable, change.After.DBTable
+			if before == after {
+				continue
+			}
+			started := origin(before)
+			delete(origins, before)
+			if after != "" {
+				if before == "" {
+					started = TableOrigin{Name: after, CreatedAt: position, InitialFields: len(change.After.Fields)}
+				}
+				origins[after] = started
+			}
 		}
 	}
 	for position, operation := range intent.Operations {
@@ -344,9 +426,10 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 		if err != nil {
 			return MigrationGraphPlan{}, fmt.Errorf("migration graph operation %d: %w", operation.OperationIndex, err)
 		}
+		plan.operations[position] = graph
 		touched := make(map[ir.ModelIdentity]bool)
 		for _, change := range changes[position] {
-			before, after := identity(change.Before), identity(change.After)
+			before, after := identity(change.app, change.Before), identity(change.app, change.After)
 			if change.Before.Name != "" {
 				actual, exists := current[before]
 				if !exists || !actual.Equal(change.Before) {
@@ -380,13 +463,13 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 		}
 		for _, change := range changes[position] {
 			if change.Before.Name != "" {
-				delete(current, identity(change.Before))
+				delete(current, identity(change.app, change.Before))
 			}
 			if change.After.Name != "" {
-				current[identity(change.After)] = change.After
+				current[identity(change.app, change.After)] = change.After
 			}
 		}
-		plan.operations = append(plan.operations, graph)
+
 	}
 	var err error
 	if plan.initial, err = migrationGraphBoundary(initial); err != nil {
@@ -394,6 +477,9 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 	}
 	if plan.final, err = migrationGraphBoundary(current); err != nil {
 		return MigrationGraphPlan{}, fmt.Errorf("migration graph final boundary: %w", err)
+	}
+	if err := plan.checkFieldNames(changes); err != nil {
+		return MigrationGraphPlan{}, err
 	}
 	return plan, nil
 }
@@ -473,7 +559,7 @@ func migrationGraphBoundary(models map[ir.ModelIdentity]ir.Model) (RelationGraph
 	sort.Slice(ordered, func(left, right int) bool {
 		return migrationModelIdentityLess(ordered[left].Identity(), ordered[right].Identity())
 	})
-	graph, err := newRelationGraph(ordered[0], ordered[1:], false)
+	graph, err := newRelationGraph(ordered[0], ordered[1:], graphForest)
 	if err != nil {
 		return RelationGraph{}, err
 	}
@@ -627,7 +713,26 @@ func ResolveMigrationGraph(app string, operation MigrationOperation) (RelationGr
 	sort.Slice(related, func(left, right int) bool {
 		return migrationModelIdentityLess(related[left].Identity(), related[right].Identity())
 	})
-	graph, err := NewRelationGraph(root, related)
+	reachability := graphFromSource
+	if operation.Kind == MigrationRenameModel {
+		if err := budget.ScanModel("rename.before", operation.Before); err != nil {
+			return RelationGraph{}, err
+		}
+		if _, err := NewModelRename(app, operation.Before, operation.After); err != nil {
+			return RelationGraph{}, err
+		}
+		reachability = graphWithOwnedIncoming
+	}
+	if operation.Kind == MigrationRenameField {
+		before, _, err := operation.RenamedField(app)
+		if err != nil {
+			return RelationGraph{}, err
+		}
+		if before.PrimaryKey {
+			reachability = graphWithIncoming
+		}
+	}
+	graph, err := newRelationGraph(root, related, reachability)
 	if err != nil {
 		return RelationGraph{}, err
 	}

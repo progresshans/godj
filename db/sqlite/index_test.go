@@ -33,7 +33,7 @@ func TestSQLiteColumnIndexSQLAndNamesOwnExactTransitions(t *testing.T) {
 		{unique, indexed, []string{`DROP INDEX "main".`, `CREATE INDEX "main".`}},
 		{indexed, unicode, nil},
 	} {
-		groups, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), mb.ForwardMigrationSQLRequest{App: "indexref", Name: "0002_change", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationAlterField, Before: test.before, After: test.after}}}})
+		groups, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), mb.MigrationSQLRequest{App: "indexref", Name: "0002_change", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationAlterField, Before: test.before, After: test.after}}}})
 		if err != nil || len(groups) != 1 || len(groups[0]) != len(test.prefixes) {
 			t.Fatal("index transition lost physical operation group", groups, err)
 		}
@@ -66,7 +66,7 @@ func TestSQLiteColumnIndexSQLAndNamesOwnExactTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), mb.ForwardMigrationSQLRequest{App: "indexref", Name: "0001_collision", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationCreateModel, After: indexed}, {OperationIndex: 1, Kind: mb.MigrationCreateModel, After: collision}}}}); err == nil || result != nil {
+	if result, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), mb.MigrationSQLRequest{App: "indexref", Name: "0001_collision", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationCreateModel, After: indexed}, {OperationIndex: 1, Kind: mb.MigrationCreateModel, After: collision}}}}); err == nil || result != nil {
 		t.Fatal("declared table captured an index name")
 	}
 }

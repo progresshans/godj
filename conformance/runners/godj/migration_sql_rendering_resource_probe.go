@@ -55,9 +55,9 @@ type migrationSQLRenderingProbeRenderer struct {
 	requestOperations int
 }
 
-func (renderer *migrationSQLRenderingProbeRenderer) RenderForwardMigrationSQL(
+func (renderer *migrationSQLRenderingProbeRenderer) RenderMigrationSQL(
 	_ context.Context,
-	request migrationbackend.ForwardMigrationSQLRequest,
+	request migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	renderer.requestOperations = len(request.Intent.Operations)
@@ -124,7 +124,7 @@ func migrationSQLRenderingProbeRootStatementCount(ctx context.Context) ([]migrat
 		exactStatements[index] = []string{"X"}
 	}
 	exactRenderer := &migrationSQLRenderingProbeRenderer{groups: exactStatements}
-	exactResult, err := migrations.RenderMigrationSQL(ctx, loaded, target, exactRenderer)
+	exactResult, err := migrations.RenderMigrationSQL(ctx, loaded, target, migrations.DirectionForward, exactRenderer)
 	if err != nil || len(exactResult) != limit || exactRenderer.calls != 1 || exactRenderer.requestOperations != limit {
 		return nil, fmt.Errorf(
 			"root exact statement-count probe = result:%d calls:%d operations:%d error:%w",
@@ -149,7 +149,7 @@ func migrationSQLRenderingProbeRootStatementCount(ctx context.Context) ([]migrat
 		oneOverCount += len(group)
 	}
 	oneOverRenderer := &migrationSQLRenderingProbeRenderer{groups: oneOverStatements}
-	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, loaded, target, oneOverRenderer)
+	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, loaded, target, migrations.DirectionForward, oneOverRenderer)
 	category, code, classifyErr := migrationSQLRenderingProbeRootFailure(oneOverErr)
 	if classifyErr != nil {
 		return nil, classifyErr
@@ -191,7 +191,7 @@ func migrationSQLRenderingProbeRootAggregateBytes(ctx context.Context) ([]migrat
 	// fails during resource scanning, so it cannot retain a cloned 16 MiB body.
 	aggregateBody := strings.Repeat("X", limit)
 	oneOverRenderer := &migrationSQLRenderingProbeRenderer{groups: [][]string{{aggregateBody}, {";"}}}
-	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, oneOverRenderer)
+	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, oneOverRenderer)
 	category, code, classifyErr := migrationSQLRenderingProbeRootFailure(oneOverErr)
 	if classifyErr != nil {
 		return nil, classifyErr
@@ -206,7 +206,7 @@ func migrationSQLRenderingProbeRootAggregateBytes(ctx context.Context) ([]migrat
 	}
 
 	exactRenderer := &migrationSQLRenderingProbeRenderer{groups: [][]string{{aggregateBody[:limit-1]}, {"X"}}}
-	exactResult, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, exactRenderer)
+	exactResult, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, exactRenderer)
 	if err != nil || len(exactResult) != len(exactRenderer.groups) || exactRenderer.calls != 1 ||
 		exactRenderer.requestOperations != len(exactRenderer.groups) ||
 		migrationSQLRenderingProbeBodyBytes(exactResult) != limit {

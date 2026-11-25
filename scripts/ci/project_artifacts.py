@@ -2,51 +2,40 @@
 from collections import defaultdict
 import re
 
-from capture_artifact import github_read, github_records
-from relation_shards import PLATFORMS
+from capture_artifact import github_records
+from platform_policy import coordinates
 
 
 PYTHON = "python-project-reference-3.14.3"
-COORDINATES = tuple((system, arch, mode) for _, system, arch in PLATFORMS for mode in ("normal", "race", "cgo0"))
 
 
-def producers():
+def producers(profile):
     result = {PYTHON: ("Python compatibility (3.14.3)", "Publish Python project-reference evidence")}
-    for runner, system, arch in PLATFORMS:
-        for mode in ("normal", "race", "cgo0"):
-            suffix = f"{system}-{arch}-{mode}"
-            result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")
-            result[f"project-reload-{suffix}"] = (f"Product reload ({runner}, {mode})", "Publish project-reload evidence")
+    for runner, system, arch, mode in coordinates(profile):
+        suffix = f"{system}-{arch}-{mode}"
+        result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")
+        result[f"project-reload-{suffix}"] = (f"Product reload ({runner}, {mode})", "Publish project-reload evidence")
     return result
 
 
-def job_log(repository, job_id):
-    return github_read(f"repos/{repository}/actions/jobs/{job_id}/logs")
-
-
-def verify_upload(log, artifact):
-    # Read the pinned upload action's own receipt. Diagnostic uploads survive
-    # cancellation too, so this check is in addition to the producer conclusion.
-    sections = re.split(rb"(?m)^\S+ ##\[group\]Run ", log)
-    name = artifact["name"].encode()
-    header = re.compile(rb"(?m)^\S+   name: " + re.escape(name) + rb"\r?$")
-    groups = [block for block in sections if block.startswith(b"actions/upload-artifact@")
-              and header.search(block.partition(b"##[endgroup]")[0])]
-    if len(groups) != 1:
-        raise ValueError(f"missing or ambiguous upload step for {artifact['name']}")
-    lines = [line.partition(b" ")[2] for line in groups[0].splitlines()]
-    digest = artifact["digest"].removeprefix("sha256:").encode()
-    identifier = str(artifact["id"]).encode()
-    if (lines.count(b"SHA256 digest of uploaded artifact zip is " + digest) != 1
-            or lines.count(b"Artifact " + name + b".zip successfully finalized. Artifact ID " + identifier) != 1):
+def verify_upload(job, upload, artifact):
+    # The trusted upload action supplies both fields in the following step's
+    # evaluated name. GitHub returns that step on this exact job and attempt.
+    receipts = [step for step in job["steps"] if step["name"].startswith("Project artifact ")]
+    expected = f"Project artifact {artifact['id']} {artifact['digest'].removeprefix('sha256:')}"
+    if (len(receipts) != 1 or type(upload.get("number")) is not int or upload["number"] < 1
+            or type(receipts[0].get("number")) is not int or receipts[0]["number"] != upload["number"] + 1
+            or receipts[0]["name"] != expected
+            or receipts[0]["status"] != "completed" or receipts[0]["conclusion"] != "success"):
         raise ValueError(f"upload receipt differs for {artifact['name']}")
 
 
-def validated_producers(selection, source, repository_id):
+def validated_producers(selection, source, repository_id, profile):
     current = int(source["run_attempt"])
     selected = selection["producers"]
     if (selection["source"] != source or type(selection["repository_id"]) is not int
-            or selection["repository_id"] != repository_id or set(selected) != set(producers())):
+            or selection["repository_id"] != repository_id or selection["profile"] != profile
+            or set(selected) != set(producers(profile))):
         raise ValueError("project evidence selection differs from the run or required producers")
     ids, jobs = set(), set()
     for stem, record in selected.items():
@@ -61,13 +50,32 @@ def validated_producers(selection, source, repository_id):
     return selected
 
 
-def resolve(source, repository_id, fetch=github_records, read_log=job_log):
+def executed_jobs(attempts):
+    """GitHub gives retained jobs new IDs when only failed jobs are rerun."""
+    executed = {}
+    previous = None
+    for attempt, job in sorted(attempts.items()):
+        created, finished = job.get("created_at"), job.get("completed_at")
+        if created and finished and created >= finished:
+            # A retained check was created after its execution had finished.
+            # Bind it to the preceding execution, including the upload receipt.
+            fields = ("started_at", "completed_at", "runner_id", "status", "conclusion", "steps")
+            if (previous is not None and job.get("started_at") and job.get("runner_id") and job.get("steps")
+                    and all(job.get(key) == previous.get(key) for key in fields)):
+                continue
+            if created > finished:
+                raise ValueError(f"retained producer differs from its original execution: {job['name']}")
+        executed[attempt] = previous = job
+    return executed
+
+
+def resolve(source, repository_id, profile, fetch=github_records):
     repository = source["repository"]
     run, current = int(source["run_id"]), int(source["run_attempt"])
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII) or min(run, current, repository_id) < 1:
         raise ValueError("invalid project comparison run identity")
     base = f"repos/{repository}/actions/runs/{run}"
-    expected = producers()
+    expected = producers(profile)
     names = {job for job, _ in expected.values()}
     jobs = defaultdict(dict)
     for job in fetch(base + "/jobs?filter=all", "jobs"):
@@ -79,6 +87,8 @@ def resolve(source, repository_id, fetch=github_records, read_log=job_log):
                 or job["run_id"] != run or job["head_sha"] != source["event_head"]):
             raise ValueError(f"unexpected or duplicate producer for {name}")
         jobs[name][attempt] = job
+    for name in jobs:
+        jobs[name] = executed_jobs(jobs[name])
     archives = defaultdict(list)
     for artifact in fetch(base + "/artifacts", "artifacts"):
         stem, _, version = artifact["name"].rpartition("-")
@@ -87,7 +97,7 @@ def resolve(source, repository_id, fetch=github_records, read_log=job_log):
         if not re.fullmatch("[1-9][0-9]*", version) or int(version) not in jobs[expected[stem][0]]:
             raise ValueError(f"project archive has no matching producer attempt for {stem}")
         archives[artifact["name"]].append(artifact)
-    selected, uploads = {}, []
+    selected = {}
     for stem, (name, publish_step) in expected.items():
         if not jobs[name]:
             raise ValueError(f"missing producer for {name}")
@@ -110,9 +120,7 @@ def resolve(source, repository_id, fetch=github_records, read_log=job_log):
             raise ValueError(f"invalid immutable archive for {stem}")
         selected[stem] = {"producer_attempt": attempt, "job_id": job["id"], "artifact_id": artifact["id"],
                           "archive_sha256": artifact["digest"].removeprefix("sha256:")}
-        uploads.append((job["id"], artifact))
-    selection = {"source": source, "repository_id": repository_id, "producers": selected}
-    validated_producers(selection, source, repository_id)
-    for job_id, artifact in uploads:
-        verify_upload(read_log(repository, job_id), artifact)
+        verify_upload(job, published[0], artifact)
+    selection = {"source": source, "repository_id": repository_id, "profile": profile, "producers": selected}
+    validated_producers(selection, source, repository_id, profile)
     return selection

@@ -23,7 +23,7 @@
 | Populated scalar AddField | 명시적 상수 default의 sealed remake·1회 backfill, incoming FK·행·index·sequence 보존 | ADD COLUMN의 임시 DEFAULT 뒤 같은 transaction의 DROP DEFAULT, 관계·행·sequence 보존 |
 | Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
 | Automatic ManyToMany migration | 소유 table Create/Add/Remove/Rename·reverse, link PK·sqlite_sequence·rootpage 보존, managed pair index 이름 변경 | 같은 logical operation, link PK·table/sequence OID·last_value/is_called 보존, managed PK/FK/unique/sequence 이름 변경 |
-| SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
+| SQL projection | 이력 정의로 정방향·역방향 SQL과 테이블 재구성 순서 생성 | 지정 schema의 정방향·역방향 DDL과 제약·인덱스 순서 생성 |
 | 일반 column index | DBIndex의 BINARY/ASC 단일 index·Create/Add/Alter/Remove·reverse·remake 보존·namespace/catalog 소유권 | column collation·default B-tree opclass의 단일 index·같은 lifecycle/소유권; Django pattern-opclass 추가 최적화는 별도 |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
@@ -250,6 +250,22 @@ Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NUL
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
+
+## 모델 이름 변경
+
+`RenameModel`은 같은 앱 안에서 이전·이후 모델의 논리 이름, Go 이름, 물리 테이블을 명시한다. 정규화한 선언에 이름에서 유래한 기본 reverse 이름이 있으면 목적 선언에서 새 이름을 쓰거나 기존 이름을 유지할 수 있다. 다른 필드·제약 변경은 각각의 연산으로 기록한다. [선언 규칙](../schema/ir/model_rename.go)
+
+SQLite와 PostgreSQL은 테이블 이름이 바뀔 때 모델과 소유한 자동 중간 테이블을 제자리에서 변경한다. SQLite는 관리하는 인덱스를, PostgreSQL은 identity sequence와 PK·FK·고유 제약 및 인덱스의 이름을 새 테이블에 맞춘다. 이름을 고정한 테이블은 양방향 SQL이 비어 있고 논리 상태와 적용 기록이 바뀐다. 실제 테이블명 변경과 충돌하는 외부 FK·뷰 또는 이미 사용 중인 목적 테이블은 적용을 막는다. [SQLite 실행](../db/sqlite/migration_model_rename.go) · [PostgreSQL 실행](../db/postgres/migration_model_rename.go) · [검증 범위](status/TEST_EVIDENCE.md#m1-모델-이름-변경과-관계-보존)
+
+## 모델 삭제와 역적용
+
+SQLite와 PostgreSQL에서 `DeleteModel`은 대상의 자동 다대다 중간 테이블을 먼저 삭제하고 모델 테이블을 삭제한다. 역적용은 모델, 제약, 소유한 중간 테이블을 당시 선언으로 다시 만든다. 복원한 테이블은 비어 있다. 남아 있는 대상 모델과 별도로 선언한 through 모델은 각각의 migration에서 관리한다. 적용 기록은 삭제 정의와 선행 정의의 해시를 DDL과 같은 트랜잭션에 저장한다. [모델 연산](../migrations/delete_model.go) · [양 DB 비교 범위](status/TEST_EVIDENCE.md#m1-모델-삭제와-빈-테이블-복원)
+
+## 기존 열의 필드 이름 변경
+
+프로젝트가 기존 필드의 이름을 바꾸면 작성한 migration에 `RenameField`와 정규화된 이전·이후 필드를 기록한다. `Name`, `GoName`, `Column`으로 논리 이름, 생성 식별자, 물리 열을 지정한다. 이전·이후 `Column`이 같으면 행과 열을 그대로 두고 역사 상태와 적용 이력을 갱신한다. 필드 종류·기본값·NULL 허용 여부 등의 변경은 다음 연산에 기록한다. `makemigrations`는 작성한 이름 변경을 재구성한다. 삭제와 추가만으로 같은 필드인지 결정할 수 없는 선언은 명시적 migration을 요구한다. [연산](../migrations/rename_field.go) · [작성 후 감지 검사](../internal/migrationautodetect/detect_test.go)
+
+이름 변경은 필드 순서, 이름 있는 고유 제약의 열 순서, ImageField의 크기 필드, 명시적 중간 모델의 관계 필드를 보존한다. 기본 키의 열을 바꿀 때는 다른 앱에서 참조하는 외래 키도 적용 시점의 모델로 대조한다. 두 DB는 열 이름을 제자리에서 바꾼다. SQLite는 열 이름에서 파생한 인덱스를 같은 트랜잭션에서 교체하고, PostgreSQL은 연결된 인덱스·제약·identity sequence의 이름을 바꾼다. 역적용은 같은 정의의 반대 방향을 사용한다. [Schema IR](../schema/ir/field_rename.go) · [SQLite](../db/sqlite/migration_rename.go) · [PostgreSQL](../db/postgres/migration_rename.go)
 
 ## 적용 당시 모델의 데이터 변환
 

@@ -32,9 +32,9 @@ func NewMigrationSQLRenderer(config MigrationSQLConfig) migrationbackend.Migrati
 	return migrationSQLRenderer{schema: strings.Clone(config.Schema), valid: true}
 }
 
-func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
+func (renderer migrationSQLRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	request migrationbackend.ForwardMigrationSQLRequest,
+	request migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("render PostgreSQL migration SQL: context is nil")
@@ -51,24 +51,16 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	if request.Intent.Operations == nil {
 		return nil, errors.New("render PostgreSQL migration SQL: migration intent is missing")
 	}
-	for index := range request.Intent.Operations {
-		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationRunData && kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
-			return nil, migrationbackend.NewCapabilityError(
-				"postgres_migration_sql",
-				"current SQL projection supports forward model, field and named constraint changes",
-				nil,
-			)
+	for _, operation := range request.Intent.Operations {
+		switch operation.Kind {
+		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationRenameModel, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
+			migrationbackend.MigrationAddField, migrationbackend.MigrationRemoveField, migrationbackend.MigrationAlterField,
+			migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint, migrationbackend.MigrationAlterManyToMany:
+			continue
 		}
+		return nil, migrationbackend.NewCapabilityError("postgres_migration_sql", "unsupported operation for this SQL direction", nil)
 	}
-
-	transition := migrationbackend.HistoryTransition{
-		Migration: migrationbackend.AppliedMigration{
-			App:  strings.Clone(request.App),
-			Name: strings.Clone(request.Name),
-		},
-		Kind: migrationbackend.HistoryTransitionApply,
-	}
+	transition := request.Transition()
 	prepared, err := preparePostgresMigrationIntent(transition, request.Intent)
 	if err != nil {
 		return nil, err
@@ -87,7 +79,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		case migrationbackend.MigrationRunData:
 			groups[index] = []string{migrationbackend.RunDataSQLComment}
 			continue
-		case migrationbackend.MigrationAlterManyToMany:
+		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany, migrationbackend.MigrationRenameModel:
 			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
 			if err != nil {
 				return nil, err
@@ -99,18 +91,22 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 				return nil, postgresMigrationIntentIntegrity("invalid constraint delta", deltaErr)
 			}
 			statement, err = compilePostgresNamedUniqueAlter(renderer.schema, operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
+		case migrationbackend.MigrationRenameField:
+			before, after, deltaErr := operation.RenamedField(request.App)
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid field rename", deltaErr)
+			}
+			groups[index], err = compilePostgresFieldRename(renderer.schema, operation.Before, before, after)
+			if err != nil {
+				return nil, err
+			}
+			continue
 		case migrationbackend.MigrationAlterField:
 			before, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {
 				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
 			}
 			groups[index], err = compilePostgresFieldAlter(renderer.schema, operation.After, before, field, kind)
-			if err != nil {
-				return nil, err
-			}
-			continue
-		case migrationbackend.MigrationCreateModel:
-			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
 			if err != nil {
 				return nil, err
 			}

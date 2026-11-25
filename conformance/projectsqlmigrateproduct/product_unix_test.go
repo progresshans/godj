@@ -98,7 +98,23 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		if err := database.QueryRowContext(t.Context(), `INSERT INTO "blog_article" ("title", "published") VALUES ('next', TRUE) RETURNING "id"`).Scan(&id); err != nil || id != 20 {
 			t.Fatalf("rendered backfill sequence id=%d: %v", id, err)
 		}
-
+		reverseState := project.state(t, "reverse-enrich")
+		reverse := project.run(t, reverseState, project.environment(reverseState, sqlProductCatalogFull, sqlProductRendererSQLite),
+			"sqlmigrate", "blog", "0002_enrich", "--backwards", "--project", project.descriptor)
+		sqlProductAssertSuccess(t, reverse, `ALTER TABLE "blog_article" DROP COLUMN "published";
+ALTER TABLE "blog_article" DROP COLUMN "summary";
+`, project.sensitive(reverseState)...)
+		sqlProductAssertMarker(t, reverseState.rendererMarker, "render")
+		if _, err := database.ExecContext(t.Context(), reverse.stdout); err != nil {
+			t.Fatal("apply public reverse SQL", err)
+		}
+		var rows int
+		if err := database.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM "blog_article" WHERE (id=1 AND title='retained') OR (id=20 AND title='next')`).Scan(&rows); err != nil || rows != 2 {
+			t.Fatalf("retained rows after reverse SQL %d, %v", rows, err)
+		}
+		if err := database.QueryRowContext(t.Context(), `INSERT INTO "blog_article" ("title") VALUES ('after reverse') RETURNING "id"`).Scan(&id); err != nil || id != 21 {
+			t.Fatalf("sequence after reverse SQL %d, %v", id, err)
+		}
 	})
 
 	t.Run("literal zero is an exact empty migration", func(t *testing.T) {

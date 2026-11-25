@@ -30,14 +30,14 @@ func TestSQLiteUniqueSQLGroupsPreservePhysicalAndMetadataOperations(t *testing.T
 		migrations.AlterField{AppLabel: "uniqueref", ModelName: plain.Name, Before: added.Fields[1], After: choices.Fields[1]},
 	}}
 	loaded := sqliteUniqueHistory(t, initial)
-	flat, err := migrations.RenderMigrationSQL(t.Context(), loaded, initial.Key(), NewMigrationSQLRenderer())
+	flat, err := migrations.RenderMigrationSQL(t.Context(), loaded, initial.Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 	if err != nil || len(flat) != 4 || !strings.HasPrefix(flat[0], "CREATE TABLE ") ||
 		!strings.HasPrefix(flat[1], `CREATE UNIQUE INDEX "main".`) || !strings.HasPrefix(flat[2], "ALTER TABLE ") ||
 		!strings.HasPrefix(flat[3], `CREATE UNIQUE INDEX "main".`) || flat[1] == flat[3] {
 		t.Fatalf("incomplete or reordered unique SQL: %#v %v", flat, err)
 	}
 	for _, pair := range [][2]ir.Model{{plain, unique}, {unique, plain}} {
-		groups, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), migrationbackend.ForwardMigrationSQLRequest{App: "uniqueref", Name: "0002_unique", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{Kind: migrationbackend.MigrationAlterField, Before: pair[0], After: pair[1]}}}})
+		groups, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), migrationbackend.MigrationSQLRequest{App: "uniqueref", Name: "0002_unique", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{Kind: migrationbackend.MigrationAlterField, Before: pair[0], After: pair[1]}}}})
 		if err != nil || len(groups) != 1 || len(groups[0]) != 1 {
 			t.Fatal("missing physical unique alteration", groups, err)
 		}
@@ -95,12 +95,12 @@ func TestSQLiteUniqueNamesAndDeclaredNamespaceCollisions(t *testing.T) {
 		t.Fatal(err)
 	}
 	collision.Fields[1].Unique = false
-	request := migrationbackend.ForwardMigrationSQLRequest{App: "uniqueref", Name: "0001_collision", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+	request := migrationbackend.MigrationSQLRequest{App: "uniqueref", Name: "0001_collision", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{Kind: migrationbackend.MigrationCreateModel, After: model},
 		{OperationIndex: 1, Kind: migrationbackend.MigrationCreateModel, After: collision},
 	}}}
 	before := request.Intent.Clone()
-	if groups, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), request); err == nil || groups != nil {
+	if groups, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), request); err == nil || groups != nil {
 		t.Fatal("table/index namespace collision accepted")
 	}
 	if !reflect.DeepEqual(before, request.Intent) {

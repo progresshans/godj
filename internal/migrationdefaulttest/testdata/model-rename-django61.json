@@ -1,0 +1,1168 @@
+{
+  "derived_table": {
+    "before": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_entry",
+        "renamehub_entry_peers",
+        "renamehub_entry_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "collision": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_entry",
+        "renamehub_entry_peers",
+        "renamehub_entry_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "constraints": {
+      "incoming_foreign_key": true,
+      "one_to_one": true,
+      "self_foreign_key": true,
+      "unique_code": true
+    },
+    "reapplied": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ],
+        [
+          3,
+          "later",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          1
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_publication",
+        "renamehub_publication_peers",
+        "renamehub_publication_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "renamed": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_publication",
+        "renamehub_publication_peers",
+        "renamehub_publication_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "renamed_through": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_publication",
+        "renamehub_publication_peers",
+        "renamehub_publication_tags",
+        "renamehub_tag",
+        "renamepeer_box",
+        "renamepeer_box_entries",
+        "renamepeer_grant"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "restored_through": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_publication",
+        "renamehub_publication_peers",
+        "renamehub_publication_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "reversed": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ],
+        [
+          3,
+          "later",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          1
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_entry",
+        "renamehub_entry_peers",
+        "renamehub_entry_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "rollback": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_entry",
+        "renamehub_entry_peers",
+        "renamehub_entry_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    }
+  },
+  "fixed_table": {
+    "before": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "constraints": {
+      "incoming_foreign_key": true,
+      "one_to_one": true,
+      "self_foreign_key": true,
+      "unique_code": true
+    },
+    "reapplied": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ],
+        [
+          3,
+          "later",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          1
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "renamed": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "renamed_through": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_box",
+        "renamepeer_box_entries",
+        "renamepeer_grant"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "restored_through": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "publication",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "reversed": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ],
+        [
+          3,
+          "later",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          1
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    },
+    "rollback": {
+      "entries": [
+        [
+          1,
+          "original",
+          null
+        ],
+        [
+          2,
+          "child",
+          1
+        ]
+      ],
+      "explicit_links": [
+        [
+          1,
+          2,
+          1,
+          17
+        ]
+      ],
+      "featured": [
+        [
+          1,
+          2
+        ]
+      ],
+      "incoming_links": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "model": "entry",
+      "owned_links": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "self_links": [
+        [
+          1,
+          1,
+          2
+        ]
+      ],
+      "tables": [
+        "renamehub_ledger",
+        "renamehub_ledger_peers",
+        "renamehub_ledger_tags",
+        "renamehub_tag",
+        "renamepeer_bond",
+        "renamepeer_box",
+        "renamepeer_box_entries"
+      ],
+      "tags": [
+        [
+          1,
+          "same"
+        ],
+        [
+          2,
+          "same"
+        ]
+      ]
+    }
+  }
+}

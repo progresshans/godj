@@ -201,7 +201,7 @@ func runSlugStorage(t *testing.T, document []byte, open func(context.Context) (s
 	}
 	for _, renderer := range []migrationbackend.MigrationSQLRenderer{sqlite.NewMigrationSQLRenderer(), postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"})} {
 		for i, stage := range stages {
-			statements, err := migrations.RenderMigrationSQL(ctx, loaded, history[i+1].Key(), renderer)
+			statements, err := migrations.RenderMigrationSQL(ctx, loaded, history[i+1].Key(), migrations.DirectionForward, renderer)
 			if err != nil || len(statements) != stage.statements {
 				t.Fatal("slug history lost required index DDL or added metadata DDL", stage.name, statements, err)
 			}

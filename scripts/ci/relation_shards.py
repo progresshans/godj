@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 
 from go_test_events import discover_roots, events, inspect
+from platform_policy import NATIVE_STEP_MINUTES, PLATFORMS, PROFILES
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
@@ -40,17 +41,65 @@ ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountRootThroughCreation',
     'TestGeneratedAccountTransitionThroughCreation',
 )
-PLATFORMS = (
-    ('ubuntu-24.04', 'linux', 'amd64'),
-    ('ubuntu-24.04-arm', 'linux', 'arm64'),
-    ('macos-15-intel', 'darwin', 'amd64'),
-    ('macos-26', 'darwin', 'arm64'),
-)
+
+# Linux ARM64 race root times from CI 45235604044 and 45253620235, averaged
+# and rounded to 15s. Track ordinary roots averaging at least 90s and the
+# dedicated roots averaging at least 15m. Discovery supplies the inventory.
+ARM64_RACE_SECONDS = {
+    'TestGeneratedAccountBindingCannotMixSelectedPolicies': 120,
+    'TestGeneratedAccountCatalogCreation': 945,
+    'TestGeneratedAccountCatalogTransition': 930,
+    'TestGeneratedAccountCreationInputPolicy': 255,
+    'TestGeneratedAccountProfileCollections': 225,
+    'TestGeneratedAccountProfileFileCreation': 285,
+    'TestGeneratedAccountProfileFiles': 150,
+    'TestGeneratedAccountProfileRelations': 255,
+    'TestGeneratedAccountThroughIdentityCreation': 270,
+    'TestGeneratedAdminCollections': 165,
+    'TestGeneratedBulkCreate': 105,
+    'TestGeneratedBulkCreateReference': 120,
+    'TestGeneratedBulkUpdate': 120,
+    'TestGeneratedBulkUpdateReference': 135,
+    'TestGeneratedCustomSinglePrefetch': 105,
+    'TestGeneratedFirstAccountUsesRequiredProfiles': 1170,
+    'TestGeneratedHistoricalAccountHandoff': 345,
+    'TestGeneratedMaterializedStream': 105,
+    'TestGeneratedNestedEagerConsumer': 225,
+    'TestGeneratedQueryUpdate': 120,
+    'TestGeneratedQueryUpdateReference': 150,
+    'TestGeneratedRowLocking': 105,
+    'TestGeneratedSingleObjectCreation': 90,
+    'TestGeneratedUpdateOrCreate': 135,
+}
 
 
-def matrix():
+def submission_priority(row):
+    if row.get('sqlite_timeout'):
+        return 0
+    if row.get('balance_by_duration') and row['shard'] > 0:
+        owner = row['shard'] - 1
+        if (owner >= len(ISOLATED_ACCOUNT_ROOTS)
+                or ARM64_RACE_SECONDS.get(ISOLATED_ACCOUNT_ROOTS[owner], 0) >= 15 * 60):
+            return 1
+    return 2
+
+
+def matrix(profile='full'):
+    if profile not in PROFILES:
+        raise ValueError('unknown relation profile: ' + repr(profile))
     rows = []
     for runner, goos, goarch in PLATFORMS:
+        platform = {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch}
+        if profile == 'native' and goos == 'darwin':
+            # Project reload owns the same native boundary suite on its Darwin
+            # race and CGO0 coordinates. Linux retains every relation shard.
+            continue
+        if profile == 'pr' and goos == 'darwin':
+            for mode in ('race', 'cgo0'):
+                rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
+                             'shard': 'native', 'native_minutes': NATIVE_STEP_MINUTES[goarch],
+                             'job_timeout': NATIVE_STEP_MINUTES[goarch] + 10})
+            continue
         for mode in ('normal', 'race', 'cgo0'):
             # Keep ordinary consumer owners separate from the runtime owner.
             # Linux race's ordinary owner accumulated 1,999.52s/2,088.07s
@@ -101,23 +150,25 @@ def matrix():
                     job_timeout = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
                                    ('amd64', 'race'): 135}.get((goarch, mode), job_timeout)
                 sqlite_timeout = ''
-                if goos == 'linux' and goarch == 'arm64' and mode == 'race' and shard == 0:
-                    # In CI 44931649835 the credential root passed in 1,902s.
-                    # The 35m SQLite package deadline then cut off a 1s prefetch case.
+                if goos == 'linux' and mode == 'race' and shard == 0:
+                    # Both architectures have exhausted a 35m SQLite package run.
+                    # Run the entire package alone before the other runtime packages.
                     sqlite_timeout = '45m'
                     job_timeout = 70
                 rows.append({
-                    'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
+                    'platform': platform, 'scope': 'relation',
                     'mode': mode, 'shard': shard, 'shards': count,
                     'isolate_accounts': isolate_accounts,
+                    'balance_by_duration': (goos, goarch, mode) == ('linux', 'arm64', 'race'),
                     'job_timeout': job_timeout,
                     'test_timeout': '70m' if darwin_race else '35m',
                     'sqlite_timeout': sqlite_timeout,
                 })
+    rows.sort(key=submission_priority)
     return {'include': rows}
 
 
-def partition(roots, shard, count, isolate_accounts=False):
+def partition(roots, shard, count, isolate_accounts=False, balance_by_duration=False):
     if (not 1 <= count <= len(roots) or not 0 <= shard <= count
             or (shard == 0 and count == 1) or len(roots) != len(set(roots))):
         raise ValueError('invalid or empty consumer partition')
@@ -128,10 +179,22 @@ def partition(roots, shard, count, isolate_accounts=False):
         return []
     if shard <= len(isolated):
         return [isolated[shard - 1]]
-    # Mix related names before round-robin assignment so expensive feature
-    # families do not cluster. This needs no stale timing file or allowlist.
+    # Mix related names before round-robin assignment and break duration ties
+    # consistently across jobs that discover the roots in different orders.
     ordered = sorted((root for root in roots if root not in isolated), key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
-    return sorted(ordered[shard - len(isolated) - 1::count - len(isolated)])
+    slots = count - len(isolated)
+    slot = shard - len(isolated) - 1
+    if not balance_by_duration:
+        return sorted(ordered[slot::slots])
+
+    weights = {root: ARM64_RACE_SECONDS.get(root, 30) for root in ordered}
+    groups = [[] for _ in range(slots)]
+    seconds = [0] * slots
+    for root in sorted(ordered, key=weights.__getitem__, reverse=True):
+        lightest = min(range(slots), key=seconds.__getitem__)
+        groups[lightest].append(root)
+        seconds[lightest] += weights[root]
+    return sorted(groups[slot])
 
 
 def read_lines(path):
@@ -141,8 +204,8 @@ def read_lines(path):
     return result
 
 
-def plan(roots, required, packages, shard, count, isolate_accounts=False):
-    chosen = partition(roots, shard, count, isolate_accounts)
+def plan(roots, required, packages, shard, count, isolate_accounts=False, balance_by_duration=False):
+    chosen = partition(roots, shard, count, isolate_accounts, balance_by_duration)
     if CONSUMER not in packages or len(packages) != len(set(packages)):
         raise ValueError('consumer package is missing or package inventory is duplicated')
     runtime_owner = count == 1 or shard == 0
@@ -172,6 +235,7 @@ def plan(roots, required, packages, shard, count, isolate_accounts=False):
     return {
         'shard': shard, 'shards': count,
         'isolate_accounts': isolate_accounts,
+        'balance_by_duration': balance_by_duration,
         'discovered_roots': len(roots),
         'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots)) + '\n').encode()).hexdigest(),
         'roots': chosen, 'required': selected_required, 'packages': owned,
@@ -179,8 +243,8 @@ def plan(roots, required, packages, shard, count, isolate_accounts=False):
     }
 
 
-def verify(path, roots, shard, count, packages, isolate_accounts=False):
-    expected = Counter({root: 1 for root in partition(roots, shard, count, isolate_accounts)})
+def verify(path, roots, shard, count, packages, isolate_accounts=False, balance_by_duration=False):
+    expected = Counter(partition(roots, shard, count, isolate_accounts, balance_by_duration))
     runs, passes = Counter(), Counter()
     inventory = inspect(path)
     errors = inventory.verify(packages=packages, no_skips=True)
@@ -213,6 +277,7 @@ def main():
         command.add_argument('--shards', type=int, required=True)
         command.add_argument('--packages', required=True)
         command.add_argument('--isolate-accounts', action='store_true')
+        command.add_argument('--balance-by-duration', action='store_true')
         if action == 'plan':
             command.add_argument('--required', required=True)
             command.add_argument('--output-dir', required=True)
@@ -222,7 +287,8 @@ def main():
     try:
         roots = discover_roots(args.discovery, CONSUMER)
         if args.action == 'plan':
-            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards, args.isolate_accounts)
+            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards,
+                          args.isolate_accounts, args.balance_by_duration)
             destination = Path(args.output_dir)
             destination.mkdir(parents=True, exist_ok=True)
             for name in ('required', 'packages'):
@@ -233,7 +299,8 @@ def main():
             result = {**{key: value for key, value in result.items() if key not in ('required', 'run')},
                       'required_tests': len(result['required'])}
         else:
-            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages), args.isolate_accounts)
+            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages),
+                            args.isolate_accounts, args.balance_by_duration)
         print(json.dumps(result, sort_keys=True))
     except (ValueError, OSError) as error:
         parser.exit(1, str(error) + '\n')

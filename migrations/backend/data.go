@@ -21,12 +21,14 @@ type HistoricalDataTransaction interface {
 	RunData(context.Context, int, DataCallback) error
 }
 
-// ValidateDataHistory requires a persisted definition identity before any
-// native data migration can begin. Pure SQL projection has no transition.
-func ValidateDataHistory(intent MigrationIntent, digest string) error {
+// ValidateRequiredHistory requires a persisted definition identity before any
+// data callback, field rename or authored model deletion can execute.
+func ValidateRequiredHistory(intent MigrationIntent, transition HistoryTransition) error {
 	for _, op := range intent.Operations {
-		if op.Kind == MigrationRunData {
-			_, err := ParseDefinitionHistoryDigest(digest)
+		if op.Kind == MigrationRunData || op.Kind == MigrationRenameField || op.Kind == MigrationRenameModel ||
+			op.Kind == MigrationDeleteModel && transition.Kind == HistoryTransitionApply ||
+			op.Kind == MigrationCreateModel && transition.Kind == HistoryTransitionUnapply {
+			_, err := ParseDefinitionHistoryDigest(transition.Migration.HistoryDigest)
 			return err
 		}
 	}
