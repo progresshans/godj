@@ -36,7 +36,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 ## 원격 CI 실행 범위
 
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
-macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
+macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. runserver 자식이 종료된 뒤에도 완전한 퇴역 응답을 받은 경우에만 다음 세대를 활성화하는지 검사한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
 
 공용 `*_unix.go`가 바뀌면 양쪽 Mac에서 프로젝트 검사·reload·외부 명령을 normal·race·CGO=0으로 모두 실행한다. 네이티브 필수 검사도 같은 race·CGO=0 reload 작업에서 실행한다. Linux 관계 검사는 모든 shard를 유지한다.
 

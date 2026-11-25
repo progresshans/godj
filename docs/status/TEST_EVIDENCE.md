@@ -47,6 +47,14 @@ PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명�
 
 CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만든 MIG-128·MIG-129 원본에 대해 공통 바이트 고정값 99개, SQL 전용 고정값 3개, 체크섬 목록 24개 및 별도로 잠근 14개 항목을 Python으로 파일과 대조했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
 
+## Runserver 자식 종료 후 퇴역 응답 수신
+
+#16의 Intel macOS Notes 검사는 새 세대의 HTTP 응답을 기다리던 중 감독자가 `project_runtime_control_failed`를 반환했다. 같은 커밋의 재실행에서 Notes 필수 8개가 모두 통과했다. 최초 로그가 식별한 범위는 제어 교환 실패까지다. [최초 실패](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14881159952) · [같은 소스 재실행](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14885917010)
+
+#17의 `86e6fca2`는 기존 제품 코드에 회귀 검사를 추가했다. 자식이 상속된 Unix 소켓으로 답을 쓰고 정상 종료한 뒤 부모가 읽도록 순서를 고정했다. Linux amd64·arm64와 macOS Apple Silicon에서 완전한 `Retired`에도 부모가 이미 닫힌 연결 오류를 반환했고 후속 세대를 게시하지 못했다. 누락·잘림·다른 메시지도 같은 오류가 났다. 원본 ZIP에서 제출 소스, 업로드 작업, SHA-256과 네 하위 검사의 실제 실패를 대조했다. [Linux amd64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886743309) · [Linux arm64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886958749) · [Apple Silicon](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886914275)
+
+부모 소켓은 자식 회수를 알리는 시점부터 제어 교환을 끝내고 감독자가 정리할 때까지 열어 둔다. 회귀 검사는 정상 응답으로만 후속 세대가 활성화되는지, 세 가지 잘못된 응답을 거부하는지, 종료된 자식을 한 번 회수하고 부모 소켓까지 닫는지 확인한다. [프로토콜 수명](../adr/0042-project-linked-runserver-and-article-development-loop.md) · [회귀 검사](../../internal/projectcheck/runserver_publication_unix_test.go)
+
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 
 #13 `eb4aab7a`에서 Linux amd64 race의 SQLite 패키지가 35분 제한에 도달했다. 계정 저장소 원본에는 성공 1,954개와 시작 1,958개가 남았고 상위 테스트의 성공은 없었다. 앞선 #12의 같은 좌표에서는 2,219개의 시작·성공과 27분 32초의 상위 실행을 확인했다. #12 ARM64에서는 그 상위 실행만 32분 8초였다. 기존 ARM64 방식과 같은 SQLite 전용 45분 제한을 amd64에도 적용하고 두 긴 runtime을 matrix의 맨 앞에 배치했다. 나머지 Go 패키지는 35분을 유지하고, 기존 좌표 수와 필수 하위 검사 전체를 대조한다. [amd64 실패 원본](https://github.com/progresshans/godj/actions/runs/45189080621/artifacts/14831468709) · [amd64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14820355710) · [ARM64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14821725809)
