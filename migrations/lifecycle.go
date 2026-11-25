@@ -191,8 +191,34 @@ func (e Executor) prepareLoadedLifecycle(
 		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	keys := make([]MigrationKey, len(records))
+	sourceDigests := make(map[MigrationKey]string, len(view.Sources))
+	for _, source := range view.Sources {
+		sourceDigests[source.Migration] = source.HistoryDigest
+	}
+	var boundHistory map[MigrationKey]string
 	for index, record := range records {
-		keys[index] = MigrationKey{App: record.App, Name: record.Name}
+		key := MigrationKey{App: record.App, Name: record.Name}
+		keys[index] = key
+		if record.HistoryDigest == "" {
+			if definition, exists := reconstructor.definitions[key]; exists && needsNewOperationReceipt(definition) {
+				return prepared, resultState, migrationError(CategoryHistory, CodeDefinitionHistoryMismatch, "", definition, NoOperation, "", errors.New("this migration requires a definition binding recorded at apply time"))
+			}
+			continue
+		}
+		if sourceDigests[key] != record.HistoryDigest {
+			return prepared, resultState, migrationError(CategoryHistory, CodeDefinitionHistoryMismatch, "",
+				Migration{App: key.App, Name: key.Name}, NoOperation, "",
+				errors.New("loaded definition or its dependencies do not match the applied migration"))
+		}
+		if boundHistory == nil {
+			boundHistory = make(map[MigrationKey]string)
+		}
+		boundHistory[key] = record.HistoryDigest
+	}
+	for _, definition := range definitions {
+		if err := e.Data.validate(definition); err != nil {
+			return prepared, resultState, err
+		}
 	}
 	applied, err := NewAppliedState(keys...)
 	if err != nil {
@@ -253,6 +279,21 @@ func (e Executor) prepareLoadedLifecycle(
 	if err != nil {
 		return prepared, resultState, err
 	}
+	for i := range steps {
+		step := &steps[i]
+		migration := reconstructor.definitions[step.step.Key]
+		if step.step.Direction == DirectionBackward {
+			step.historyDigest = boundHistory[step.step.Key]
+			if index := irreversibleDataOperation(migration); index != NoOperation {
+				step.step.Irreversible, step.step.IrreversibleOperation = true, index
+			}
+		} else if needsDefinitionHistory(migration) {
+			step.historyDigest = sourceDigests[step.step.Key]
+			if _, err := backend.ParseDefinitionHistoryDigest(step.historyDigest); err != nil {
+				return prepared, resultState, invalidLoadedState(migration, NoOperation, "", err)
+			}
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
@@ -269,6 +310,54 @@ func (e Executor) prepareLoadedLifecycle(
 	return prepared, resultState, nil
 }
 
+func irreversibleDataOperation(migration Migration) int {
+	for index := len(migration.Operations) - 1; index >= 0; index-- {
+		if op, ok := migration.Operations[index].(RunData); ok && op.Reverse == DataIrreversible {
+			return index
+		}
+	}
+	return NoOperation
+}
+
+func irreversibleDataError(migration Migration, index int) *Error {
+	return migrationError(CategoryPlan, CodeIrreversibleData, DirectionBackward, migration, index, "RunData", errors.New("data migration has no reverse action"))
+}
+
+// These field operations can use historical declarations to rewrite existing
+// values on apply or reverse. The loader has normalized operation pointers
+// to values in the invocation-owned reconstructor.
+func needsNewOperationReceipt(migration Migration) bool {
+	for _, op := range migration.Operations {
+		switch op.(type) {
+		case RunData, RenameField, DeleteModel, RenameModel:
+			return true
+		}
+	}
+	return false
+}
+
+func needsDefinitionHistory(migration Migration) bool {
+	for _, operation := range migration.Operations {
+		switch op := operation.(type) {
+		case RunData, RenameField, DeleteModel, RenameModel:
+			return true
+		case AlterField:
+			if op.Before.Nullable != op.After.Nullable {
+				return true
+			}
+		case AddField:
+			if op.Field.Default != nil {
+				return true
+			}
+		case RemoveField:
+			if op.Field.Default != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (e Executor) executePreparedLifecycle(
 	ctx context.Context,
 	prepared preparedLoadedLifecycle,
@@ -279,6 +368,10 @@ func (e Executor) executePreparedLifecycle(
 	for _, expected := range prepared.steps {
 		if err := ctx.Err(); err != nil {
 			return working.Clone(), executionContextError(expected.step, err)
+		}
+		if expected.step.Irreversible {
+			migration := prepared.reconstructor.definitions[expected.step.Key]
+			return working.Clone(), irreversibleDataError(migration, expected.step.IrreversibleOperation)
 		}
 		materialized, materializeErr := prepared.reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
 		if materializeErr != nil {
@@ -302,6 +395,8 @@ func (e Executor) executePreparedLifecycle(
 			prepared.session,
 			working,
 			materialized,
+			expected.historyDigest,
+			e.Data,
 		)
 		if err != nil {
 			return working.Clone(), err
@@ -345,7 +440,7 @@ func validateLoadedMigrationCapabilities(
 ) error {
 	firstRequired := -1
 	for index := range steps {
-		if steps[index].requirements != 0 {
+		if steps[index].requirements != 0 || steps[index].historyDigest != "" {
 			firstRequired = index
 			break
 		}
@@ -367,9 +462,6 @@ func validateLoadedMigrationCapabilities(
 		return executionContextError(first.step, err)
 	}
 	for _, step := range steps {
-		if step.requirements == 0 {
-			continue
-		}
 		missing := firstMissingLoadedRelationCapability(step.requirements, capabilities)
 		if missing != "" {
 			return loadedRelationCapabilityError(
@@ -377,6 +469,11 @@ func validateLoadedMigrationCapabilities(
 				reconstructor.definitions[step.step.Key],
 				"required relation capability is false: "+missing,
 			)
+		}
+		if step.historyDigest != "" && !capabilities.DefinitionHistory {
+			return migrationError(CategoryCapability, CodeUnsupported, step.step.Direction,
+				reconstructor.definitions[step.step.Key], NoOperation, "",
+				backend.NewCapabilityError("migration_definition_history", "required capability is false: DefinitionHistory", nil))
 		}
 	}
 	return nil
@@ -401,6 +498,11 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldInputPolicy, capabilities.AlterFieldInputPolicy, "AlterFieldInputPolicy"},
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
+		{loadedRequiresAlterFieldNullability, capabilities.AlterFieldNullability, "AlterFieldNullability"},
+		{loadedRequiresHistoricalData, capabilities.HistoricalData, "HistoricalData"},
+		{loadedRequiresRenameModel, capabilities.RenameModel, "RenameModel"},
+		{loadedRequiresDeleteModel, capabilities.DeleteModel, "DeleteModel"},
+		{loadedRequiresRenameField, capabilities.RenameField, "RenameField"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
 		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},
@@ -431,6 +533,8 @@ func executeLoadedFencedMigration(
 	session backend.RevisionFencedSession,
 	before ProjectState,
 	materialized loadedMaterializedStep,
+	historyDigest string,
+	registry DataRegistry,
 ) (ProjectState, error) {
 	prepared := materialized.prepared
 	if err := ctx.Err(); err != nil {
@@ -441,7 +545,7 @@ func executeLoadedFencedMigration(
 		transitionKind = backend.HistoryTransitionUnapply
 	}
 	transition := backend.HistoryTransition{
-		Migration: backend.AppliedMigration{App: prepared.step.Key.App, Name: prepared.step.Key.Name},
+		Migration: backend.AppliedMigration{App: prepared.step.Key.App, Name: prepared.step.Key.Name, HistoryDigest: historyDigest},
 		Kind:      transitionKind,
 	}
 
@@ -478,6 +582,7 @@ func executeLoadedFencedMigration(
 		prepared.step.Direction,
 		materialized.execution,
 		transaction,
+		registry,
 	); primary != nil {
 		return before.Clone(), rollbackFenced(ctx, transaction, primary)
 	}
@@ -570,6 +675,7 @@ func executeLoadedMigrationBody(
 	direction Direction,
 	operations []loadedOperationView,
 	transaction migrationBodyTransaction,
+	registry DataRegistry,
 ) *Error {
 	step := PlanStep{Key: migration.Key(), Direction: direction}
 	for _, operation := range operations {
@@ -582,7 +688,9 @@ func executeLoadedMigrationBody(
 			return executionContextError(step, err)
 		}
 		var err error
-		if direction == DirectionForward {
+		if data, ok := operation.operation.(RunData); ok {
+			err = registry.execute(ctx, transaction, operation.index, data, direction)
+		} else if direction == DirectionForward {
 			err = operation.operation.databaseForward(ctx, transaction, from, to)
 		} else {
 			err = operation.operation.databaseBackward(ctx, transaction, from, to)
@@ -657,6 +765,14 @@ func migrationContainsRelation(migration Migration) bool {
 		switch value := operationValue(operation).(type) {
 		case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 			return true
+		case RenameModel:
+			if modelContainsRelation(value.Before) || modelContainsRelation(value.After) {
+				return true
+			}
+		case DeleteModel:
+			if modelContainsRelation(value.Model) {
+				return true
+			}
 		case CreateModel:
 			if modelContainsRelation(value.Model) {
 				return true
@@ -750,6 +866,14 @@ func validateLoadedHistoryPlanResources(
 		}
 		if err := budget.consumeString(fmt.Sprintf("records[%d].name", index), records[index].Name); err != nil {
 			return invalidLoadedState(Migration{}, NoOperation, "", err)
+		}
+		if digest := records[index].HistoryDigest; digest != "" {
+			if _, err := backend.ParseDefinitionHistoryDigest(digest); err != nil {
+				return migrationError(CategoryHistory, CodeHistoryRevisionIntegrity, "", Migration{App: records[index].App, Name: records[index].Name}, NoOperation, "", err)
+			}
+			if err := budget.consumeString(fmt.Sprintf("records[%d].history_digest", index), digest); err != nil {
+				return invalidLoadedState(Migration{}, NoOperation, "", err)
+			}
 		}
 	}
 	return nil

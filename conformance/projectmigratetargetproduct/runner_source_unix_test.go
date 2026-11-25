@@ -112,7 +112,9 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -133,11 +135,27 @@ func main() {
  if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
   if err != nil { os.Exit(1) }; return
  }
-	sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))
+	catalog := os.Getenv(catalogEnvironment)
+	sources, err := sourcesForCatalog(catalog)
 	if err != nil {
 		fatal()
 	}
+	var registry migrations.DataRegistry
+	var renderer backend.MigrationSQLRenderer
+	if catalog == "historical_rename" || catalog == "historical_data" || catalog == "historical_delete" || catalog == "historical_model_rename" {
+		if os.Getenv(backendEnvironment) == "postgres" {
+			renderer = postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: os.Getenv(postgresSchemaEnvironment)})
+		} else {
+			renderer = sqlite.NewMigrationSQLRenderer()
+		}
+	}
+	if catalog == "historical_data" {
+		registry, err = migrations.NewDataRegistry(migrations.DataRegistration{Key: freezeKey(), Forward: freeze})
+		if err != nil { fatal() }
+	}
 	err = project.Run(context.Background(), project.Config{
+		DataMigrations: registry,
+		MigrationSQLRenderer: renderer,
 		MigrationDefinitionSources: sources,
 		OpenMigrationBackend: openObservedBackend,
 	}, os.Args[1:], os.Stdin, os.Stdout)
@@ -242,6 +260,23 @@ func (observed *observedTransaction) CreateModel(ctx context.Context, model ir.M
 	return observed.RevisionFencedTransaction.CreateModel(ctx, model)
 }
 
+func (observed *observedTransaction) RunData(ctx context.Context, index int, fn backend.DataCallback) error {
+	port, ok := observed.RevisionFencedTransaction.(backend.HistoricalDataTransaction)
+	if !ok { return errors.New("native transaction has no historical data port") }
+	return port.RunData(ctx, index, fn)
+}
+
+func (observed *observedTransaction) RenameModel(ctx context.Context, before, after ir.Model) error {
+	port, ok := observed.RevisionFencedTransaction.(backend.ModelRenameEditor)
+	if !ok { return errors.New("native transaction has no model rename port") }
+	return port.RenameModel(ctx, before, after)
+}
+func (observed *observedTransaction) RenameField(ctx context.Context, model ir.Model, before, after ir.Field) error {
+	port, ok := observed.RevisionFencedTransaction.(backend.FieldRenameEditor)
+	if !ok { return errors.New("native transaction has no field rename port") }
+	return port.RenameField(ctx, model, before, after)
+}
+
 func (observed *observedTransaction) DeleteModel(ctx context.Context, model ir.Model) error {
 	if err := appendMarker("delete " + model.DBTable); err != nil {
 		return err
@@ -323,6 +358,29 @@ func sourcesForCatalog(catalog string) ([]definition.Source, error) {
 		definitions = branchCatalog(false)
 	case "blog":
 		definitions = blogCatalog()
+	case "historical_data":
+		initial := blogCatalog()[0]
+		change := migrations.Migration{App: "blog", Name: "0002_freeze", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{
+			migrations.RunData{Key: freezeKey(), Forward: migrations.DataCall, Reverse: migrations.DataIrreversible, Models: []ir.ModelIdentity{{AppLabel: "blog", ModelName: "initial"}}},
+		}}
+		definitions = []migrations.Migration{initial, change}
+	case "historical_rename":
+		initial := blogCatalog()[0]
+		source := initial.Operations[0].(migrations.CreateModel).Model
+		before := source.Fields[1]
+		after := before.Clone()
+		after.Name, after.GoName, after.Column = "label", "Label", "label"
+		rename := migrations.RenameField{AppLabel:"blog", ModelName:source.Name, Before:before, After:after}
+		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_rename", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{rename}}}
+	case "historical_model_rename":
+		initial := blogCatalog()[0]
+		old := initial.Operations[0].(migrations.CreateModel).Model
+		next := model("blog", "publication", "Publication", "target_blog_publication")
+		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_model_rename", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{migrations.RenameModel{AppLabel:"blog", Before:old, After:next}}}}
+	case "historical_delete":
+		initial := blogCatalog()[0]
+		old := initial.Operations[0].(migrations.CreateModel)
+		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_delete", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{migrations.DeleteModel{AppLabel:old.AppLabel, Model:old.Model}}}}
 	case "reverse_failure":
 		definitions = reverseFailureCatalog()
 	default:
@@ -359,6 +417,21 @@ func blogCatalog() []migrations.Migration {
 	initial := migration("blog", "0001_initial", nil, model("blog", "initial", "Initial", "target_blog_initial"))
 	editor := migration("blog", "0002_editor", []migrations.MigrationKey{initial.Key()}, model("blog", "editor", "Editor", "target_blog_editor"))
 	return []migrations.Migration{initial, editor}
+}
+
+func freezeKey() migrations.DataKey { return migrations.DataKey{App:"blog", Name:"freeze", Version:1} }
+
+func freeze(ctx context.Context, history migrations.HistoricalModels) error {
+	rows, err := history.Model(ctx, "blog", "initial")
+	if err != nil { return err }
+	original, err := rows.Get(ctx, 1)
+	if err != nil { return err }
+	value, ok := original["value"].String()
+	if !ok { return errors.New("historical value is not text") }
+	changed, err := rows.Update(ctx, 1, orm.Record{"value":query.String("frozen " + value)})
+	if err != nil { return err }
+	if changed != 1 { return errors.New("historical update missed the seeded row") }
+	return appendMarker("data_call")
 }
 
 func reverseFailureCatalog() []migrations.Migration {

@@ -26,40 +26,81 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 	if err != nil || !reflect.DeepEqual(model, operation.Before) || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 		return postgresMigrationIntentIntegrity("AlterField arguments differ from the sealed field transition", err)
 	}
-	statements, err := compilePostgresFieldIndexes(schema.namespace, model, wantBefore, wantAfter)
+	statements, err := compilePostgresFieldAlter(schema.namespace, model, wantBefore, wantAfter, kind)
 	if err != nil {
 		return err
-	}
-	for _, statement := range statements {
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL column indexes", err)
-		}
-	}
-	if postgresForeignKeyDeferred(wantBefore) != postgresForeignKeyDeferred(wantAfter) {
-		statement, err := compilePostgresForeignKeyTimingAlter(schema.namespace, model, wantAfter)
-		if err != nil {
-			return err
-		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL foreign key timing", err)
-		}
 	}
 	if kind == ir.ChangeDecimalPrecision {
 		if err := schema.validateDecimalValues(ctx, executor, model, wantBefore, wantAfter); err != nil {
 			return err
 		}
-		statement, err := compilePostgresDecimalPrecision(schema.namespace, model, wantAfter)
-		if err != nil {
-			return err
-		}
+	}
+	for _, statement := range statements {
 		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL Decimal precision", err)
+			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL field", err)
 		}
 	}
 	// Existing ACCESS EXCLUSIVE locks cover both the value check and DDL. The
 	// complete intent verifies the resulting catalog before history publication.
 	schema.cursor++
 	return nil
+}
+
+// The executor and SQL projection use the same ordering. A removed uniqueness
+// constraint must be gone before a shared default fills multiple rows. A new
+// constraint checks the final values under the migration's existing table lock.
+func compilePostgresFieldAlter(namespace string, model ir.Model, before, after ir.Field, kind ir.FieldChangeKind) ([]string, error) {
+	indexes, err := compilePostgresFieldIndexes(namespace, model, before, after)
+	if err != nil {
+		return nil, err
+	}
+	if kind == ir.ChangeNullability {
+		statements, err := compilePostgresFieldNullability(namespace, model, after)
+		if err != nil {
+			return nil, err
+		}
+		if before.Unique && !after.Unique {
+			return append(indexes, statements...), nil
+		}
+		return append(statements, indexes...), nil
+	}
+	var statement string
+	switch {
+	case postgresForeignKeyDeferred(before) != postgresForeignKeyDeferred(after):
+		statement, err = compilePostgresForeignKeyTimingAlter(namespace, model, after)
+	case kind == ir.ChangeDecimalPrecision:
+		statement, err = compilePostgresDecimalPrecision(namespace, model, after)
+	default:
+		return indexes, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return append(indexes, statement), nil
+}
+
+func compilePostgresFieldNullability(namespace string, model ir.Model, after ir.Field) ([]string, error) {
+	table, err := quoteTable(namespace, model.DBTable)
+	if err != nil {
+		return nil, err
+	}
+	column, err := quoteIdentifier(after.Column)
+	if err != nil {
+		return nil, err
+	}
+	alter := "ALTER TABLE " + table + " ALTER COLUMN " + column
+	if after.Nullable {
+		return []string{alter + " DROP NOT NULL"}, nil
+	}
+	var statements []string
+	if after.Default != nil {
+		literal, err := compilePostgresMigrationDefault(after)
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, "UPDATE "+table+" SET "+column+" = "+literal+" WHERE "+column+" IS NULL")
+	}
+	return append(statements, alter+" SET NOT NULL"), nil
 }
 
 func compilePostgresForeignKeyTimingAlter(namespace string, model ir.Model, after ir.Field) (string, error) {

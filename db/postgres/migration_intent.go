@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/internal/migrationgraph"
 	"reflect"
 	"strings"
 	"unicode/utf8"
@@ -38,6 +39,7 @@ type postgresMigrationSchema struct {
 	intent           migrationbackend.MigrationIntent
 	digest           [sha256.Size]byte
 	operationDigests [][sha256.Size]byte
+	inputTables      []migrationgraph.TableOrigin
 	namespace        string
 	initial          postgresMigrationBoundary
 	final            postgresMigrationBoundary
@@ -52,10 +54,11 @@ type postgresMigrationBoundary struct {
 }
 
 type preparedPostgresMigrationIntent struct {
-	intent  migrationbackend.MigrationIntent
-	digest  [sha256.Size]byte
-	initial postgresMigrationBoundary
-	final   postgresMigrationBoundary
+	intent      migrationbackend.MigrationIntent
+	digest      [sha256.Size]byte
+	initial     postgresMigrationBoundary
+	final       postgresMigrationBoundary
+	inputTables []migrationgraph.TableOrigin
 }
 
 type postgresMigrationSealPayload struct {
@@ -98,6 +101,7 @@ func newPostgresMigrationSchema(
 		intent:           prepared.intent,
 		digest:           prepared.digest,
 		operationDigests: operationDigests,
+		inputTables:      prepared.inputTables,
 		initial:          prepared.initial,
 		final:            prepared.final,
 	}, nil
@@ -122,7 +126,11 @@ func preparePostgresMigrationIntent(
 		return preparedPostgresMigrationIntent{}, err
 	}
 	cloned := intent.Clone()
-	initial, final, err := validatePostgresMigrationIntent(transition, &cloned)
+	graphPlan, err := migrationbackend.ResolveMigrationGraphPlan(transition, cloned)
+	if err != nil {
+		return preparedPostgresMigrationIntent{}, postgresMigrationIntentIntegrity("invalid historical relation graph", err)
+	}
+	initial, final, err := validatePostgresMigrationIntent(transition, &cloned, graphPlan)
 	if err != nil {
 		return preparedPostgresMigrationIntent{}, err
 	}
@@ -137,10 +145,11 @@ func preparePostgresMigrationIntent(
 		return preparedPostgresMigrationIntent{}, postgresMigrationIntentIntegrity("seal PostgreSQL migration intent", err)
 	}
 	return preparedPostgresMigrationIntent{
-		intent:  cloned,
-		digest:  digest,
-		initial: initial,
-		final:   final,
+		intent:      cloned,
+		digest:      digest,
+		initial:     initial,
+		final:       final,
+		inputTables: graphPlan.InputTables(),
 	}, nil
 }
 
@@ -241,20 +250,12 @@ func (schema *postgresMigrationSchema) validateOperationContext(ctx context.Cont
 func validatePostgresMigrationIntent(
 	transition migrationbackend.HistoryTransition,
 	intent *migrationbackend.MigrationIntent,
+	graphPlan migrationbackend.MigrationGraphPlan,
 ) (postgresMigrationBoundary, postgresMigrationBoundary, error) {
-	graphPlan, err := migrationbackend.ResolveMigrationGraphPlan(transition, *intent)
-	if err != nil {
-		return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("invalid historical relation graph", err)
-	}
 	for position, operation := range intent.Operations {
-		// AddField/RemoveField are physical deltas, so either can appear while
-		// applying or unapplying a declared field operation. Their complete
-		// historical shape and order are still validated and sealed.
-		if transition.Kind == migrationbackend.HistoryTransitionApply && operation.Kind == migrationbackend.MigrationDeleteModel ||
-			transition.Kind == migrationbackend.HistoryTransitionUnapply && operation.Kind == migrationbackend.MigrationCreateModel {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("operation kind does not match history transition", nil)
-		}
-		if _, _, _, err := validatePostgresMigrationOperation(operation); err != nil {
+		// Model and field storage deltas can appear in either direction.
+		// Validate the historical shape and dependencies for this operation.
+		if _, _, _, err := validatePostgresMigrationOperation(transition.Migration.App, operation); err != nil {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 		}
 		graph, exists := graphPlan.Operation(position)
@@ -293,10 +294,36 @@ func validatePostgresMigrationIntent(
 	return initial, final, nil
 }
 
-func validatePostgresMigrationOperation(operation migrationbackend.MigrationOperation) (ir.Model, ir.Model, ir.Field, error) {
+func validatePostgresMigrationOperation(app string, operation migrationbackend.MigrationOperation) (ir.Model, ir.Model, ir.Field, error) {
 	var before, after ir.Model
 	var changed ir.Field
 	switch operation.Kind {
+	case migrationbackend.MigrationRenameModel:
+		before, after = operation.Before, operation.After
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
+		if _, err := migrationgraph.NewModelRename(app, before, after); err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid model rename", err)
+		}
+	case migrationbackend.MigrationRenameField:
+		before, after = operation.Before, operation.After
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
+		_, field, err := operation.RenamedField(app)
+		if err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid RenameField delta", err)
+		}
+		changed = field
+	case migrationbackend.MigrationRunData:
+		// ResolveMigrationGraphPlan validated the full row-access scope.
 	case migrationbackend.MigrationCreateModel:
 		if !reflect.DeepEqual(operation.Before, ir.Model{}) {
 			return before, after, changed, postgresMigrationIntentIntegrity("CreateModel has a non-zero Before model", nil)

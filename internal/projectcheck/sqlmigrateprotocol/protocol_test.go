@@ -17,15 +17,15 @@ func TestEncodeAndReadRequestCanonicalExactIdentity(t *testing.T) {
 	}{
 		{
 			request: Request{App: "blog", Name: "0001_article"},
-			want:    `{"protocol_version":1,"command":"migrations.sql","app":"blog","name":"0001_article"}`,
+			want:    `{"protocol_version":2,"command":"migrations.sql","app":"blog","name":"0001_article","backwards":false}`,
 		},
 		{
-			request: Request{App: "blog", Name: "zero"},
-			want:    `{"protocol_version":1,"command":"migrations.sql","app":"blog","name":"zero"}`,
+			request: Request{App: "blog", Name: "zero", Backwards: true},
+			want:    `{"protocol_version":2,"command":"migrations.sql","app":"blog","name":"zero","backwards":true}`,
 		},
 		{
 			request: Request{App: "blog", Name: "이름\x00with-control"},
-			want:    `{"protocol_version":1,"command":"migrations.sql","app":"blog","name":"이름\u0000with-control"}`,
+			want:    `{"protocol_version":2,"command":"migrations.sql","app":"blog","name":"이름\u0000with-control","backwards":false}`,
 		},
 	}
 	for _, test := range tests {
@@ -39,7 +39,7 @@ func TestEncodeAndReadRequestCanonicalExactIdentity(t *testing.T) {
 		}
 	}
 
-	reordered := `{"name":"0002","app":"blog","command":"migrations.sql","protocol_version":1}`
+	reordered := `{"backwards":false,"name":"0002","app":"blog","command":"migrations.sql","protocol_version":2}`
 	request, failure, failed, err := ReadRequest(strings.NewReader(reordered))
 	if err != nil || failed || failure != (Failure{}) || request != (Request{App: "blog", Name: "0002"}) {
 		t.Fatalf("reordered request = %+v, %+v, %v, %v", request, failure, failed, err)
@@ -48,16 +48,19 @@ func TestEncodeAndReadRequestCanonicalExactIdentity(t *testing.T) {
 
 func TestRequestRejectsStrictShapeIdentityAndSurrogateViolations(t *testing.T) {
 	t.Parallel()
-	valid := `{"protocol_version":1,"command":"migrations.sql","app":"blog","name":"0001"}`
+	valid := `{"protocol_version":2,"command":"migrations.sql","app":"blog","name":"0001","backwards":false}`
 	tests := []struct {
 		name string
 		wire string
 		code string
 	}{
-		{name: "incompatible", wire: strings.Replace(valid, `"protocol_version":1`, `"protocol_version":2`, 1), code: CodeProtocolIncompatible},
-		{name: "missing version", wire: `{"command":"migrations.sql","app":"blog","name":"0001"}`, code: CodeInvalidRequest},
+		{name: "incompatible", wire: strings.Replace(valid, `"protocol_version":2`, `"protocol_version":1`, 1), code: CodeProtocolIncompatible},
+		{name: "missing direction", wire: strings.Replace(valid, `,"backwards":false`, "", 1), code: CodeInvalidRequest},
+		{name: "direction is not boolean", wire: strings.Replace(valid, `"backwards":false`, `"backwards":"false"`, 1), code: CodeInvalidRequest},
+		{name: "duplicate direction", wire: strings.Replace(valid, `"backwards":false`, `"backwards":false,"backwards":true`, 1), code: CodeInvalidRequest},
+		{name: "missing version", wire: `{"command":"migrations.sql","app":"blog","name":"0001","backwards":false}`, code: CodeInvalidRequest},
 		{name: "duplicate", wire: strings.Replace(valid, `"app":"blog"`, `"app":"blog","app":"other"`, 1), code: CodeInvalidRequest},
-		{name: "decimal version", wire: strings.Replace(valid, `"protocol_version":1`, `"protocol_version":1.0`, 1), code: CodeInvalidRequest},
+		{name: "decimal version", wire: strings.Replace(valid, `"protocol_version":2`, `"protocol_version":2.0`, 1), code: CodeInvalidRequest},
 		{name: "wrong command", wire: strings.Replace(valid, `migrations.sql`, `migrations.migrate`, 1), code: CodeInvalidRequest},
 		{name: "unknown member", wire: strings.Replace(valid, `"name":`, `"dsn":"secret","name":`, 1), code: CodeInvalidRequest},
 		{name: "noncanonical app uppercase", wire: strings.Replace(valid, `"blog"`, `"Blog"`, 1), code: CodeInvalidRequest},
@@ -139,7 +142,7 @@ func TestResponseCanonicalRoundTripOwnershipAndTransportPrecedence(t *testing.T)
 	t.Parallel()
 	statements := []string{`CREATE TABLE "article" ("id" integer)`, "ALTER TABLE \"article\"\nADD COLUMN \"title\" text"}
 	document, err := EncodeResponse(Response{OK: true, Result: Result{Statements: statements}})
-	want := `{"protocol_version":1,"status":"ok","result":{"statements":["CREATE TABLE \"article\" (\"id\" integer)","ALTER TABLE \"article\"\nADD COLUMN \"title\" text"]}}`
+	want := `{"protocol_version":2,"status":"ok","result":{"statements":["CREATE TABLE \"article\" (\"id\" integer)","ALTER TABLE \"article\"\nADD COLUMN \"title\" text"]}}`
 	if err != nil || string(document) != want {
 		t.Fatalf("success response = %s, %v, want %s", document, err, want)
 	}
@@ -154,7 +157,7 @@ func TestResponseCanonicalRoundTripOwnershipAndTransportPrecedence(t *testing.T)
 	}
 
 	empty, err := EncodeResponse(Response{OK: true, Result: Result{Statements: []string{}}})
-	if err != nil || string(empty) != `{"protocol_version":1,"status":"ok","result":{"statements":[]}}` {
+	if err != nil || string(empty) != `{"protocol_version":2,"status":"ok","result":{"statements":[]}}` {
 		t.Fatalf("empty response = %s, %v", empty, err)
 	}
 	parsedEmpty, failure, failed := ParseResponse(empty, true)
@@ -164,7 +167,7 @@ func TestResponseCanonicalRoundTripOwnershipAndTransportPrecedence(t *testing.T)
 
 	logical := Failure{Category: CategorySQLRender, Code: CodeRenderFailed}
 	document, err = EncodeResponse(Response{Failure: logical})
-	want = `{"protocol_version":1,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed","cleanup_failed":false}}`
+	want = `{"protocol_version":2,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed","cleanup_failed":false}}`
 	if err != nil || string(document) != want {
 		t.Fatalf("failure response = %s, %v, want %s", document, err, want)
 	}
@@ -180,7 +183,7 @@ func TestResponseCanonicalRoundTripOwnershipAndTransportPrecedence(t *testing.T)
 
 func TestResponseRejectsMalformedShapeAndStatementSemantics(t *testing.T) {
 	t.Parallel()
-	valid := []byte(`{"protocol_version":1,"status":"ok","result":{"statements":["SELECT 1"]}}`)
+	valid := []byte(`{"protocol_version":2,"status":"ok","result":{"statements":["SELECT 1"]}}`)
 	tests := []struct {
 		name string
 		wire []byte
@@ -188,20 +191,20 @@ func TestResponseRejectsMalformedShapeAndStatementSemantics(t *testing.T) {
 	}{
 		{name: "duplicate root", wire: bytes.Replace(valid, []byte(`"status":"ok"`), []byte(`"status":"ok","status":"ok"`), 1), code: CodeInvalidResponse},
 		{name: "unknown root", wire: bytes.Replace(valid, []byte(`"result":`), []byte(`"secret":"dsn","result":`), 1), code: CodeInvalidResponse},
-		{name: "statements null", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":null}}`), code: CodeInvalidResponse},
-		{name: "statement nonstring", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":[1]}}`), code: CodeInvalidResponse},
-		{name: "empty statement", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":[""]}}`), code: CodeInvalidResponse},
-		{name: "semicolon", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":["SELECT 1;"]}}`), code: CodeInvalidResponse},
-		{name: "leading space", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":[" SELECT 1"]}}`), code: CodeInvalidResponse},
-		{name: "trailing newline", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":["SELECT 1\n"]}}`), code: CodeInvalidResponse},
-		{name: "internal tab", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":["SELECT\t1"]}}`), code: CodeInvalidResponse},
-		{name: "unpaired surrogate", wire: []byte(`{"protocol_version":1,"status":"ok","result":{"statements":["\ud800"]}}`), code: CodeInvalidResponse},
-		{name: "incompatible", wire: bytes.Replace(valid, []byte(`"protocol_version":1`), []byte(`"protocol_version":2`), 1), code: CodeProtocolIncompatible},
+		{name: "statements null", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":null}}`), code: CodeInvalidResponse},
+		{name: "statement nonstring", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":[1]}}`), code: CodeInvalidResponse},
+		{name: "empty statement", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":[""]}}`), code: CodeInvalidResponse},
+		{name: "semicolon", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":["SELECT 1;"]}}`), code: CodeInvalidResponse},
+		{name: "leading space", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":[" SELECT 1"]}}`), code: CodeInvalidResponse},
+		{name: "trailing newline", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":["SELECT 1\n"]}}`), code: CodeInvalidResponse},
+		{name: "internal tab", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":["SELECT\t1"]}}`), code: CodeInvalidResponse},
+		{name: "unpaired surrogate", wire: []byte(`{"protocol_version":2,"status":"ok","result":{"statements":["\ud800"]}}`), code: CodeInvalidResponse},
+		{name: "incompatible", wire: bytes.Replace(valid, []byte(`"protocol_version":2`), []byte(`"protocol_version":1`), 1), code: CodeProtocolIncompatible},
 		{name: "trailing", wire: append(append([]byte(nil), valid...), []byte(`{}`)...), code: CodeInvalidResponse},
 		{name: "invalid utf8", wire: append(append([]byte(nil), valid...), 0xff), code: CodeInvalidResponse},
-		{name: "missing cleanup", wire: []byte(`{"protocol_version":1,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed"}}`), code: CodeInvalidResponse},
-		{name: "unknown taxonomy", wire: []byte(`{"protocol_version":1,"status":"error","error":{"category":"migration_sql_render_error","code":"secret","cleanup_failed":false}}`), code: CodeInvalidResponse},
-		{name: "linked cleanup", wire: []byte(`{"protocol_version":1,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed","cleanup_failed":true}}`), code: CodeInvalidResponse},
+		{name: "missing cleanup", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed"}}`), code: CodeInvalidResponse},
+		{name: "unknown taxonomy", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_sql_render_error","code":"secret","cleanup_failed":false}}`), code: CodeInvalidResponse},
+		{name: "linked cleanup", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_sql_render_error","code":"render_failed","cleanup_failed":true}}`), code: CodeInvalidResponse},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -245,7 +248,7 @@ func TestStatementCountBodyAndEnvelopeResourceBoundaries(t *testing.T) {
 		t.Fatal("body one-over encoded")
 	}
 
-	resourceBeforeSemantic := []byte(`{"protocol_version":1,"status":"ok","result":{"statements":[";","` + exactBody + `"]}}`)
+	resourceBeforeSemantic := []byte(`{"protocol_version":2,"status":"ok","result":{"statements":[";","` + exactBody + `"]}}`)
 	_, failure, failed = ParseResponse(resourceBeforeSemantic, true)
 	if !failed || failure != (Failure{Category: CategorySQLResource, Code: CodeRenderedSQLResourceLimit}) {
 		t.Fatalf("resource precedence = %+v, %v", failure, failed)
@@ -272,7 +275,7 @@ func TestWorstCaseEscapingAndMaximumStatementFramingFitPrivateEnvelope(t *testin
 	if err != nil {
 		t.Fatalf("worst-case private response encode = %v", err)
 	}
-	staticEmpty := len(`{"protocol_version":1,"status":"ok","result":{"statements":[]}}`)
+	staticEmpty := len(`{"protocol_version":2,"status":"ok","result":{"statements":[]}}`)
 	wantBytes := staticEmpty + 6*MaxStatementBodyBytes + 3*MaxStatements - 1
 	if len(document) != wantBytes || wantBytes > MaxResponseBytes {
 		t.Fatalf("worst-case private response = %d bytes, derived %d, cap %d", len(document), wantBytes, MaxResponseBytes)

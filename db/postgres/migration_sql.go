@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
@@ -19,11 +18,7 @@ const postgresConstraintDigestBytes = 24
 // migrationSQLExecutor is deliberately narrower than *sql.Tx. The loaded
 // lifecycle owns the transaction and connection; the schema slice only needs
 // statement and catalog access through that exact transaction.
-type migrationSQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
+type migrationSQLExecutor = transactionExecutor
 
 var _ migrationSQLExecutor = (*sql.Tx)(nil)
 

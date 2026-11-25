@@ -289,9 +289,9 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
             },
         )
         cases = {case["case"]: case for case in result["cases"]}
-        self.assertEqual(result["current_private_protocol_version"], 2)
+        self.assertEqual(result["current_private_protocol_version"], 3)
         self.assertEqual(
-            result["private_argument"], "__godj_project_migrate_runner_v2"
+            result["private_argument"], "__godj_project_migrate_runner_v3"
         )
         self.assertFalse(result["legacy_private_reader"])
         self.assertTrue(result["result_union_bound_to_mode"])

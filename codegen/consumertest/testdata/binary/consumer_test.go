@@ -297,7 +297,7 @@ func runStorage(t *testing.T, name string, open func(context.Context) (binaryBac
 	}
 	for _, renderer := range []migrationbackend.MigrationSQLRenderer{sqlite.NewMigrationSQLRenderer(), postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "binary_sql"})} {
 		for _, index := range []int{2, 3, 8, 9} {
-			statements, err := migrations.RenderMigrationSQL(ctx, loaded, targets[index], renderer)
+			statements, err := migrations.RenderMigrationSQL(ctx, loaded, targets[index], migrations.DirectionForward, renderer)
 			if err != nil || statements == nil || len(statements) != 0 {
 				t.Fatal("binary input policy produced storage DDL", index, statements, err)
 			}

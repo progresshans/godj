@@ -82,6 +82,12 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldChoices:                 true,
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
+		AlterFieldNullability:             true,
+		DefinitionHistory:                 true,
+		HistoricalData:                    true,
+		RenameField:                       true,
+		DeleteModel:                       true,
+		RenameModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -162,6 +168,9 @@ func (session *postgresRevisionFencedSession) BeginMigration(
 	if err != nil {
 		return nil, err
 	}
+	if err := migrationbackend.ValidateRequiredHistory(schema.intent, transition); err != nil {
+		return nil, postgresRevisionIntegrity("invalid required operation history", err)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("begin PostgreSQL revision-fenced migration: %w", err)
 	}
@@ -182,6 +191,7 @@ func (session *postgresRevisionFencedSession) BeginMigration(
 	}
 	successorToken := session.token
 	successorToken.initialized = true
+	successorToken.boundRecorder = session.token.boundRecorder || transition.Migration.HistoryDigest != ""
 	successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 	if session.token.initialized {
 		if session.token.revision == math.MaxInt64 {
@@ -416,12 +426,17 @@ func (transaction *postgresRevisionFencedTransaction) record(
 			return err
 		}
 		if kind == migrationbackend.HistoryTransitionApply {
-			result, err := executor.ExecContext(
-				ctx,
-				`INSERT INTO `+table+` ("app", "name") VALUES ($1, $2)`,
-				app,
-				name,
-			)
+			insert := `INSERT INTO ` + table + ` ("app", "name") VALUES ($1, $2)`
+			args := []any{app, name}
+			if binding := transaction.transition.Migration.HistoryDigest; binding != "" {
+				digest, err := migrationbackend.ParseDefinitionHistoryDigest(binding)
+				if err != nil {
+					return postgresRevisionIntegrity("invalid PostgreSQL migration definition digest", err)
+				}
+				insert = `INSERT INTO ` + table + ` ("app", "name", "definition_digest") VALUES ($1, $2, $3)`
+				args = append(args, digest)
+			}
+			result, err := executor.ExecContext(ctx, insert, args...)
 			if err != nil {
 				return classifyPostgresMigrationIO(ctx, "record applied PostgreSQL migration", err)
 			}
@@ -659,18 +674,31 @@ func (transaction *postgresRevisionFencedTransaction) claimRevision(ctx context.
 	if err != nil {
 		return err
 	}
+	if transaction.successorToken.boundRecorder && !transaction.expectedToken.boundRecorder {
+		recorder, err := quoteTable(transaction.session.backend.schema, postgresMigrationRecorderTable)
+		if err != nil {
+			return err
+		}
+		if _, err := transaction.connection.ExecContext(ctx, "LOCK TABLE "+recorder+" IN ACCESS EXCLUSIVE MODE NOWAIT"); err != nil {
+			return classifyPostgresRevisionContention(ctx, "lock PostgreSQL migration recorder for format change", err)
+		}
+		if _, err := transaction.connection.ExecContext(ctx, `ALTER TABLE `+recorder+` ADD COLUMN "definition_digest" BYTEA`); err != nil {
+			return classifyPostgresRevisionContention(ctx, "extend PostgreSQL migration recorder", err)
+		}
+	}
 	result, err := transaction.connection.ExecContext(
 		ctx,
-		`UPDATE `+table+` SET "revision" = $1, "history_fingerprint" = $2 `+
+		`UPDATE `+table+` SET "revision" = $1, "history_fingerprint" = $2, "format_version" = $8 `+
 			`WHERE "singleton" = $3 AND "format_version" = $4 AND "epoch" = $5 `+
 			`AND "revision" = $6 AND "history_fingerprint" = $7`,
 		transaction.successorToken.revision,
 		transaction.successorToken.fingerprint[:],
 		int16(1),
-		postgresMigrationRevisionFormat,
+		migrationhistory.RecorderFormat(transaction.expectedToken.boundRecorder),
 		transaction.expectedToken.epoch[:],
 		transaction.expectedToken.revision,
 		transaction.expectedToken.fingerprint[:],
+		migrationhistory.RecorderFormat(transaction.successorToken.boundRecorder),
 	)
 	if err != nil {
 		return classifyPostgresRevisionContention(ctx, "claim PostgreSQL migration history revision", err)
@@ -706,11 +734,15 @@ func (transaction *postgresRevisionFencedTransaction) bootstrapControlTables(ctx
 	if err != nil {
 		return err
 	}
+	var definitionColumn string
+	if transaction.successorToken.boundRecorder {
+		definitionColumn = `"definition_digest" BYTEA, `
+	}
 	if _, err := transaction.connection.ExecContext(
 		ctx,
 		`CREATE TABLE `+recorder+` (`+
 			`"app" VARCHAR(255) NOT NULL, `+
-			`"name" VARCHAR(255) NOT NULL, `+
+			`"name" VARCHAR(255) NOT NULL, `+definitionColumn+
 			`CONSTRAINT `+recorderPrimaryKey+` PRIMARY KEY ("app", "name"))`,
 	); err != nil {
 		return classifyPostgresRevisionContention(ctx, "create PostgreSQL migration recorder", err)
@@ -733,7 +765,7 @@ func (transaction *postgresRevisionFencedTransaction) bootstrapControlTables(ctx
 			`"singleton", "format_version", "epoch", "revision", "history_fingerprint") `+
 			`VALUES ($1, $2, $3, $4, $5)`,
 		int16(1),
-		postgresMigrationRevisionFormat,
+		migrationhistory.RecorderFormat(transaction.successorToken.boundRecorder),
 		transaction.successorToken.epoch[:],
 		transaction.successorToken.revision,
 		transaction.successorToken.fingerprint[:],

@@ -4,7 +4,7 @@
   "contracts": [
     {
       "id": "MIG-129",
-      "title": "The public command accepts exactly two exact-name forms and rejects invalid permutations before project I/O",
+      "title": "The public command accepts an exact migration in either direction and rejects invalid options before project I/O",
       "scenario": "godj.migration.sql_rendering.argv_and_pre_io_rejection",
       "phase": "environment",
       "status": "passing",

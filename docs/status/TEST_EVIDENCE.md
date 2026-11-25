@@ -3,6 +3,156 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## Linux ARM64 race 소비자 작업 시간
+
+#14 `9ea9b0a1`와 #15 `3fdd1c99`의 전체 PR CI는 각각 1시간 22분 53초와 1시간 27분 34초에 통과했다. 두 실행에서 마지막으로 끝난 제품 작업은 Linux ARM64 race 관계 검사의 19번 묶음이었다. CI 시작부터 배정까지 53분 39초·58분 12초, 배정 후 종료까지 28분 59초·29분 10초가 걸렸다. [#14 작업](https://github.com/progresshans/godj/actions/runs/45235604044/job/137906482604) · [#15 작업](https://github.com/progresshans/godj/actions/runs/45253620235/job/137972926722)
+
+두 커밋에서 소비자 작업 21개씩의 원본 ZIP을 업로드 작업·SHA-256·checkout 트리와 대조했다. 각 실행에서 바이너리가 발견한 상위 테스트 131개와 필수 항목 429개가 한 작업씩에 배정돼 모두 통과했다. 그중 115개 일반 테스트의 기존 실행시간을 새 배정으로 다시 합산하면, 가장 긴 묶음은 #14 기준 27분 12초에서 20분 57초, #15 기준 27분 27초에서 21분 1초로 줄어든다. 러너 대기·도구 준비 시간은 이 재계산에서 제외했다. [#14 원본 예시](https://github.com/progresshans/godj/actions/runs/45235604044/artifacts/14856505974) · [#15 원본 예시](https://github.com/progresshans/godj/actions/runs/45253620235/artifacts/14863623212)
+
+## M1 모델 이름 변경과 관계 보존
+
+#15의 `17a46f27`에서 SQLite는 모델명을 변경하고 테이블명을 유지한 두 선언을 동시 소유자로 처리해 트랜잭션 시작을 거부했다. 테이블 소유권은 초기 모델과 실제 저장소 변경 순서를 따라 검사하도록 수정했다. 정방향·역방향에 대해 고정 테이블의 이름 변경이 DDL을 만들지 않는 경우와, 기존 소유자가 살아 있을 때 새 모델이 같은 테이블을 요구하는 경우를 필수 회귀 검사에 추가했다. 실제 행·관계·재접속 검증은 이 변경의 원격 CI 대상이다. PostgreSQL 이름 변경 미리보기는 두 방향 모두 표·시퀀스·기본 키 이름을 독립적인 catalog 기대값으로 구성해 세 SQL문 전체를 대조한다. 각 줄에는 정확한 스키마 한 곳만 허용한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314909980) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314915383) · [외부 프로젝트 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314908928)
+
+Django 6.1과 Python 3.14.3의 실제 migration을 실행했다. SQLite 3.50.4와 별도 로컬 PostgreSQL 17.5·psycopg 3.3.6에서 기본 테이블 9개, 고정 테이블 8개 항목이 일치했다. 두 경우 모두 PK·자기 FK·다른 앱의 OneToOne·양 방향에서 참조되는 다대다 행과 링크 키를 대조했다. 명시적 through 모델을 따로 바꿨다가 되돌리고 재접속해 관계와 가중치도 확인했다. 뒤 제약이 실패하면 기존 행과 테이블이 남았고, 기본 테이블의 목적 이름이 이미 사용 중이면 기존 목적 행도 보존됐다. 이름 변경 뒤 추가한 행은 역적용과 재적용 뒤에도 같은 키로 남았다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_rename.py) · [공통 기준](../../internal/migrationdefaulttest/testdata/model-rename-django61.json) · [고정 소스와 라이선스](../SOURCES.md)
+
+이름 변경 공통 기준 SHA-256은 `87cd4229a94a2c7741fa431d54c9eb07fc89aa5ef0e80f884f206fa36388c0f9`다. 로컬 SQLite 전체 비교기는 기존 역사 관측 15개와 모델 제거 관측 8개도 대조했다. 입력 파일 14개의 해시를 포함한 전체 원본의 SHA-256은 `5fbb7849b55bb6e05771c64be8a5a79edb4dc81d99fc8b30529b5ed127eb8ebb`다. PostgreSQL 17.5에서 어댑터의 실제 catalog 조회문을 실행해 허용된 자기·외부 PK 참조와 대체 고유 키를 참조하는 외부 FK, 의존 뷰를 구분하는 것도 확인했다. [비교기](../../scripts/ci/migration_data_reference.py) · [catalog 조회](../../db/postgres/migration_rename.go)
+
+GoDj의 양 DB 검사는 동일 관측과 함께 자동 중간 모델을 직접 참조하는 외부 행, 삭제된 마지막 키 이후의 sequence, 고정 테이블의 외부 뷰·FK, 저장된 이력과 달라진 정의의 역적용 거부를 확인한다. 공개 명령은 양방향 SQL·실행·역적용을 수행한다. 외부 프로젝트는 기존 순환 FK가 있는 상태에서 `makemigrations`가 추가 변경을 만들지 않는지 확인한 뒤 새 생성 모델로 옛 행을 읽고 저장한다. 이 소스의 Go·고정 PostgreSQL 17.10·전체 원격 CI 수용은 대기 중이다. [양 DB 소비자](../../internal/migrationdefaulttest/model_rename.go) · [생성 프로젝트](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+같은 migration에서 이름 변경 뒤 필수 열을 추가하는 경우도 양 DB 회귀 검사에 넣었다. 빈 원본에서는 적용·역적용 후 열을 실제 조회한다. 행이 있는 원본에서는 DDL 전 오류와 기존 행·관계·이력을 확인한다. PostgreSQL은 같은 물리 테이블에 이미 사용한 열 슬롯과 이후 추가할 열을 함께 계산한다. [양 DB 시나리오](../../internal/migrationdefaulttest/model_rename.go) · [테이블 추적](../../internal/migrationgraph/graph.go)
+
+## M1 모델 삭제와 빈 테이블 복원
+
+#14의 Portable core에서 새 `DeleteModel`을 추가하자 capability 필드 수를 18개로 고정한 검사와 정상적인 정방향 모델 삭제를 위조로 취급한 검사가 실패했다. 기존 capability와 `DeleteModel`의 이름·불리언 타입을 확인하고, PostgreSQL 위조 사례는 삭제 후에도 모델이 남는 불법 선언을 거부하는지 확인한다. 정상 삭제·역적용은 양 DB의 기존 이력 검사에서 행·제약·빈 테이블 복원을 대조한다. 공개 삭제 명령의 SQL은 #13의 검사기로 정확한 스키마·테이블·SQL 전체와 빈 stderr를 확인한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294919543) · [Portable core 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294918739) · [역사 모델 검사](../../internal/migrationdefaulttest/delete_model.go)
+
+#14의 `a0d5ef59`에서 제품 테스트의 세 Make target이 공통 실행기로 이동했지만 프로토콜 검사가 이전 shell 명령을 찾아 실패했다. 공개 target이 normal·race·CGO=0을 각각 올바르게 전달하는지 대조한다. 공통 실행기 검사는 실제 인자·package 목록·필수 SQLite 외부 writer와 모델 삭제의 통과, 누락·실패·잘린 이벤트의 거부를 확인한다. [기존 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294924440) · [실행기 검증](../../scripts/ci/test_portable_tests.py)
+
+고정 Django 6.1에서 선언 중간의 모델에 고유 열과 자동 다대다 관계를 만들고, 행을 넣은 뒤 삭제·역적용했다. Python 3.14.3과 SQLite 3.50.4에서 기존 역사 관측 15개와 새 관측 8개가 기대값에 일치했다. 새 관측은 초기 행, 삭제·복원 DDL 순서, 뒤 연산 실패 후 롤백, 재접속 뒤 남은 테이블, 빈 테이블 복원, 재삽입, 고유 제약이다. 원본 JSON의 SHA-256은 `93d85750b76e15fe3c45fc55a9cfb8ebfd5f0ad210740774e6e454bf151352de`다. 별도 로컬 PostgreSQL 17.5와 psycopg 3.3.6에서 같은 8개 관측이 일치했다. 공통 기대값의 SHA-256은 `822b2ea71a7061032ba299040e1b5eaa30bcc2dcb14d834707518ae52d0290b4`다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_deletion.py) · [관측값](../../internal/migrationdefaulttest/testdata/model-deletion-django61.json) · [고정 소스·라이선스](../SOURCES.md)
+
+GoDj에는 같은 관측값을 사용하는 양 DB 검사와 프로젝트 명령 검사를 추가했다. 관리 밖 FK와 뷰가 삭제를 막는지, 오류 시 행·스키마·기록이 함께 롤백되는지, 재접속 후 저장된 정의를 바꾸면 역적용이 중단되는지를 확인한다. SQLite 공개 명령은 다른 앱의 참조 해제부터 삭제 정의 작성·재실행·SQL 표시·적용·빈 테이블 복원까지 수행한다. PostgreSQL 공개 명령은 지정한 schema의 DDL과 복원 뒤 새 키를 확인한다. 이 소스의 실제 Go 실행 및 고정 PostgreSQL 17.10 비교는 원격 CI 수용 대상이다. [양 DB 검사](../../internal/migrationdefaulttest/delete_model.go) · [SQLite 공개 명령](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+MIG-107은 같은 앱에서 모델이 사라지고 다른 모델이 추가되는 경우 자동 삭제를 거부한다. 고정 환경에서 작성기 관측 원본을 재생성하고 모호한 모델 교체 사례의 이름만 바뀐 것을 확인했다. 원본 SHA-256은 `bb92a739263c601a4302b1aa1b2428ff751e6af17dfa1ecfd6a141ea3a623638`다. [작성기 거부 기준](../../conformance/runners/django/migration_writer_decisions.py) · [모델 삭제 계획](../../internal/migrationautodetect/delete_model.go)
+
+로컬 CI 도구 검사 120건과 독립 작성기 결정 검사 5건이 통과했다. 작성기 기준을 재실행하고 체크섬 목록 24개와 원본을 읽는 Go 검사의 고정값을 대조했다. Go 소스 포맷과 내장 프로젝트 소스 구문도 확인했다. SQLite 공개 명령의 원격 검사는 normal·race·CGO0 각각에서 부모 테스트와 삭제·복원 사례의 종료 이벤트를 요구한다. [실행 목록](../../scripts/ci/portable-products-required.txt) · [원격 결과 판독기](../../scripts/ci/portable_tests.py)
+
+## M1 역방향 SQL 표시
+
+#13 `e1a0dff2`의 Linux 명령 작업에서 필수 SQL 출력 검사가 실행되지 않아 결과 집계가 실패했다. SQLite 대상 Go 실행 필터가 기존 테스트 한 개만 선택하고 있었다. 명령 작업은 필수 목록의 최상위 테스트 이름으로 실행 필터를 만들고 전체 하위 이름으로 성공을 검증한다. PostgreSQL operator-target도 동일한 출력 검사와 실제 스키마를 사용하는 역방향 명령을 함께 검증한다. 로컬에서는 실제 workflow 스텝에 테스트용 이벤트를 제공해 세 모드 모두 두 테스트를 선택하고, 필수 성공 이벤트 하나를 빼면 거부하는지 확인했다. [실패 로그](https://github.com/progresshans/godj/actions/runs/45187158796/job/137735795990)
+
+PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명령의 공통 비공개 값 검사에서 실패했다. 소스에서 정상 SQL에 필요한 스키마 이름도 모든 출력의 금지 목록에 들어 있었다. 이 사례는 독립적으로 정한 SQL 전체, 성공 종료, 빈 stderr와 한 번의 스키마 한정자를 요구한다. 연결 URL·암호·경로·비밀 표식은 원문에서 계속 검사하고, 파일과 다른 명령의 출력에는 스키마 이름도 허용하지 않는다. 오류 응답과 DB 미접속·사전/사후 상태는 같은 제품 사례에서 검사한다. [기존 PostgreSQL 실패](https://github.com/progresshans/godj/actions/runs/45044922465/job/137277397625)
+
+`godj sqlmigrate APP EXACT_NAME --backwards`는 대상 적용 직후의 역사 상태에서 실행과 같은 역작업을 생성한다. 가역 데이터 함수와 무동작은 위치별 주석을 남긴다. 비가역 작업은 renderer 호출 전에 거부하고 공개 명령은 빈 stdout과 종료 코드 1을 돌려준다. 양 DB 검사에는 혼합 연산, 필드 이름 변경, 자동 중간 테이블의 생성·이름 변경·제거, 실제 SQL 적용 후 남은 행과 테이블을 포함했다. [역사 상태와 renderer](../../migrations/sql.go) · [고정 Django 결과 대조](../../internal/migrationdefaulttest/data_reference.go) · [PostgreSQL 공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)
+
+CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만든 MIG-128·MIG-129 원본에 대해 공통 바이트 고정값 99개, SQL 전용 고정값 3개, 체크섬 목록 24개 및 별도로 잠근 14개 항목을 Python으로 파일과 대조했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
+
+## Runserver 자식 종료 후 퇴역 응답 수신
+
+#16의 Intel macOS Notes 검사는 새 세대의 HTTP 응답을 기다리던 중 감독자가 `project_runtime_control_failed`를 반환했다. 같은 커밋의 재실행에서 Notes 필수 8개가 모두 통과했다. 최초 로그가 식별한 범위는 제어 교환 실패까지다. [최초 실패](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14881159952) · [같은 소스 재실행](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14885917010)
+
+#17의 `86e6fca2`는 기존 제품 코드에 회귀 검사를 추가했다. 자식이 상속된 Unix 소켓으로 답을 쓰고 정상 종료한 뒤 부모가 읽도록 순서를 고정했다. Linux amd64·arm64와 macOS Apple Silicon에서 완전한 `Retired`에도 부모가 이미 닫힌 연결 오류를 반환했고 후속 세대를 게시하지 못했다. 누락·잘림·다른 메시지도 같은 오류가 났다. 원본 ZIP에서 제출 소스, 업로드 작업, SHA-256과 네 하위 검사의 실제 실패를 대조했다. [Linux amd64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886743309) · [Linux arm64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886958749) · [Apple Silicon](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886914275)
+
+부모 소켓은 자식 회수를 알리는 시점부터 제어 교환을 끝내고 감독자가 정리할 때까지 열어 둔다. 회귀 검사는 정상 응답으로만 후속 세대가 활성화되는지, 세 가지 잘못된 응답을 거부하는지, 종료된 자식을 한 번 회수하고 부모 소켓까지 닫는지 확인한다. [프로토콜 수명](../adr/0042-project-linked-runserver-and-article-development-loop.md) · [회귀 검사](../../internal/projectcheck/runserver_publication_unix_test.go)
+
+## 2026-11-23 PR 검증의 macOS 대기와 캐시
+
+#13 `eb4aab7a`에서 Linux amd64 race의 SQLite 패키지가 35분 제한에 도달했다. 계정 저장소 원본에는 성공 1,954개와 시작 1,958개가 남았고 상위 테스트의 성공은 없었다. 앞선 #12의 같은 좌표에서는 2,219개의 시작·성공과 27분 32초의 상위 실행을 확인했다. #12 ARM64에서는 그 상위 실행만 32분 8초였다. 기존 ARM64 방식과 같은 SQLite 전용 45분 제한을 amd64에도 적용하고 두 긴 runtime을 matrix의 맨 앞에 배치했다. 나머지 Go 패키지는 35분을 유지하고, 기존 좌표 수와 필수 하위 검사 전체를 대조한다. [amd64 실패 원본](https://github.com/progresshans/godj/actions/runs/45189080621/artifacts/14831468709) · [amd64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14820355710) · [ARM64 이전 성공](https://github.com/progresshans/godj/actions/runs/45165498699/artifacts/14821725809)
+
+#13 `eb4aab7a`의 PostgreSQL normal 계정 관계 작업은 Go 캐시를 복원한 뒤 `proxy.golang.org`에서 `github.com/google/pprof` ZIP을 읽다가 HTTP/2 스트림이 종료됐다. 테스트와 원본 로그 작성 전의 실패였다. 이 실패 뒤 모듈 준비 작업 여섯 곳이 같은 Make 대상을 사용하고, starter 브라우저도 기존 Go 캐시 키를 사용하도록 했다. 로컬 검사에서 전송 오류 후 성공, 재시도 소진, 체크섬·권한 오류와 중단 신호를 각각 확인했다. [실패한 준비 단계](https://github.com/progresshans/godj/actions/runs/45189080621/job/137742797713) · [재시도 동작 검사](../../scripts/ci/test_download_go_modules.py)
+
+`fc79da34`의 첫 시도는 232개 성공 후 Intel reload가 실패해 비교를 건너뛰었고 최종 집계가 실패했다. 같은 커밋에서 Intel reload만 다시 실행해 9분 13초에 통과했다. 두 번째 시도의 비교기는 GitHub 작업 목록을 한 번에 페이지당 100개씩 조회하다가 종료 코드 1을 반환했다. 수정한 비교기로 같은 실행의 작업 기록 470개에서 기존 생산자 16개와 재실행 생산자 1개의 원래 작업 ID와 archive 영수증을 대조했다. 원본 ZIP 17개를 다운로드해 SHA-256과 내용 봉인을 확인한 뒤, 해당 소스 트리의 Linux·Darwin 8개 좌표에서 Django 관측값과 제품 결과가 일치함을 로컬 비교기로 확인했다. [첫 시도](https://github.com/progresshans/godj/actions/runs/45140609540/attempts/1) · [Intel 재실행](https://github.com/progresshans/godj/actions/runs/45140609540/job/137624029940) · [비교 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137628866213)
+
+이 소스에서 PostgreSQL 원본을 기다린 Linux 비교 작업의 마지막 32비트 컴파일·테스트 세 단계는 10분 7초가 걸렸다. 세 단계의 Go 명령·환경을 유지하고 먼저 시작하는 Portable normal core-vet으로 옮겼다. Hosted에서 같은 세 단계의 실제 실행과 전체 경과를 다시 확인한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137603637630) · [기존 Portable 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577627005)
+
+#12의 같은 소스 재실행에서 GitHub는 성공한 Intel project check를 새 작업 ID로 복사했다. 두 API 기록은 runner ID, 시작·종료 시각, 15개 단계와 원래 archive ID·체크섬이 같았으며 새 기록의 생성 시각은 작업 종료 후였다. 비교기는 이 경우 실제 생산 작업과 원본 ZIP을 선택하고 runner·시각·결과·단계가 달라지거나 실제 원본이 누락되면 거부하도록 수정했다. [원래 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626629) · [보존된 작업](https://github.com/progresshans/godj/actions/runs/45140609540/job/137624032544)
+
+#12의 `fc79da34`에서 Intel normal Notes reload 여섯 단계는 통과했지만 마지막 비공개 임시 디렉터리 검사에 `godj-candidate-*` 하나가 남았다. 원본에는 잔여 항목을 만든 프로세스가 기록되지 않았다. 후보 검증과 외부 앱 조회의 Go 명령은 취소할 때 드라이버 PID만 종료했다. 격리된 작업에서 드라이버를 종료하고 디렉터리를 삭제한 뒤 자식에게 쓰기를 허용하면 디렉터리가 다시 생겼고, 소유 프로세스 그룹을 종료하면 생기지 않았다. 두 도구 호출에 같은 그룹 취소를 적용하고 종료 뒤 쓰기를 요구하는 회귀 검사를 추가했다. [Intel reload 실패](https://github.com/progresshans/godj/actions/runs/45140609540/job/137577626752) · [원본 이벤트](https://github.com/progresshans/godj/actions/runs/45140609540/artifacts/14802601506)
+
+#12의 `ad0df1ef`에서 ARM64 race와 CGO=0은 같은 467,948,357바이트 캐시를 복원했으나 작업 40분 제한에 닿았다. 두 ZIP의 Go 이벤트 8개는 맨 앞의 프로세스 그룹 검사와 패키지 완료까지다. 나머지 패키지의 테스트 시작 기록은 없다. 이전 ARM64 CGO=0 전체 관계 작업에도 직전 패키지 완료와 SQLite 시작 사이 34분 19초의 공백이 있었고 SQLite 테스트 자체는 5분 19초였다. 빌드 구간을 패키지별로 확인할 수 있게 실행 경계를 나눴다. [CGO=0 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14800960927) · [race 원본](https://github.com/progresshans/godj/actions/runs/45128918106/artifacts/14801391427) · [이전 ARM64 원본](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
+같은 실행에서 비교 작업의 로그 API 호출이 실패했다. 이후 해당 소스·시도의 Python과 프로젝트 생산자 17개 모두에서 사용자 계정으로 원본 업로드 ID와 ZIP SHA-256을 확인했다. 비교기는 고정 업로드 액션의 두 출력을 같은 생산 작업의 다음 단계 이름에서 확인하도록 변경했다. 성공한 생산자·시도와 보관 원본의 ID·digest·내부 체크섬 조건을 유지한다. [비교 작업](https://github.com/progresshans/godj/actions/runs/45128918106/job/137563473527)
+
+PR마다 macOS 관계 작업 125개, 프로젝트 검사·reload·외부 명령 18개, 고정 Darwin 원본 재생 1개를 예약했다. 실행 `43659728789`에서 macOS 작업 시간 합계는 약 45.7시간, 전체 경과는 9시간 19분이었다. 겹친 실행 `44955313490`은 약 47.4 macOS 작업 시간과 17시간 6분의 전체 경과를 기록했다. 두 실행 모두 일부 작업이 실패하거나 취소됐다. [실행 43659728789](https://github.com/progresshans/godj/actions/runs/43659728789) · [실행 44955313490](https://github.com/progresshans/godj/actions/runs/44955313490)
+
+11월 23일 기존 PR #9~#12의 실행 4건을 취소하고 활성 실행 0건을 확인했다. PR #12의 `70800a5f`에서는 취소 전에 Linux 작업 222건이 성공했다. 전체 결과는 취소다. 저장소 API에서 Go 캐시 22개와 uv 캐시 14개, 총 11,959,024,665바이트와 설정 상한 10 GB를 확인했다. Linux amd64의 Portable과 나머지 작업은 서로 다른 의존성 키를 사용했다. [PR #12 기존 실행](https://github.com/progresshans/godj/actions/runs/45110329043) · [새 실행 기준](../TESTING.md#원격-ci-실행-범위)
+
+## M1 필드 이름 변경과 역사 데이터 대조
+
+PR #12의 `af260101` 전체 실행에서 Linux 필수 작업 9개가 실패했다. Portable 세 모드는 재생 검사에 관리 앱 `content`가 빠져 초기 상태에서 멈췄다. Linux 양 아키텍처의 SQLite 세 모드는 필드 이름 변경 SQL을 만드는 단계에서 멈췄다. SQLite 검사가 FK의 이전 이름과 새 이름을 동시에 살아 있는 역참조 소유자로 등록했다. 자동 감지 검사에서 관리 앱을 지정하고, 공유 관계 그래프가 각 연산 경계의 이름 소유권을 검증하도록 수정했다. SQLite 통합 검사는 고정된 DB 열과 명시적 중간 모델을 포함한다. 시작·끝 상태는 모두 정상이어도 중간 연산이 살아 있는 역참조 이름을 사용하면 거부하는 대조군을 추가했다. 이 수정의 수용은 새 제품 커밋의 전체 CI에서 확인한다. [자동 감지 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355473360) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044917190/job/137355477823) · [연산 경계 회귀 검사](../../internal/migrationgraph/graph_test.go)
+
+명시적인 필드 이름 변경을 definition 저장·해시, 역사 모델 복원, 양 DB의 트랜잭션, 정방향 SQL 및 외부 프로젝트 명령에 연결했다. 양 DB에서 다른 앱이 참조하는 기본 키, 명시적 중간 모델의 외래 키, 인덱스·고유 제약, 물리 열을 유지한 필드, 미등록 참조 거부, 후속 제약 실패·롤백과 재접속·역적용을 검사한다. [양 DB 검사](../../internal/migrationdefaulttest/rename.go) · [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go)
+
+Django 6.1·Python 3.14.3·SQLite 3.50.4에서 비교 앱을 실행해 15개 관측과 입력 해시를 확인했다. 로컬 전체 원본의 SHA-256은 `3f966e47c02e38880aff4d0cf660eac6ca51e310744ac9ffcc473463c3a87232`다. 이 원본에서 추출한 기대값을 양 DB에서 다시 얻는 Django 원본과 대조하도록 CI에 연결했다. GoDj의 여섯 migration도 같은 키와 입력을 사용한다. 재접속 후 실제 행·열·제약·이력, 콜백 및 오류, 계획을 비교한다. 13개 관측은 전체 값을, 역방향과 비가역 계획 두 개는 연산 순서와 가역 여부를 대조한다. 두 계획의 역방향 SQL 부분은 후속 구현 대상이다. [독립 기대값](../../internal/migrationdefaulttest/testdata/historical-data-django61.json) · [Go 관측기](../../internal/migrationdefaulttest/data_reference.go) · [원본 대조](../../scripts/ci/migration_data_reference.py)
+
+별도 SQL 재현에서 SQLite 3.50.4의 테이블과 이름 있는 복합 인덱스 rootpage, PostgreSQL 17.5의 인덱스·고유 제약·외래 키·identity sequence OID가 열 이름 변경 전후로 같았다. 양쪽에서 롤백 후 원래 이름, 기존 관계 행, 삭제한 키 3 다음의 새 키 4를 확인했다. PostgreSQL에서는 적용 전 의존성 조회가 실제 FK와 열에 의존하는 뷰를 구별했다. 이 확인은 독립 SQL 실행이다. GoDj 실행기와 PostgreSQL 17.10의 원격 결과는 해당 제품 소스의 CI에서 확인한다.
+
+## M1 역사 모델의 Go 데이터 작업
+
+소스 `87c81113`에서 GoDj에 역사 모델의 키 조회·페이지 읽기·지정 필드 갱신과 버전별 데이터 함수를 연결했다. SQLite·PostgreSQL에 두 사례를 각각 필수 실행으로 등록했다. 첫 사례는 세 번째 입력 오류 전에 같은 연결에서 앞선 두 쓰기를 읽고 재접속 뒤 행·이력·revision을 대조한다. 재시도, 필수·고유 제약, 명시적 무동작, 역함수와 같은 migration의 비가역 중단도 검사한다. 둘째는 한 migration에서 추가한 열의 정·역방향 가시성, 오류·취소·panic 뒤 열과 쓰기의 롤백, 콜백 수명과 선행 정의의 범위를 검사한다. 외부 프로젝트는 공개 `godj migrate`로 같은 행을 두 번 적용해 콜백 재실행 여부를 확인하고, `--plan`의 비가역 인덱스와 실제 종료 코드·DB 보존을 대조한다. 프로젝트 실행기에서는 등록 누락도 검사한다. [공개 명령 검사](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 검사](../../internal/migrationdefaulttest/data.go) · [프로젝트 명령 검사](../../examples/article/cmd/projectrunner/main_test.go)
+
+로컬에서 독립 Python 계산으로 함수 키·버전·양방향·모델 루트를 포함한 정의의 이력 SHA-256 `164244875a7b2d6939c034141bb2d0088657e68b1a67da5736626b28a6a0fa67`을 얻었다. 고정 Django의 target-plan 기준을 재생성해 Go 전용 프로토콜 버전과 runner 인자 두 값의 변경을 확인했다. 기준 재실행, 비교 결정 검사 6개, 저장한 원본 체크섬 24개와 PostgreSQL 세 모드의 필수 실행 배정을 확인했다. 이 제품 변경의 Go·양 DB·프로젝트 명령 실행은 원격 검증 대상이다. 비교 앱의 필드 이름 변경까지 포함한 15개 관측에 대한 GoDj 대조는 필드 이름 변경 구현 뒤에 완료한다. [정의 고정값](../../migrations/definition/encode_test.go) · [독립 비교 근거](#m1-준비--과거-모델을-사용한-데이터-변환)
+
+고정 비교기를 다시 실행해 MIG-128의 runner 인자와 버전 두 값만 달라진 것을 확인했다. 재생성한 원본과 체크섬 목록을 읽는 Go 검사의 바이트 고정값도 대조했다. [Go 원본 검사](../../conformance/internal/protocol/artifact_catalog_test.go) · [대상 계획 원본](../../conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json)
+
+### 데이터 함수의 외부 프로젝트와 Python 비교
+
+PR #11의 `f0518ff7`과 실행 `45041391026`의 checkout `8a9c79fb`는 같은 Git tree `17279a5ab5ebf019a3861c6fba3b3b4950f5ae00`다. SQLite·PostgreSQL 공개 명령은 외부 프로젝트의 역사 행 갱신이 가져오는 공개 `orm` 패키지를 파일 검사에서 거부해 명령 실행 전에 멈췄다. 이 함수는 `orm.Record`와 `query.String`을 사용한다. 해당 프로젝트가 직접 쓰는 공개 패키지 10개를 허용 목록과 대조했다. PostgreSQL 출력 ZIP의 SHA-256은 `d50deaf1f9f7aba5f255ba63b6eccd4b8f29f7564e663d4dda77b724276cf7ce`다. [SQLite 작업 로그](https://github.com/progresshans/godj/actions/runs/45041391026/job/137266535297) · [PostgreSQL 원본](https://github.com/progresshans/godj/actions/runs/45041391026/artifacts/14762385717)
+
+같은 소스의 Python 3.14.3 suite는 409건과 별도 환경 담당 skip 4건을 기록했다. 뒤이어 프로토콜 v2의 전체 해시를 v3 관측과 대조하는 단계가 실패했다. 로그와 다운로드한 ZIP의 SHA-256 `4405e7df6a70e31a8aca3c17e68fe0e3d81b58c3785a0838324f6c4c2985fe69`을 확인했다. 이전 원본에서 종전 SHA-256 `947bdffddf0cdd9c102e37a496346ec3e614e084254b17a0dd1ed7b782801685`를 재구성했다. 로컬 Python 3.14.3·Django 6.1·DRF 3.18.0에서 311개 시나리오의 실제 결과를 개별 원본과 대조했다. v3 결과는 1,082,354바이트, SHA-256 `164cfcdf3a85ef3d186685380ff5c2f7e9749279a2f5c5eb0852103485d00f86`로 실패 로그에 기록된 실제 값과 일치했다. CI는 이 항목별 비교를 사용한다. 누락·타입 변경·중복·원본 훼손 거부도 로컬에서 확인했다. 수정 후 Go 명령과 네 Python 환경의 수용은 원격 실행으로 추적한다. [Python 작업](https://github.com/progresshans/godj/actions/runs/45041391026/job/137266535201) · [원본](https://github.com/progresshans/godj/actions/runs/45041391026/artifacts/14762951235) · [비교 대조군](../../scripts/ci/test_python_semantics.py)
+
+## M1 적용한 migration의 정의 대조
+
+PR #9에 SQLite·PostgreSQL recorder의 형식 2와 실행기의 정의 대조를 추가했다. 새 형식은 nullable 변경과 기본값이 있는 필드 추가·제거의 적용 트랜잭션에 migration별 선행 정의 해시를 저장한다. 일반 이력 조회는 앱·이름을 반환하고, 실행기는 revision으로 보호되는 세션에서 해시까지 읽는다. [실행기](../../migrations/lifecycle.go) · [이력 해시](../../db/internal/migrationhistory/history.go) · [M1 PR](https://github.com/progresshans/godj/pull/9)
+
+양 DB에 새 recorder의 첫 적용, 기존 형식에서의 롤백·재시도, 기록에 해시가 없는 이전 DB의 재접속·역적용, 저장된 해시의 훼손과 선행 정의 변경을 검사하는 필수 사례를 추가했다. 새 후손·무관한 앱을 추가하는 경우와 기존 정의가 사라진 경우도 대조한다. Article 명령 검사는 두 계정 migration의 저장 바이트를 확인하고, 외부 프로젝트는 `migrate --plan`과 `migrate`의 오류 및 DB 보존을 확인한다. 이 제품 소스의 Go·양 DB·명령 실행 결과는 원격 CI에서 확인한다. [공유 DB 검사](../../internal/migrationdefaulttest/history.go) · [SQLite 필수 목록](../../scripts/ci/relation-required.txt) · [PostgreSQL 필수 목록](../../scripts/ci/postgres-core-required.txt)
+
+로컬 SQLite 3.50.4의 트랜잭션에서 이력 열을 추가한 뒤 기존 행의 SQL NULL과 롤백 후 원래 두 열을 확인했다. 이 버전은 빈 BLOB을 `substr`로 자르면 SQL NULL을 반환한다. recorder는 값의 저장 타입과 길이를 먼저 검사해 빈 BLOB과 이전 이력의 NULL을 구별한다. 별도 Python 계산으로 기존 형식, 서로 다른 행에 같은 해시를 붙인 경우, 해시 값을 바꾼 경우의 SHA-256 고정값을 산출했다. CI 도구의 Python 테스트 119개가 로컬에서 통과했다. 각 DB의 필수 사례는 기존 7개와 이력 검사 3개이며 PostgreSQL normal·cgo0·race에서 각 사례의 실행 담당이 하나인지 확인했다. [고정값 검사](../../db/internal/migrationhistory/history_test.go)
+
+제품 소스 `85e4e3ae`의 PR 실행은 동일 트리 `5dc4e7c8`를 검사했다. Portable integration의 normal·cgo0에서 Article의 첫 적용, 두 번째 적용, 빈 계획까지 실행한 다음 마지막 이력 비교가 실패했다. 이 비교는 여전히 모든 해시가 비어 있다고 기대했다. 두 계정 migration의 JSON과 선행 관계로 독립 계산한 SHA-256은 각각 `20709649efac31941b23ac45cb246933ef40b9150c92f7233bcefcb56b49cdec`, `9a64814a89c5562a96ea9f07bfeacb61a92e7d8056d5438a41f6239702edb630`으로 원격이 읽은 값과 같았다. 예제의 기대값에 두 해시를 고정했다. 수정 후 실행은 새 제품 소스에서 확인한다. [normal 실패](https://github.com/progresshans/godj/actions/runs/45028941401/job/137229937954) · [cgo0 실패](https://github.com/progresshans/godj/actions/runs/45028941401/job/137229937923)
+
+수정 소스 `e48343ab`의 원격 checkout `bd9b4705`와 head는 Git tree `1906b93f`가 같았다. Article projectrunner 패키지가 integration normal·cgo0·race에서 모두 통과했다. [normal](https://github.com/progresshans/godj/actions/runs/45031091571/job/137234818344) · [cgo0](https://github.com/progresshans/godj/actions/runs/45031091571/job/137234818387) · [race](https://github.com/progresshans/godj/actions/runs/45031091571/job/137234818274)
+
+같은 소스의 Linux ARM64 normal relation 원본 47,134개 이벤트에서 SQLite 필드·이력 사례 10개가 통과했다. 기존 파일 재시작 검사 세 개가 이력 형식 2를 읽고 형식 1 기대값에서 실패했고, 한 실행기 검사가 정의 이력 capability를 누락한 테스트 백엔드를 사용했다. 재시작 검사는 저장 열의 실제 타입·길이·내용을 읽고, 기본값을 둔 `blog.0002_article_title`과 두 선행 정의에서 독립 계산한 해시 `630e820de068dddadb30a7be4b332a02051a465e782aeb2c489dafa475518066`를 대조하도록 수정했다. 전체 이력, 블로그 역적용 뒤 이력, 재적용·후속 행 추가의 지문도 각각 고정했다. 실행기 검사는 기존 공용 capability fixture를 사용한다. 수정 후 Go 검증은 해당 소스의 원격 실행에서 확인한다. [실패 작업](https://github.com/progresshans/godj/actions/runs/45031091571/job/137234825780) · [원본 ZIP `65016d86`](https://github.com/progresshans/godj/actions/runs/45031091571/artifacts/14758763014)
+
+### PostgreSQL 이력 형식 전환 관측
+
+PR #9의 `38b4c819`와 원격 checkout `3a1d55c0`의 트리 `a21eb2e2`가 같다. PostgreSQL 17.10 race에서 필드·이력 필수 사례 10개 중 9개가 통과했고 `legacy_definition_history`가 SQLSTATE `0A000`으로 실패했다. 작업 로그와 원본 ZIP의 SHA-256 `013eaa3b6c7f9d646a9e7e4ede032a16320baaedac574550d22d740e08791c45`을 대조했다. [원격 작업](https://github.com/progresshans/godj/actions/runs/45034340427/job/137245394968) · [Go 이벤트 원본](https://github.com/progresshans/godj/actions/runs/45034340427/artifacts/14759752809)
+
+이력 표가 두 열에서 세 열로 바뀐 뒤 테스트 관측기가 같은 PostgreSQL 연결에서 캐시된 `SELECT *`를 다시 실행했다. 로컬 PostgreSQL 17.5에서 별도 쓰기 연결과 libpq로 오류를 재현했다. 관측 연결에서 쿼리를 다시 describe하면 기존 행의 NULL과 새 행의 32바이트 digest를 포함한 세 열이 모두 반환됐다. 테스트의 전체 열 조회가 매번 현재 형식을 읽도록 수정하고 독립된 관측 연결을 전환 전후에 유지한다. 제품 이력 리더는 이미 형식별 열을 명시한다. 수정한 Go 검사의 수용은 새 소스의 원격 실행에서 확인한다. [관측기](../../internal/migrationdefaulttest/defaults.go) · [형식 전환 검사](../../internal/migrationdefaulttest/history.go) · [제품 이력 리더](../../db/postgres/migration_history.go)
+
+### PostgreSQL 동시 세션의 정의 해시
+
+제품 커밋 `79f0f496`의 PostgreSQL 17.10 race에서 기존 이력 재개 사례를 포함한 필드·이력 검사 10개와 해당 작업의 필수 514개가 통과했다. 별도 race·CGO0 작업의 동시 세션 두 사례는 경합과 stale 검사를 실행하기 전 이력 비교에서 멈췄다. 일반 조회는 앱과 이름을 반환하고 revision으로 보호된 세션은 `blog.0002_fields`의 정의 해시도 반환한다. 테스트가 일반 조회의 기대값을 양쪽에 사용했다. 제출 소스와 같은 트리의 checkout, 업로드 로그와 두 원본 ZIP의 SHA-256을 대조했다. [필드·이력 통과 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761700064) · [동시 세션 race 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761557714) · [CGO0 원본](https://github.com/progresshans/godj/actions/runs/45037278232/artifacts/14761388669)
+
+세션 검사 4곳은 로더가 정의와 선행 migration에서 계산한 해시까지 비교한다. 세션 밖 조회는 전체 목록의 앱·이름과 빈 해시를 계속 비교한다. fixture의 세 migration을 Python으로 독립 계산한 SHA-256은 `12538cd155a9dcb7b57e06495ba67d8a41663732db9b3670e2056edc7b70c635`로 양쪽 원본의 값과 일치했다. 수정 소스에서는 세 모드 각각에서 경합과 stale의 실제 자식 테스트 종료를 요구한다. [PostgreSQL 검사](../../db/postgres/migration_integration_test.go) · [필수 목록](../../scripts/ci/postgres-core-required.txt)
+
+## M1 채운 열의 필수·고유 전환
+
+`71e3bcef`에서 모델 선언을 바꾸면 기존 nullable 열과 변경할 필수·고유 열을 한 `AlterField`로 생성한다. SQLite 테이블 재생성과 PostgreSQL ALTER, 정방향 SQL 출력이 같은 이전·이후 필드를 사용한다. 두 DB에 대해 NULL·중복으로 인한 실패와 재시도, 선언한 기본값으로 값 채우기, 역방향 실패, 재접속, 외래 키·할당된 키·적용 기록·revision 보존을 확인하는 검사를 추가했다. 이 제품 커밋의 필수 실행은 필드 종류별 `blank` 사례를 포함해 각 DB에 7건이었다. [제품 커밋](https://github.com/progresshans/godj/commit/71e3bcefa2ec6b4b56765e8c4add46711660ccc9) · [필드 변경 계약](../BACKEND_MATRIX.md#현재-schema와-query-폭)
+
+로컬에서는 Django 6.1·Python 3.14.3·SQLite 3.50.4에서 명시적 기본값 없이 필드를 필수로 바꿨다. `blank=True`인 텍스트와 바이너리는 기존 NULL만 빈 값으로 바꿨고 정수는 무결성 오류 뒤 원래 두 행과 nullable 열을 보존했다. DB 기본값은 세 경우 모두 없었다. 고정 Django 모듈 11개의 해시, 관측 검증기 2건, CI 필수 실행 배정 검사 3건, gofmt·문서 링크·diff를 확인했다. GoDj의 두 DB 실행 결과와 PostgreSQL의 Django 관측은 해당 제품 소스의 원격 원본으로 확인한다. [독립 관측](../../conformance/runners/django/migration_data_fixture/field_contract.py) · [GoDj 실행 검사](../../internal/migrationdefaulttest/nullability.go)
+
+이 변경은 역사 모델을 읽고 쓰는 콜백과 필드 이름 변경을 포함하는 M1 소비자의 제약 변경 단계다. 콜백의 역방향·실패·기록까지 한 흐름으로 검증하는 일은 남아 있다. [M1 구현·수용 범위](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)
+
+커밋 `8a964a10`에서 loader에 전체 정의 세트의 기존 digest와 함께 각 migration의 선행 정의까지 포함한 `HistoryDigest`를 추가했다. 공유 조상이 있는 네 앱 그래프에서 후속·무관한 migration 추가, 부모 순서·source ID·producer 변경, 조상 본문 수정과 의존성 제거를 구분하는 Go 회귀 검사를 필수 실행에 넣었다. 로컬의 독립적인 canonical JSON과 SHA-256 계산으로 고정 벡터를 구하고 기존 단일 정의의 세트 해시도 대조했다. 후속 필드 연산의 DB 저장은 별도로 추적하며 Go 데이터 콜백은 남아 있다. [해시 구현](../../migrations/definition/digest.go) · [고정 벡터와 대조군](../../migrations/definition/history_digest_test.go) · [DB 저장과 대조](#m1-적용한-migration의-정의-대조)
+
+## macOS relation runtime의 작업 시간
+
+통합 PR 소스 `512c17f1`와 비교 앱 소스 `6d8bf751`의 macOS 26 ARM64 normal runtime이 각각 90분 작업 제한으로 취소됐다. GitHub annotation이 제한 만료를 명시했다. 각 작업의 checkout, 업로드 로그의 artifact ID·SHA-256, 다운로드한 ZIP과 내부 Go 이벤트를 대조했다. 첫 실행은 5,561개 이벤트와 패키지 종료 16개, 둘째는 3,060개와 종료 14개에서 잘렸다. 둘 다 이 시점까지 실패 이벤트가 없었고 SQLite 등 필수 패키지가 남았다. [통합 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002207565) · [비교 앱 작업](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024016184)
+
+두 번째 실행은 Go cache 복원량이 7,513바이트였으며 89분 무렵에야 protocol 패키지를 실행하고 있었다. 같은 소스의 Intel race에서는 SQLite가 3,797.987초에 통과했지만 전체 90분 제한에 닿아 다른 패키지의 빌드 중 취소됐다. 세 ZIP digest는 순서대로 `ba2fa0250c51fb3485c7211c5a98d09fc0bda36772d3539a23ee29c554c2f97e`, `54db45d87b35e4fcc529dfbec9372d24c58ff1ccef7440a14aa09f1f07094676`, `5b91e14a76240fa4f8fbbcdfef24c889723a979e8bf8fd0b5d7549ad123a0ca2`다. ARM64 normal과 같은 패키지에 계측을 더하는 ARM64 race에는 총 180분, Intel race에는 135분을 배정했다. 각 패키지의 제한과 필수 실행 목록은 기존대로 검사한다. 새 제한에서의 원격 완료 여부는 해당 소스의 실행으로 확인한다. [Intel race 원본](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024016006) · [실행 범위](../TESTING.md)
+
+PR #10의 `e5b38092`에서 부분 재실행을 검증하는 CI 도구 테스트를 포함해 Python 검사 117개가 통과했다. 이 소스의 Intel normal 프로젝트 검사는 취소됐다. 여러 시도의 원본을 모으는 실제 통합 검증은 남아 있다. [CI 도구 검사](https://github.com/progresshans/godj/actions/runs/44965169167/job/137038536714) · [취소된 원본](https://github.com/progresshans/godj/actions/runs/44965169167/job/137038536498)
+
+## M1 준비 — 과거 모델을 사용한 데이터 변환
+
+비교 앱 소스 `6d8bf75100b9f28ea449db9dbec379b4fd56f2cf`의 Django 6.1·Python 3.14.3·SQLite 3.50.4에서 정방향·역방향 실패를 재현했다. 여섯 migration과 현재 앱 모델이 일치하는지 `makemigrations --check`로 확인했다. 최신 모델에서 이름이 바뀐 필드를 과거 관계로 조회해 두 행을 쓴 뒤 세 번째 입력에서 오류가 났다. 재접속 후 세 행은 모두 원래 값이었고 앞서 커밋한 열과 적용 기록은 남아 있었다. 입력을 고친 뒤 정상 변환과 필수·고유 제약의 실제 쓰기 거부를 확인했다. [비교 앱](https://github.com/progresshans/godj/tree/6d8bf75100b9f28ea449db9dbec379b4fd56f2cf/conformance/runners/django/migration_data_fixture)
+
+역적용에서는 명시적 무동작이 남긴 값과 역함수가 비운 값을 대조했다. 마지막 migration의 역적용은 커밋됐고, 다음 migration에 역함수가 빠져 있어 그 안의 다른 역함수도 호출되지 않았다. 재접속 뒤 같은 대상의 재시도와 정방향 재개까지 확인했다. 미리보기는 행과 이력에 변화가 없었고, 역방향 SQL 표시도 비가역 작업을 진단했다. 로컬 원본 `m1-historical-data-reference/sqlite-failure-reproduction-24384c5044434318f7ba97e3a1fe7753719ff67d952f5e2296862c45e59c4737.json`의 입력 파일 11개를 제출 커밋과, Django 모듈 9개를 고정 upstream과 대조했다. PostgreSQL과의 비교는 별도 PR의 일반 모드 core 작업에 연결했다. [관측기](https://github.com/progresshans/godj/blob/6d8bf75100b9f28ea449db9dbec379b4fd56f2cf/conformance/runners/django/migration_data_reference.py) · [양 DB 검증 작업](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024003845)
+
+같은 소스의 원격 실행 `44962424321` 시도 1에서 checkout `75a56c7311629471521a4d555daba29fe4aff405`와 제출 소스는 트리 `122089ee6cf9461d09d651fd67836d495e3576ff`를 공유했다. SQLite 3.50.4와 PostgreSQL 17.10의 행·제약·이력·오류·콜백 관측 15종이 모두 일치했다. 원본 JSON의 SHA-256은 SQLite `24384c5044434318f7ba97e3a1fe7753719ff67d952f5e2296862c45e59c4737`, PostgreSQL `ee1f5adf0015ce8a81f07a28a454d0cede6505c7d3e0841ecb0bf28eb983ed94`다. SQLite 원본은 로컬 재현과 바이트가 같았다. 양 DB 판독 기록은 `m1-historical-6d8bf751-ci44962424321/verified.json`에 보존했다. 같은 소스의 CI 도구 검사 113건에는 새 비교기의 원본 누락·소스·타입 변조 거부가 포함된다. M1의 GoDj 데이터 작업과 revision에 묶인 행 접근은 후속 구현 대상이다. [양 DB 원본 `daab327c`](https://github.com/progresshans/godj/actions/runs/44962424321/artifacts/14731507675) · [CI 도구 원본](https://github.com/progresshans/godj/actions/runs/44962424321/job/137024002976)
+
 ## GDJ-0138 — 계정 역할의 프로젝트 선언과 typed 생성 binding
 
 2026-10-24, `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`에서 분리한 I1 작업트리에서 계정 역할 IR·기본 선언,
@@ -6438,6 +6588,61 @@ macOS 첫 계정 명령의 터미널·프로세스 검사 81건은 Intel의 세 
 이전 소스에서는 `db/sqlite`가 35분 제한에 도달했다. 이번 실행은 Linux arm64 race의 해당 패키지에만 45분을 적용했다. SQLite는 2,117.575초에 정상 종료했고, 필수 3,190개 모두가 한 번씩 실행·통과했다. 이전에 누락된 19개와 중단됐던 대규모 prefetch 사례도 원본 이벤트에서 확인했다. 나머지 패키지는 기존 35분 제한으로 계속 실행했다. [이전 실패](#026a9627-linux-arm64-race-sqlite-패키지-시간-제한) · [이번 작업 로그](https://github.com/progresshans/godj/actions/runs/44944607875/job/136969266708)
 
 전체 작업은 68개 패키지·필수 검사 4,516개를 확인했고 테스트 이름별 시작·성공이 10,818쌍, 테스트 skip은 0이었다. 별도로 이어 실행한 `godjcheck`까지 통과했다. 원본 판독 기록은 `gdj0138-d7584767-ci44944607875/relation-product-linux-arm64-race-0-1-verified.json`이며 SHA-256은 `7f0ede942bed5cead2fdccfbe5526f3f451cca8f0751163a4a58526d9da90515`다. [이벤트와 실행 계획 `d682be04`](https://github.com/progresshans/godj/actions/runs/44944607875/artifacts/14726462294)
+
+후속 제품 변경 제출로 이 실행은 성공 작업 244개와 취소 작업 123개로 종료됐다. 최종 집계 작업은 프로젝트 명령·관계 제품·참조 대조 작업의 취소를 감지해 실패했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/44944607875/job/137002111909)
+
+### 512c17f1 새 프로젝트의 필수 계정 파일
+
+PR 소스 `512c17f1b69f121040ac1e9677bebfddf17e280d`와 실행 `44955313490` 시도 1의 checkout `2734b7f10a0328b3a00f17b83e7bcabe6c7ce0c8`은 같은 트리 `c98c9f0e9da041f80a75c3969652e4351e83aa36`를 사용했다. 이전 소스에서 파일 명령·Admin을 직접 조립한 생성 앱은 빈 업로드 설정을 거부했다. 당시 starter는 첫 계정 명령에 빈 설정만 전달했고 Admin에도 파일 보고 함수를 전달하지 않았다. [기존 생성 앱 원본 `0c9c6076`](https://github.com/progresshans/godj/actions/runs/44944607875/artifacts/14724198157) · [현재 실행](https://github.com/progresshans/godj/actions/runs/44955313490)
+
+공개 `startproject`로 기본 User, 별도 Member, 필수 문서가 있는 Member의 세 프로젝트를 생성했다. 생성 manifest 세 개가 서로 달랐다. 세 프로젝트의 SQLite·PostgreSQL 최초 기동과 재시작 12건을 Chromium 155.0.8059.12로 확인했다. 필수 문서 프로젝트의 파일 한도 거부 2건도 확인했다. 상위 테스트를 포함해 24건이 한 번씩 실행·통과했고 skip은 0이었다. 원본 판독 기록은 `gdj0138-512c17f1-ci44955313490/starter-account-browser-1-document.json`이며 SHA-256은 `fdf2a376694f2224066a9228a8bb18c5d72fd139706659a2f5e6a13780f507b9`다. [브라우저·명령 원본 `ca768570`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14726819448)
+
+파일당·합계 128바이트를 선언한 첫 계정 명령은 129바이트 파일을 비밀번호 입력 전에 거부했다. 독립 DB 연결에서 계정·도메인·감사 행이 0개였고 저장소·보고 디렉터리도 비어 있었다. 정상 입력으로 만든 계정의 operation ID·키·revision·저장 이름과 파일 바이트를 대조했다. Admin은 실제 multipart 폼으로 다른 회원을 생성했고 재시작 뒤 동명 파일을 교체했다. 저장 이름을 보낸 JSON 요청과 필수 파일 누락은 거부됐다. 보고 파일을 덮어쓸 수 없어 후속 수정이 500을 반환한 경우에도 실제 계정 revision·새 파일·이전 게시물과 기존 보고가 보존됐음을 API와 독립 SQL·파일 읽기로 확인했다. [브라우저 시나리오](../../conformance/runserverproduct/testdata/starteraccount/browser.cjs) · [저장 결과 대조](../../conformance/runserverproduct/starter_documents_linux_test.go)
+
+생성 앱의 파일 생성·편집 회귀 검사는 SQLite·PostgreSQL에서 DB별 230건씩 normal·race·CGO-disabled로 통과했다. 총 1,380건은 상위 테스트를 포함하며 skip은 0이었다. 기본·사용자 정의 모델에서 부분 게시, 입력 한도·이미지 검사, 보고 함수 실패와 커밋 응답 유실을 포함한다. 각 모드의 실제 자식 프로세스 8개의 출력 해시와 검사 목록을 대조했다. 보관 기록 `profile-file-lifecycle.json`의 SHA-256은 `a2cabf9388dda126b23410a6cc2685c1c49d2394195d1df7c1777a50fceb0354`다. [normal `df5c7b66`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728415311) · [race `819ccd03`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728492616) · [CGO-disabled `940af3f5`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728795712)
+
+Linux amd64에서 CI 도구 검사 111건과 `go vet ./...`가 통과했다. Portable core 141개 패키지의 필수 검사 500건이 전부 실행·통과했다. 같은 원본에서 Schema IR의 계정 역할 검사 6개와 잘못된 선언 23개의 시작·성공을 각각 확인했다. 전체 Go 실행의 skip 221건은 필수 목록 밖에 있다. [원본 `39ff5578`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727671837)
+
+같은 소스에서 고정 Django 6.1·Python 3.14.3의 계정 관측기 9종을 SQLite 3.50.4와 PostgreSQL 17.10에서 각각 실행했다. 원본 18개를 DB별 보관값·Django 소스 해시와 대조했다. Python 3.12.13·3.13.15·3.14.3·3.14.7에서 계정 검사 21건이 버전마다 통과했고, macOS arm64의 고정 환경에서는 전체 409건이 skip 없이 통과했다. [양 DB 원본 `84213dcd`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728391545) · [3.12.13 `84f0a2fb`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728296446) · [3.13.15 `be5f9289`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728426714) · [3.14.3 `f1e402a4`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728640565) · [3.14.7 `f7dfaedd`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727594076) · [macOS 고정 환경](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002192026)
+
+### 512c17f1 계정 수명 회귀
+
+생성 앱 45개 작업의 필수 목록과 부모 로그에 남은 자식 출력 해시, 프로세스별 시작·성공 이벤트를 대조했다. normal·race·CGO-disabled 각각에서 15개 작업, 133개 자식 프로세스의 검사 10,229건이 통과했다. 세 모드의 목록이 같았고 skip은 0이었다. 이 수에는 위 파일 검사와 아래 그룹 권한 검사가 포함된다. 역할 선언·첫 계정·비밀번호 재설정·프로필·채운 DB 전환·별도 프로세스 재접속을 포함한 보관 기록은 `gdj0138-512c17f1-ci44955313490/selected-account-generated-inventory.json`이며 SHA-256은 `d3361afb461a35b144ec5e297482e854ab121f7a0f049fa2c7fcdaa0b04a03bf`다. [계정 전환 `d75a0a64`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728247664) · [대상 참조와 생성 `7805790e`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728727507) · [별도 프로세스 재접속 `78e41bb3`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728067387)
+
+일반 Catalog의 그룹 권한 쓰기를 기본·사용자 정의 모델과 세 가지 중간 모델 구성에서 회귀 검증했다. DB별 106건이 normal·race·CGO-disabled에서 모두 통과했다. 모드 간 검사 목록이 일치했고 총 636건의 skip은 0이었다. [normal `0d229280`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728265148) · [race `66e412e1`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728790214) · [CGO-disabled `1eaf4f69`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728292887)
+
+PostgreSQL 17.10에서는 세 모드 각각 선택 계정 저장소 필수 검사 2,219건과 역사 운영자 이행 51건이 모두 통과했다. race 작업의 필수 검사 2,669건과 `db/postgres` 패키지 종료를 확인했다. 로그인·비밀번호 재설정 경합 9건을 포함한다. [normal `8b2e6e9c`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728601697) · [race `8c597eb2`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728079241) · [CGO-disabled `41c807f6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728098991)
+
+### 512c17f1 첫 계정 명령과 생성 정책
+
+Linux amd64 normal에서 staff 정책을 바꾼 프로젝트의 전체 생성 코드는 컴파일됐다. 그중 계정 파일 하나를 이전 정책의 생성물로 바꾸자 이전 snapshot 심볼이 없어 컴파일이 거부됐다. 해당 테스트의 시작·성공과 같은 작업의 필수 검사 131건을 확인했다. [생성물 대조군과 혼용 검사](../../codegen/consumertest/account_binding_test.go) · [원본 `21da4b4b`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728484279)
+
+Linux amd64·arm64에서 일반·race·CGO-disabled의 여섯 조합 모두 첫 계정 명령의 터미널 입력·실패 후 복원, 기본 User와 사용자 정의 Member의 생성 프로젝트 실행을 확인했다. 조합마다 터미널 필수 32건을 포함해 81건, 기본·사용자 정의 프로젝트에서 각각 14건이 통과했고 이 목록의 skip은 0이었다. 원본 18개를 묶은 `gdj0138-512c17f1-ci44955313490/first-account-linux-matrix.json`의 SHA-256은 `3e7536bc9b0dd06b219f0508b0664d56673bdc9aea3d1cc02e800dc2ecfb30e2`다. [amd64 터미널 `35e15a0a`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729021389) · [arm64 터미널 `10ea4b85`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728762921) · [기본 프로젝트 `3576be78`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728963025) · [사용자 정의 프로젝트 `e6419b85`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729292417)
+
+macOS에서는 Intel CGO-disabled와 arm64 race에서 같은 터미널 검사 81건씩을 확인했다. SQLite 저장소는 Linux amd64·arm64 양쪽에서 일반·CGO-disabled로 각각 선택 계정 검사 2,219건과 역사 운영자 이행 51건이 통과했다. 권한 합집합·회수, 로그인·재설정 경합, 프로젝트가 참조하는 계정 삭제와 롤백을 포함한다. [Intel 터미널 `84539af6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729800078) · [arm64 터미널 `9925ce24`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729436794) · [SQLite amd64 일반 `8439b8ec`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728619417) · [amd64 CGO-disabled `70290f1d`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727799354) · [arm64 일반 `21e60a16`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728412926) · [arm64 CGO-disabled `98558f65`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729641178)
+
+Linux amd64·arm64의 race에서도 SQLite 계정 저장소와 역사 운영자 이행을 확인해 Linux 여섯 조합의 저장소 검증을 마쳤다. arm64 race의 SQLite 패키지는 2,059.047초에 종료했고 필수 3,190건이 통과했다. 앞선 실행에서 잘렸던 19건도 전부 실행·통과했다. 해당 작업의 68개 패키지에 배정된 필수 검사 4,516건과 실제 검사 10,818건에서 테스트 skip은 0이었다. [amd64 race `f213629b`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730475083) · [arm64 race `62454712`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730885202)
+
+macOS arm64 일반·CGO-disabled의 터미널 검사도 통과했다. Intel race의 프로젝트 검사는 scaffold 실행 399초에 GitHub가 취소했다. CLI·플랫폼·관측 실행기·runserver runtime 로그에는 패키지 종료가 있었고, `explicit_checks_preserve_an_unopened_database`는 시작 뒤 결과가 잘렸다. 고정 모듈 설치 로그도 생성되지 않았다. 작업 한도는 140분, 해당 scaffold 한도는 40분이었다. GitHub가 남긴 원인은 취소이며 단언 실패·시간 초과를 확인할 수 없었다. 원본 26개 파일의 체크섬과 취소 로그를 대조한 기록의 SHA-256은 `c8872cb4389af490daf87a85b99d53cae14178db2edc977187b1c30908c6e83e`다. 같은 소스의 작업 재실행 요청에 GitHub는 전체 실행 진행 중으로 응답했다(HTTP 403). [arm64 일반 `25a75227`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730311954) · [arm64 CGO-disabled `657a2a39`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729723595) · [Intel race 중단 원본 `649a8f0f`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730531886) · [취소된 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002192537)
+
+Intel 일반 모드에서는 터미널 검사 81건과 SQLite 저장소의 계정 검사 2,219건·역사 운영자 이행 51건이 통과했다. Intel CGO-disabled의 사용자 정의 계정 명령 14건도 확인했다. [일반 터미널 `4f339281`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14730009655) · [일반 SQLite `55ad31b9`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731752866) · [사용자 정의 명령 `7d079c22`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731286751)
+
+같은 `512c17f1` 소스의 macOS Intel normal·race·CGO-disabled와 ARM64 CGO-disabled 원본 네 개를 대조했다. 작업 checkout과 소스 트리, 업로드 ID·ZIP SHA-256, 소스의 필수 목록으로 재구성한 패키지 배정, 실제 Go 이벤트가 일치했다. 각 환경에서 SQLite 계정 저장소 2,219건과 과거 계정 이행 51건이 통과했다. Intel race는 68개 패키지·필수 4,516건·실행 10,818건이고 나머지 셋은 각각 68개·4,519건·10,919건이다. 네 실행 모두 skip은 0이다. ARM64 normal은 총 작업 시간 만료로 별도 기록했다. [Intel normal `55ad31b9`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14731752866) · [Intel race `bd2b7cd6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14739424761) · [Intel CGO-disabled `dceb88f6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742110147) · [ARM64 CGO-disabled `6b6ea0bc`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14742014132)
+
+### 프로젝트 비교 작업의 부분 재실행
+
+
+`512c17f1` 실행에서 고정 Python 원본 하나와 12개 환경의 프로젝트·reload 원본 24개 중 생산 작업 24개가 성공했고 macOS Intel race 한 개가 취소돼 후속 비교 작업은 건너뛰었다. 기존 비교기는 모든 원본 이름과 내부 시도가 소비자의 시도와 같아야 했다. 시도 2의 비교 입력에 같은 소스·같은 실행의 시도 1 Python 원본을 주어 거부를 재현했다. 기존 workflow에서 이 작업만 재실행하면 앞서 성공한 원본을 소비할 수 없다. [기존 다운로드 방식](https://github.com/progresshans/godj/blob/512c17f1b69f121040ac1e9677bebfddf17e280d/.github/workflows/ci.yml) · [취소된 생산자](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002192537) · [건너뛴 비교 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137030313189)
+
+수정 소스 `e5b38092315dfcce7d1c4f6fdc6e80193c7ae4b0`는 각 생산자의 최신 작업이 성공했는지, 그 작업이 게시한 archive ID·SHA-256이 GitHub와 일치하는지 확인한다. 25개 원본을 읽을 때 각 파일의 소스·트리·run·생산자 시도·체크섬과 전체 필수 검사를 대조한다. 생산자 24개는 시도 1의 원본을 쓰고 Intel race만 시도 2에서 성공하도록 구성한 회귀를 포함해 관련 검사 23건이 통과했고, 실제 `512c17f1`의 중단 원본은 다시 거부했다. [수정 PR #10](https://github.com/progresshans/godj/pull/10)
+
+이전 실행 `43659728789`의 시도 1에서 성공한 생산자 25개와 업로드 원본을 다시 판독했다. 12개 좌표 각각의 개발 동작 8건, 명시된 차이 1건, 이벤트 6건과 파일 체크섬이 당시 비교 결과와 일치했다. 재판독 결과 `project-reference-rerun-43659728789/real-comparison-v2.json`의 SHA-256은 `9ddf25927f8c0e9dcb7226e5d01b2a8311abb1be39f00c80caafab74da99f779`다. 판독기 커밋·원본 시도·실제 취소 진단을 묶은 기록은 `reader-e5b38092.json`이다. 수정 소스에서 실제 부분 재실행과 전체 CI의 완료를 계속 확인한다. [당시 비교 원본 `fabf3cd6`](https://github.com/progresshans/godj/actions/runs/43659728789/artifacts/14145005072) · [수정 소스 전체 CI](https://github.com/progresshans/godj/actions/runs/44965169167)
+
+### 512c17f1 생성물과 공통 호환성
+
+같은 실행에서 생성한 PostgreSQL 17.10 system-state 및 operator 관측의 생산 작업·시도·artifact ID와 다운로드한 원본 SHA-256을 대조했다. 공통 호환성 작업은 두 관측을 읽고 11개 프로젝트의 `generate --check`를 통과했다. 실행한 제품 비교 26종의 계약 299건이 고정 관측 또는 해당 계약의 승인된 차이와 일치했다. 이 중 migration writer의 MIG-099~110 12건에는 DEV-0010의 MIG-107 거부 조건이 포함된다. [호환성 작업](https://github.com/progresshans/godj/actions/runs/44955313490/job/137014766868) · [system-state 원본 `e2fc5dd3`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728387175) · [operator 원본 `a86ae05b`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727616391)
+
+Linux 386에서는 migration·프로젝트 명령·runserver 계열 17개 패키지를 컴파일했고, Query·ORM·관계 제품·관측 실행기 14개 패키지의 테스트가 실행·통과했다. 고정 Django 원본 24개와 DRF 원본 3개의 체크섬도 일치했다. 플랫폼별 Python 검사에서 Linux의 409건 중 4건은 고정 환경 전용 skip이며, 위 macOS 고정 환경에서는 409건이 모두 실행됐다. 판독 기록 `gdj0138-512c17f1-ci44955313490/current-reference-suites-and-386.json`의 SHA-256은 `aa41d25ba948d5ed9c6bfee1c209b80109bd5afcf2c3fa4d9a00d8e425219d9d`다. [32비트 실행 원본](https://github.com/progresshans/godj/actions/runs/44955313490/job/137014766868)
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

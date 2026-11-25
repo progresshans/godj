@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	Version         uint64 = 1
-	PrivateArgument        = "__godj_project_sqlmigrate_runner_v1"
+	Version         uint64 = 2
+	PrivateArgument        = "__godj_project_sqlmigrate_runner_v2"
 
 	MaxRequestBytes       = 16 << 20
 	MaxResponseBytes      = 101 << 20
@@ -81,11 +81,12 @@ const (
 	CodeProjectInternalError          = "project_internal_error"
 )
 
-// Request identifies exactly one literal forward migration. Its zero value is
+// Request identifies exactly one literal migration and its direction. Its zero value is
 // invalid; zero is an ordinary valid Name and latest is deliberately rejected.
 type Request struct {
-	App  string
-	Name string
+	App       string
+	Name      string
+	Backwards bool
 }
 
 // Failure is the closed, detail-free failure carried over the private wire.
@@ -119,7 +120,8 @@ func EncodeRequest(request Request) ([]byte, error) {
 		Command         string `json:"command"`
 		App             string `json:"app"`
 		Name            string `json:"name"`
-	}{Version, "migrations.sql", request.App, request.Name})
+		Backwards       bool   `json:"backwards"`
+	}{Version, "migrations.sql", request.App, request.Name, request.Backwards})
 	if err != nil {
 		return nil, fmt.Errorf("project sqlmigrate protocol: encode request: %w", err)
 	}
@@ -322,7 +324,7 @@ func ExitCode(failure Failure) (int, bool) {
 	case CategoryExecution:
 		return failurecode.Exact(failure.Code, 3, "operation_failed")
 	case CategoryPlan:
-		return failurecode.Exact(failure.Code, 1, "invalid_target", "target_not_found", "invalid_execution_plan", "mixed_directions")
+		return failurecode.Exact(failure.Code, 1, "invalid_target", "target_not_found", "invalid_execution_plan", "mixed_directions", "irreversible_data_operation")
 	case CategorySQLRender:
 		return failurecode.Exact(failure.Code, 3, CodeRendererUnavailable, CodeRenderFailed, CodeInvalidRenderedSQL)
 	case CategorySQLResource:
@@ -377,13 +379,14 @@ func parseRequest(document []byte) (Request, Failure, bool) {
 	if version != Version {
 		return Request{}, Failure{Category: CategoryProtocol, Code: CodeProtocolIncompatible}, true
 	}
-	if !wirejson.HasKeys(object, "protocol_version", "command", "app", "name") || object["command"] != "migrations.sql" {
+	if !wirejson.HasKeys(object, "protocol_version", "command", "app", "name", "backwards") || object["command"] != "migrations.sql" {
 		return invalidRequest()
 	}
 	app, appOK := object["app"].(string)
 	name, nameOK := object["name"].(string)
-	request := Request{App: app, Name: name}
-	if !appOK || !nameOK || !validRequest(request) {
+	backwards, directionOK := object["backwards"].(bool)
+	request := Request{App: app, Name: name, Backwards: backwards}
+	if !appOK || !nameOK || !directionOK || !validRequest(request) {
 		return invalidRequest()
 	}
 	return request, Failure{}, false

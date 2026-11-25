@@ -23,7 +23,7 @@ type SQLMigrateConfig struct {
 	MigrationSQLRenderer       backend.MigrationSQLRenderer
 }
 
-// RunSQLMigrate executes one private exact-name forward SQL projection.
+// RunSQLMigrate projects one exact migration in the requested direction.
 // Completed domain failures are written as closed detail-free responses and
 // return nil. Caller I/O, cancellation and invariant failures remain Go errors.
 func RunSQLMigrate(
@@ -117,10 +117,15 @@ func runSQLMigrate(
 		return report, err
 	}
 
+	direction := migrations.DirectionForward
+	if request.Backwards {
+		direction = migrations.DirectionBackward
+	}
 	statements, renderErr := migrations.RenderMigrationSQL(
 		ctx,
 		loaded,
 		migrations.MigrationKey{App: request.App, Name: request.Name},
+		direction,
 		config.MigrationSQLRenderer,
 	)
 	if err := ctx.Err(); err != nil {

@@ -36,6 +36,10 @@ func (op CreateModel) App() string {
 }
 
 func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
+	return op.insertState(state, "")
+}
+
+func (op CreateModel) insertState(state ProjectState, before string) (ProjectState, error) {
 	model, err := normalizedSingleModel(op.AppLabel, op.Model)
 	if err != nil {
 		return state, fmt.Errorf("normalize model: %w", err)
@@ -47,7 +51,14 @@ func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
 	if !exists {
 		schema = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: op.AppLabel}
 	}
-	schema.Models = append(schema.Models, model)
+	position := len(schema.Models)
+	if before != "" {
+		position, err = modelInsertionPosition(modelOrder(schema.Models), before)
+		if err != nil {
+			return state, err
+		}
+	}
+	schema.Models = slices.Insert(schema.Models, position, model)
 	normalized, err := ir.Normalize(schema)
 	if err != nil {
 		return state, fmt.Errorf("normalize project app %s: %w", op.AppLabel, err)

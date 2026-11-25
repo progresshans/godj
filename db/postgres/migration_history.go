@@ -26,10 +26,11 @@ const (
 )
 
 type postgresMigrationRevisionToken struct {
-	initialized bool
-	epoch       [postgresMigrationRevisionEpochBytes]byte
-	revision    int64
-	fingerprint [postgresMigrationHistoryDigestBytes]byte
+	initialized   bool
+	boundRecorder bool
+	epoch         [postgresMigrationRevisionEpochBytes]byte
+	revision      int64
+	fingerprint   [postgresMigrationHistoryDigestBytes]byte
 }
 
 type postgresMigrationRevisionSnapshot struct {
@@ -113,7 +114,13 @@ func (b *Backend) ReadAppliedMigrations(ctx context.Context) ([]migrationbackend
 			errors.New("PostgreSQL migration recorder exists without revision metadata; exclusive adoption is required"),
 		)
 	}
-	return migrationhistory.Clone(snapshot.records), nil
+	// The public reader supplies identities. Loaded execution obtains the
+	// authenticated definition bindings through its fenced session.
+	records := migrationhistory.Clone(snapshot.records)
+	for i := range records {
+		records[i].HistoryDigest = ""
+	}
+	return records, nil
 }
 
 func readAtomicPostgresMigrationSnapshot(
@@ -216,12 +223,22 @@ func inspectPostgresMigrationSnapshot(
 			nil,
 		)
 	}
+	token, err := readPostgresMigrationRevisionToken(ctx, executor, namespace)
+	if err != nil {
+		return postgresMigrationRevisionSnapshot{}, err
+	}
+	columns := postgresMigrationRecorderColumns()
+	if token.boundRecorder {
+		columns = append(columns, postgresMigrationControlColumn{
+			attributeNumber: 3, name: "definition_digest", typeName: "bytea", local: true, defaultCollation: true,
+		})
+	}
 	recorderPresent, err = inspectPostgresMigrationControlTable(
 		ctx,
 		executor,
 		namespace,
 		postgresMigrationRecorderTable,
-		postgresMigrationRecorderColumns(),
+		columns,
 		postgresMigrationControlConstraint{
 			name: postgresMigrationRecorderPrimaryKey, kind: "p", validated: true, key: "1,2",
 		},
@@ -236,18 +253,14 @@ func inspectPostgresMigrationSnapshot(
 			nil,
 		)
 	}
-	records, err := readPostgresMigrationRecorder(ctx, executor, namespace)
-	if err != nil {
-		return postgresMigrationRevisionSnapshot{}, err
-	}
-	token, err := readPostgresMigrationRevisionToken(ctx, executor, namespace)
+	records, err := readPostgresMigrationRecorder(ctx, executor, namespace, token.boundRecorder)
 	if err != nil {
 		return postgresMigrationRevisionSnapshot{}, err
 	}
 	fingerprint := migrationhistory.Fingerprint(records)
 	if fingerprint != token.fingerprint {
 		return postgresMigrationRevisionSnapshot{}, postgresRevisionIntegrity(
-			"stored PostgreSQL migration history fingerprint does not match recorder identities",
+			"stored PostgreSQL migration history fingerprint does not match recorder contents",
 			nil,
 		)
 	}
@@ -656,14 +669,20 @@ func readPostgresMigrationRecorder(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	namespace string,
+	bound bool,
 ) (records []migrationbackend.AppliedMigration, resultErr error) {
 	table, err := quoteTable(namespace, postgresMigrationRecorderTable)
 	if err != nil {
 		return nil, err
 	}
+	projection := `"app", "name"`
+	if bound {
+		projection += `, CASE WHEN "definition_digest" IS NULL THEN NULL ` +
+			`WHEN "pg_catalog"."octet_length"("definition_digest") = 32 THEN "definition_digest" ELSE "pg_catalog"."decode"('00', 'hex') END`
+	}
 	rows, err := executor.QueryContext(
 		ctx,
-		`SELECT "app", "name" FROM `+table+` ORDER BY "app", "name" LIMIT $1`,
+		`SELECT `+projection+` FROM `+table+` ORDER BY "app", "name" LIMIT $1`,
 		postgresMigrationHistoryRecordLimit+1,
 	)
 	if err != nil {
@@ -680,9 +699,18 @@ func readPostgresMigrationRecorder(
 			return nil, err
 		}
 		var record migrationbackend.AppliedMigration
-		if err := rows.Scan(&record.App, &record.Name); err != nil {
+		var binding migrationhistory.StoredDigest
+		destinations := []any{&record.App, &record.Name}
+		if bound {
+			destinations = append(destinations, &binding)
+		}
+		if err := rows.Scan(destinations...); err != nil {
+			if errors.Is(err, migrationhistory.ErrInvalidStoredDigest) {
+				return nil, postgresRevisionIntegrity("invalid PostgreSQL migration definition digest", err)
+			}
 			return nil, classifyPostgresMigrationIO(ctx, "scan PostgreSQL migration recorder", err)
 		}
+		record.HistoryDigest = string(binding)
 		if record.App == "" || record.Name == "" {
 			return nil, postgresRevisionIntegrity("PostgreSQL migration recorder contains an empty identity", nil)
 		}
@@ -744,9 +772,9 @@ func readPostgresMigrationRevisionToken(
 				nil,
 			)
 		}
-		if formatVersion != postgresMigrationRevisionFormat {
+		if formatVersion != postgresMigrationRevisionFormat && formatVersion != migrationhistory.BoundRecorderFormat {
 			return postgresMigrationRevisionToken{}, postgresRevisionIntegrity(
-				fmt.Sprintf("PostgreSQL migration revision format is %d, want %d", formatVersion, postgresMigrationRevisionFormat),
+				fmt.Sprintf("unsupported PostgreSQL migration revision format %d", formatVersion),
 				nil,
 			)
 		}
@@ -766,6 +794,7 @@ func readPostgresMigrationRevisionToken(
 			)
 		}
 		token.initialized = true
+		token.boundRecorder = formatVersion == migrationhistory.BoundRecorderFormat
 		copy(token.epoch[:], epoch)
 		token.revision = revision
 		copy(token.fingerprint[:], fingerprint)
@@ -810,13 +839,18 @@ func postgresMigrationHistorySuccessor(
 	records []migrationbackend.AppliedMigration,
 	transition migrationbackend.HistoryTransition,
 ) ([]migrationbackend.AppliedMigration, error) {
+	if digest := transition.Migration.HistoryDigest; digest != "" {
+		if _, err := migrationbackend.ParseDefinitionHistoryDigest(digest); err != nil {
+			return nil, postgresRevisionIntegrity("invalid PostgreSQL migration definition digest", err)
+		}
+	}
 	successor := migrationhistory.Clone(records)
 	migrationhistory.Sort(successor)
 	index := sort.Search(len(successor), func(index int) bool {
 		return migrationhistory.Compare(successor[index], transition.Migration) >= 0
 	})
 	if transition.Kind == migrationbackend.HistoryTransitionApply {
-		if index < len(successor) && successor[index] == transition.Migration {
+		if index < len(successor) && migrationhistory.Compare(successor[index], transition.Migration) == 0 {
 			return nil, postgresRevisionIntegrity(
 				fmt.Sprintf("migration %s.%s is already applied", transition.Migration.App, transition.Migration.Name),
 				nil,
@@ -833,17 +867,21 @@ func postgresMigrationHistorySuccessor(
 	if transition.Kind != migrationbackend.HistoryTransitionUnapply {
 		return nil, postgresRevisionIntegrity(fmt.Sprintf("migration transition kind %d is invalid", transition.Kind), nil)
 	}
-	if index >= len(successor) || successor[index] != transition.Migration {
+	if index >= len(successor) || migrationhistory.Compare(successor[index], transition.Migration) != 0 {
 		return nil, postgresRevisionIntegrity(
 			fmt.Sprintf("migration %s.%s is not applied", transition.Migration.App, transition.Migration.Name),
 			nil,
 		)
+	}
+	if successor[index].HistoryDigest != transition.Migration.HistoryDigest {
+		return nil, postgresRevisionIntegrity("unapply does not match the recorded migration definition digest", nil)
 	}
 	return append(successor[:index:index], successor[index+1:]...), nil
 }
 
 func equalPostgresMigrationRevisionToken(left, right postgresMigrationRevisionToken) bool {
 	return left.initialized == right.initialized &&
+		left.boundRecorder == right.boundRecorder &&
 		left.epoch == right.epoch &&
 		left.revision == right.revision &&
 		left.fingerprint == right.fingerprint

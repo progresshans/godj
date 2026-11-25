@@ -22,6 +22,8 @@ Django 테스트는 관찰할 의미와 failure case를 찾는 자료다. 실제
 Python 클래스·private traversal·SQL/DOM 문자열 전체를 그대로 따라야 한다는 뜻은 아니다.
 Django `MigrationLoader`의 sibling 순서와 GoDj canonical order 차이는 [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)에 기록한다.
 
+M1의 [데이터 변환 비교 앱](../conformance/runners/django/migration_data_fixture/)은 직접 작성한 두 모델과 여섯 migration으로 과거 필드 접근, 도중 실패, 역함수와 비가역 작업을 관찰한다. [관측기](../conformance/runners/django/migration_data_reference.py)는 Django 6.1의 실제 명령으로 실행하며 고정 소스의 migration·상태·recorder·양 DB schema editor 파일 아홉 개를 SHA-256으로 확인한다. [Django 데이터 작업, BSD-3-Clause](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/special.py) · [라이선스](../LICENSE.django)
+
 [Update-or-create observer](../conformance/runners/django/update_or_create_reference.py)와
 [행 잠금 observer](../conformance/runners/django/row_lock_reference.py)는 고정 Django 6.1의
 [QuerySet](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query.py),

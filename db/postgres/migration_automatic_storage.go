@@ -41,7 +41,10 @@ func compilePostgresStorageOperation(namespace, app string, operation mb.Migrati
 			}
 			statements = append(statements, body)
 		default:
-			bodies, err := compilePostgresAutomaticRename(namespace, change.Before, change.After)
+			if operation.Kind != mb.MigrationRenameModel && (!slices.EqualFunc(change.Before.Fields, change.After.Fields, ir.Field.Equal) || !slices.EqualFunc(change.Before.UniqueConstraints, change.After.UniqueConstraints, ir.UniqueConstraint.Equal)) {
+				return nil, fmt.Errorf("automatic rename changes storage fields or constraints")
+			}
+			bodies, err := compilePostgresTableRename(namespace, change.Before, change.After)
 			if err != nil {
 				return nil, err
 			}
@@ -51,10 +54,7 @@ func compilePostgresStorageOperation(namespace, app string, operation mb.Migrati
 	return statements, nil
 }
 
-func compilePostgresAutomaticRename(namespace string, before, after ir.Model) ([]string, error) {
-	if !slices.EqualFunc(before.Fields, after.Fields, ir.Field.Equal) || !slices.EqualFunc(before.UniqueConstraints, after.UniqueConstraints, ir.UniqueConstraint.Equal) {
-		return nil, fmt.Errorf("automatic rename changes storage fields or constraints")
-	}
+func compilePostgresTableRename(namespace string, before, after ir.Model) ([]string, error) {
 	if before.DBTable == after.DBTable {
 		return nil, nil
 	}
@@ -116,6 +116,38 @@ func compilePostgresAutomaticRename(namespace string, before, after ir.Model) ([
 		return nil, err
 	}
 	for _, field := range before.Fields {
+		if field.Unique {
+			oldName, err := postgresUniqueConstraintName(before.DBTable, field.Column)
+			if err != nil {
+				return nil, err
+			}
+			newName, err := postgresUniqueConstraintName(after.DBTable, field.Column)
+			if err != nil {
+				return nil, err
+			}
+			if err := renameConstraint(oldName, newName); err != nil {
+				return nil, err
+			}
+		}
+		if field.HasColumnIndex() {
+			oldName, err := postgresColumnIndexName(before.DBTable, field.Column)
+			if err != nil {
+				return nil, err
+			}
+			nextName, err := postgresColumnIndexName(after.DBTable, field.Column)
+			if err != nil {
+				return nil, err
+			}
+			old, err := quoteTable(namespace, oldName)
+			if err != nil {
+				return nil, err
+			}
+			next, err := quoteIdentifier(nextName)
+			if err != nil {
+				return nil, err
+			}
+			statements = append(statements, "ALTER INDEX "+old+" RENAME TO "+next)
+		}
 		if field.Kind != ir.FieldForeignKey {
 			continue
 		}

@@ -54,6 +54,84 @@ func TestEncodeCurrentDefinitionGolden(t *testing.T) {
 	}
 }
 
+func TestRunDataDefinitionEncodingAndHistory(t *testing.T) {
+	t.Parallel()
+	op := migrations.RunData{Key: migrations.DataKey{App: "issues", Name: "backfill", Version: 1}, Forward: migrations.DataCall, Reverse: migrations.DataNoop,
+		Models: []ir.ModelIdentity{{AppLabel: "z", ModelName: "ticket"}, {AppLabel: "a", ModelName: "tag"}}}
+	def := migrations.Migration{App: "issues", Name: "0001_data", Operations: []migrations.Operation{&op}}
+	producer := Producer{Name: "author", Version: "1"}
+	doc, err := Encode(producer, def)
+	if err != nil {
+		t.Fatal(err)
+	}
+	load := func(doc []byte) string {
+		t.Helper()
+		set, _, err := Load(Source{SourceID: "authored", Document: doc})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return set.Sources()[0].HistoryDigest
+	}
+	const bound = "sha256:164244875a7b2d6939c034141bb2d0088657e68b1a67da5736626b28a6a0fa67"
+	if dig := load(doc); dig != bound || op.Models[0].AppLabel != "z" {
+		t.Fatal("definition binding or source ownership", dig, op)
+	}
+	op.Models[0], op.Models[1] = op.Models[1], op.Models[0]
+	reordered, err := Encode(producer, def)
+	if err != nil || !bytes.Equal(doc, reordered) {
+		t.Fatal("root order is not deterministic", err)
+	}
+	for _, modify := range []func(map[string]any){
+		func(o map[string]any) { o["version"] = 2 },
+		func(o map[string]any) { o["name"] = "other" },
+		func(o map[string]any) { o["reverse"] = "irreversible" },
+		func(o map[string]any) { o["forward"] = "noop" },
+		func(o map[string]any) { o["models"] = []any{} },
+	} {
+		var obj map[string]any
+		if err := json.Unmarshal(doc, &obj); err != nil {
+			t.Fatal(err)
+		}
+		modify(obj["migration"].(map[string]any)["operations"].([]any)[0].(map[string]any))
+		changed, err := json.Marshal(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if load(changed) == bound {
+			t.Fatal("changed data meaning retained old history", string(changed))
+		}
+	}
+	for _, modify := range []func(map[string]any){
+		func(o map[string]any) { o["version"] = 0 },
+		func(o map[string]any) { o["version"] = uint64(1) << 32 },
+		func(o map[string]any) { o["version"] = 1.25 },
+		func(o map[string]any) { o["name"] = "bad-key!" },
+		func(o map[string]any) { o["forward"] = "irreversible" },
+		func(o map[string]any) { delete(o, "reverse") },
+		func(o map[string]any) { o["extra"] = true },
+		func(o map[string]any) { o["app_label"] = "somewhere_else" },
+		func(o map[string]any) { o["models"] = nil },
+		func(o map[string]any) {
+			models := o["models"].([]any)
+			o["models"] = append(models, models[0])
+		},
+		func(o map[string]any) { o["models"].([]any)[0].(map[string]any)["physical_table"] = "unowned" },
+	} {
+		var obj map[string]any
+		if err := json.Unmarshal(doc, &obj); err != nil {
+			t.Fatal(err)
+		}
+		modify(obj["migration"].(map[string]any)["operations"].([]any)[0].(map[string]any))
+		invalid, err := json.Marshal(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := Load(Source{SourceID: "invalid", Document: invalid}); err == nil {
+			t.Fatal("accepted invalid data operation", string(invalid))
+		}
+	}
+}
+
 func TestEncodeIsDeterministicAcrossDependencyOrderAndOperationPointerShape(t *testing.T) {
 	t.Parallel()
 

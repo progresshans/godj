@@ -843,9 +843,9 @@ type publicSQLRenderer struct {
 	sawOwnedContext bool
 }
 
-func (renderer *publicSQLRenderer) RenderForwardMigrationSQL(
+func (renderer *publicSQLRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	_ backend.ForwardMigrationSQLRequest,
+	_ backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	renderer.sawOwnedContext = ctx.Value(renderer.contextKey) == renderer.marker

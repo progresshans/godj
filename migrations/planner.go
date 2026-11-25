@@ -84,6 +84,10 @@ func KnownAppZeroTarget(app string) Target {
 type PlanStep struct {
 	Key       MigrationKey
 	Direction Direction
+	// Loaded reverse plans identify the first irreversible operation in
+	// reverse execution order. Raw identity-only plans have no such marker.
+	Irreversible          bool
+	IrreversibleOperation int
 }
 
 // MigrationStatus is the closed status vocabulary returned by Planner.Statuses.

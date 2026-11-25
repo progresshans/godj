@@ -78,9 +78,10 @@ func TestLoadPublishesOwnedCanonicalSnapshot(t *testing.T) {
 	}
 	sources := loaded.Sources()
 	wantSources := []SourceInfo{{
-		SourceID:  "z-source",
-		Producer:  Producer{Name: "godj-example-generator", Version: "0.1.0"},
-		Migration: migrations.MigrationKey{App: "alpha", Name: "0001_initial"},
+		SourceID:      "z-source",
+		Producer:      Producer{Name: "godj-example-generator", Version: "0.1.0"},
+		Migration:     migrations.MigrationKey{App: "alpha", Name: "0001_initial"},
+		HistoryDigest: "sha256:0aa750144ebbfbb546c6ee68eee7d32326c3ea58b3cb0fc07f7684533e7689bb",
 	}}
 	if !reflect.DeepEqual(sources, wantSources) {
 		t.Fatalf("sources = %#v, want %#v", sources, wantSources)

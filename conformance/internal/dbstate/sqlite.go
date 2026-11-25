@@ -191,6 +191,12 @@ func QuoteSQLiteIdentifier(value string) string {
 }
 
 func FingerprintHistory(records []HistoryRow) [sha256.Size]byte {
+	return FingerprintBoundHistory(records, nil)
+}
+
+// FingerprintBoundHistory is the product tests' independent recorder oracle.
+// bindings contains the expected source digests for this snapshot's bound rows.
+func FingerprintBoundHistory(records []HistoryRow, bindings map[HistoryRow]string) [sha256.Size]byte {
 	canonical := append([]HistoryRow(nil), records...)
 	sort.Slice(canonical, func(left, right int) bool {
 		if canonical[left].App != canonical[right].App {
@@ -199,11 +205,18 @@ func FingerprintHistory(records []HistoryRow) [sha256.Size]byte {
 		return canonical[left].Name < canonical[right].Name
 	})
 	hash := sha256.New()
+	if len(bindings) != 0 {
+		hash.Write([]byte("godj:bound-migration-recorder:v2\x00"))
+	}
 	var length [8]byte
 	binary.BigEndian.PutUint64(length[:], uint64(len(canonical)))
 	_, _ = hash.Write(length[:])
 	for _, record := range canonical {
-		for _, value := range []string{record.App, record.Name} {
+		values := []string{record.App, record.Name}
+		if len(bindings) != 0 {
+			values = append(values, bindings[record])
+		}
+		for _, value := range values {
 			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
 			_, _ = hash.Write(length[:])
 			_, _ = hash.Write([]byte(value))

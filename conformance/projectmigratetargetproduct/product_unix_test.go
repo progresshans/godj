@@ -43,6 +43,97 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		targetAssertPlanIsReadOnly(t, project)
 	})
 
+	t.Run("historical_data_public_plan_and_execution", func(t *testing.T) {
+		database, marker := project.paths(t, "historical-data")
+		env := project.environment(database, marker, "historical_data")
+		sensitive := project.sensitive(database)
+		command := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		targetAssertExecuteSuccess(t, command("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertSQLiteValue(t, database, targetBlog1Table, "original"); id != 1 {
+			t.Fatal("initial row key", id)
+		}
+		before := dbstate.CaptureSQLite(t, database)
+		targetResetMarker(t, marker)
+		targetAssertSuccess(t, command("migrate", "--plan"), targetPlanOutput(t, targetPlanRow{App: "blog", Name: "0002_freeze", Direction: "forward"}), sensitive...)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertMarkerEvents(t, marker, targetEventBackendOpen, targetEventSessionOpen, targetEventHistoryRead, targetEventSessionClose, targetEventBackendClose)
+		targetAssertExecuteSuccess(t, command("migrate"), 2, sensitive...)
+		targetAssertExecuteSuccess(t, command("migrate"), 2, sensitive...)
+		if values := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(values, []string{"frozen original"}) {
+			t.Fatal("fresh processes repeated or lost callback", values)
+		}
+		after := dbstate.CaptureSQLite(t, database)
+		const reversePlan = "{\"plan\":[{\"app\":\"blog\",\"name\":\"0002_freeze\",\"direction\":\"backward\",\"irreversible_operation\":0}]}\n"
+		targetAssertSuccess(t, command("migrate", "blog", targetBlog1, "--plan"), reversePlan, sensitive...)
+		targetResetMarker(t, marker)
+		targetAssertFailure(t, command("sqlmigrate", "blog", "0002_freeze", "--backwards"), 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, after)
+		targetAssertFailure(t, command("migrate", "blog", targetBlog1), 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertSQLiteUnchanged(t, database, after)
+	})
+
+	t.Run("public_model_rename_preserves_rows", func(t *testing.T) {
+		database, marker := project.paths(t, "model-rename")
+		env := project.environment(database, marker, "historical_model_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := project.sensitive(database)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertSQLiteValue(t, database, targetBlog1Table, "before"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := dbstate.CaptureSQLite(t, database)
+		targetResetMarker(t, marker)
+		const next = "target_blog_publication"
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_model_rename"), "ALTER TABLE \"target_blog_initial\" RENAME TO \"target_blog_publication\";\n", sensitive...)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_model_rename", "--backwards"), "ALTER TABLE \"target_blog_publication\" RENAME TO \"target_blog_initial\";\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		targetAssertSQLiteTables(t, database, next)
+		if got := targetSQLiteValues(t, database, next); !reflect.DeepEqual(got, []string{"before"}) {
+			t.Fatal("renamed values", got)
+		}
+		if id := targetInsertSQLiteValue(t, database, next, "after"); id != 2 {
+			t.Fatal("renamed key", id)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		targetAssertSQLiteTables(t, database, targetBlog1Table)
+		if got := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(got, []string{"before", "after"}) {
+			t.Fatal("restored values", got)
+		}
+	})
+
+	t.Run("public_field_rename_preserves_rows", func(t *testing.T) {
+		database, marker := project.paths(t, "historical-rename")
+		env := project.environment(database, marker, "historical_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := project.sensitive(database)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		targetInsertSQLiteValue(t, database, targetBlog1Table, "history")
+		before := dbstate.CaptureSQLite(t, database)
+		targetAssertSuccess(t, run("migrate", "--plan"), targetPlanOutput(t, targetPlanRow{App: "blog", Name: "0002_rename", Direction: "forward"}), sensitive...)
+		targetResetMarker(t, marker)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_rename"), `ALTER TABLE "main"."target_blog_initial" RENAME COLUMN "value" TO "label";`+"\n", sensitive...)
+		targetAssertSuccess(t, run("sqlmigrate", "blog", "0002_rename", "--backwards"), `ALTER TABLE "main"."target_blog_initial" RENAME COLUMN "label" TO "value";`+"\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertSQLiteUnchanged(t, database, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		if got := targetSQLiteColumnValues(t, database, targetBlog1Table, "label"); !reflect.DeepEqual(got, []string{"history"}) {
+			t.Fatal("renamed row", got)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if got := targetSQLiteValues(t, database, targetBlog1Table); !reflect.DeepEqual(got, []string{"history"}) {
+			t.Fatal("restored row", got)
+		}
+	})
+
 	t.Run("MIG-125_preview_drift_fresh_execute", func(t *testing.T) {
 		targetAssertPreviewDriftUsesFreshHistory(t, project)
 	})
@@ -126,7 +217,7 @@ func targetAssertRejectedArgumentsPrecedeProjectIO(t *testing.T, project *target
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			database, marker := project.paths(t, "rejected-"+test.name)
-			result := project.runAt(t, project.unselected, project.environment(database, marker, targetCatalogBranch), test.argv...)
+			result := project.runAt(t, project.unselected, project.environment(database, marker, targetCatalogBranch), "", test.argv...)
 			targetAssertFailure(t, result, 2, "migration_project_command_error/invalid_arguments\n", project.sensitive(database)...)
 			targetAssertPathAbsent(t, marker)
 			targetAssertPathAbsent(t, database)

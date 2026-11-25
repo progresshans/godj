@@ -60,6 +60,9 @@ const (
 	CodeCommitCleanupFailed           ErrorCode = "commit_cleanup_failed"
 	CodeSessionCloseFailed            ErrorCode = "session_close_failed"
 	CodeHistoryRevisionIntegrity      ErrorCode = "history_revision_integrity"
+	CodeDefinitionHistoryMismatch     ErrorCode = "definition_history_mismatch"
+	CodeMissingDataCallback           ErrorCode = "missing_data_callback"
+	CodeIrreversibleData              ErrorCode = "irreversible_data_operation"
 )
 
 const NoOperation = -1
@@ -117,6 +120,7 @@ func (m Migration) Key() MigrationKey {
 
 type Executor struct {
 	Backend backend.RevisionFencedBackend
+	Data    DataRegistry
 }
 
 // DirectExecutor owns the deliberately narrow raw migration path. It remains

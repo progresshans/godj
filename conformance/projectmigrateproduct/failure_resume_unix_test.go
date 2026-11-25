@@ -436,7 +436,7 @@ func failureResumeAssertCommittedPrefixOnly(t *testing.T, databasePath, sentinel
 	if !reflect.DeepEqual(snapshot.History, wantHistory) {
 		t.Fatalf("middle-failure history = %+v, want durable prefix %+v", snapshot.History, wantHistory)
 	}
-	assertRevision(t, snapshot.Revision, 1, wantHistory, dbstate.FingerprintHistory(wantHistory))
+	assertRevision(t, snapshot.Revision, 1, wantHistory, nil, dbstate.FingerprintHistory(wantHistory))
 	failureResumeAssertColumns(t, snapshot, map[string][]columnSnapshot{
 		failureResumePrefixTable: {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
@@ -477,7 +477,7 @@ func failureResumeAssertLatest(
 	if !reflect.DeepEqual(snapshot.History, expected.History) {
 		t.Fatalf("resumed latest history = %+v, want %+v", snapshot.History, expected.History)
 	}
-	assertRevision(t, snapshot.Revision, 3, expected.History, expected.HistoryFingerprint)
+	assertRevision(t, snapshot.Revision, 3, expected.History, nil, expected.HistoryFingerprint)
 	if snapshot.Revision.EpochBytes != prefix.EpochBytes || !reflect.DeepEqual(failureResumeReadEpoch(t, databasePath), prefixEpoch) {
 		t.Fatalf("resumed revision epoch differs from durable prefix epoch")
 	}

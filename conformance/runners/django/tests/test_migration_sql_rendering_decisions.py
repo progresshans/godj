@@ -75,11 +75,11 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
             [False, False, False, False, True, False, False, True],
         )
 
-    def test_exact_two_argv_forms_and_all_rejections_are_pre_io(self) -> None:
+    def test_exact_directional_argv_forms_and_all_rejections_are_pre_io(self) -> None:
         observation = decisions.argv_and_pre_io_rejection("MIG-129")
         result = semantic(observation["result"])
         metrics = semantic(observation["metrics"])
-        self.assertEqual(result["exact_public_forms"], 2)
+        self.assertEqual(result["exact_public_forms"], 5)
         self.assertEqual(
             [case["argv"] for case in result["accepted"]],
             [
@@ -91,6 +91,9 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
                     "--project",
                     "./godj.toml",
                 ],
+                ["sqlmigrate", "blog", "0002_render_sql", "--backwards"],
+                ["sqlmigrate", "blog", "0002_render_sql", "--backwards", "--project", "./godj.toml"],
+                ["sqlmigrate", "blog", "0002_render_sql", "--project", "./godj.toml", "--backwards"],
             ],
         )
         self.assertEqual(result["migration_name_resolution"], "exact_only")

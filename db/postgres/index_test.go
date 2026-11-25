@@ -31,7 +31,7 @@ func TestPostgresColumnIndexSQLAndNamesOwnExactTransitions(t *testing.T) {
 		{indexed, unique, []string{`DROP INDEX "product_schema".`, `ALTER TABLE "product_schema".`}},
 		{unique, indexed, []string{`ALTER TABLE "product_schema".`, `CREATE INDEX `}}, {indexed, unicode, nil},
 	} {
-		groups, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(t.Context(), mb.ForwardMigrationSQLRequest{App: "indexref", Name: "0002_change", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationAlterField, Before: test.before, After: test.after}}}})
+		groups, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderMigrationSQL(t.Context(), mb.MigrationSQLRequest{App: "indexref", Name: "0002_change", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationAlterField, Before: test.before, After: test.after}}}})
 		if err != nil || len(groups) != 1 || len(groups[0]) != len(test.prefixes) {
 			t.Fatal("index transition lost physical operation group", groups, err)
 		}
@@ -71,7 +71,7 @@ func TestPostgresColumnIndexSQLAndNamesOwnExactTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(t.Context(), mb.ForwardMigrationSQLRequest{App: "indexref", Name: "0001_collision", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationCreateModel, After: indexed}, {OperationIndex: 1, Kind: mb.MigrationCreateModel, After: collision}}}}); err == nil || result != nil {
+	if result, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderMigrationSQL(t.Context(), mb.MigrationSQLRequest{App: "indexref", Name: "0001_collision", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{{Kind: mb.MigrationCreateModel, After: indexed}, {OperationIndex: 1, Kind: mb.MigrationCreateModel, After: collision}}}}); err == nil || result != nil {
 		t.Fatal("table captured an index name")
 	}
 }

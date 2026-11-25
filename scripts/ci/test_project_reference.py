@@ -5,7 +5,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from project_reference import (COMMAND_TEST, COORDINATES, EVENT_TEST, PACKAGE, REFERENCES, ROOT, SPECIAL,
+from platform_policy import coordinates
+from project_artifacts import PYTHON, producers
+from project_reference import (COMMAND_TEST, EVENT_TEST, PACKAGE, REFERENCES, ROOT, SPECIAL,
                                compare_development, compare_events, decode, digest, document, go_observation,
                                plan, seal, verify_all, verify_seal)
 
@@ -57,6 +59,13 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         self.source = {"repository": "example/synthetic", "run_id": "1", "run_attempt": "2", "event": "pull_request",
                        "event_head": "1" * 40, "checkout": "2" * 40, "tree": "3" * 40, "status": ""}
 
+        records = {stem: {"producer_attempt": 2, "job_id": index, "artifact_id": index + 100, "archive_sha256": "a" * 64}
+                   for index, stem in enumerate(producers("full"), 1)}
+        self.selection = {"source": self.source, "repository_id": 7, "profile": "full", "producers": records}
+
+    def verify(self, source=None):
+        return verify_all(self.directory, self.source if source is None else source, self.selection, 7, "full")
+
     def write_json(self, path, value):
         path.write_text(json.dumps(value, sort_keys=True) + "\n")
 
@@ -66,8 +75,8 @@ class ProjectReferenceReaderTests(unittest.TestCase):
     def write_events(self, path, values):
         path.write_text("".join(json.dumps(value) + "\n" for value in values))
 
-    def fixture(self):
-        python = self.directory / "python"
+    def fixture(self, profile="full"):
+        python = self.directory / (PYTHON + "-2")
         python.mkdir()
         self.write_json(python / "source.json", {**self.source, "python_version": "3.14.3"})
         (python / "python-tests.txt").write_text(
@@ -80,9 +89,9 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         roots = sorted({entry.split("|", 1)[1].split("/")[0] for entry in required + postgres if entry.startswith(PACKAGE + "|")})
         discovery = ([self.event("start")] + [self.event("output", Output=root + "\n") for root in roots] +
                      [self.event("output", Output="ok  \t" + PACKAGE + "\t0.1s\n"), self.event("pass")])
-        for coordinate in COORDINATES:
-            for owner, folder, prefix in (("baseline", "baseline", "project-check-"), ("reload", "reload", "project-reload-")):
-                target = self.directory / folder / (prefix + "-".join(coordinate) + "-2")
+        for _, *coordinate in coordinates(profile):
+            for owner, prefix in (("baseline", "project-check-"), ("reload", "project-reload-")):
+                target = self.directory / (prefix + "-".join(coordinate) + "-2")
                 target.mkdir(parents=True)
                 self.write_json(target / "source.json", {**self.source, "mode": coordinate[2],
                     "go": {"GOOS": coordinate[0], "GOARCH": coordinate[1], "GOVERSION": "go1.26.5"}})
@@ -134,7 +143,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
 
     def test_native_scaffold_requires_discovery_and_complete_execution(self):
         self.fixture()
-        target = self.directory / 'baseline/project-check-darwin-amd64-race-2'
+        target = self.directory / 'project-check-darwin-amd64-race-2'
         original = {path.name: path.read_bytes() for path in target.iterdir() if path.name != 'SHA256SUMS'}
         mutations = ('missing-discovery', 'wrong-discovery-package', 'missing-package-inventory',
                      'missing-execution', 'missing-root', 'skipped-child', 'duplicate-child',
@@ -170,30 +179,77 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                 self.write_events(log, values)
                 seal(target)
                 with self.assertRaises((ValueError, OSError)):
-                    verify_all(self.directory, self.source)
+                    self.verify()
         for path in target.iterdir(): path.unlink()
         for name, data in original.items(): (target / name).write_bytes(data)
         seal(target)
-        self.assertEqual(12, len(verify_all(self.directory, self.source)['coordinates']))
+        self.assertEqual(12, len(self.verify()['coordinates']))
+
+    def test_pr_comparison_requires_both_darwin_baselines_and_cannot_authorize_full(self):
+        self.fixture("pr")
+        self.selection.update(profile="pr", producers={s: self.selection["producers"][s] for s in producers("pr")})
+        report = verify_all(self.directory, self.source, self.selection, 7, "pr")
+        self.assertEqual(("pr", 17, 8), (report["profile"], len(report["producers"]), len(report["coordinates"])))
+        for profile in ("full", "unknown"):
+            with self.assertRaises(ValueError):
+                verify_all(self.directory, self.source, self.selection, 7, profile)
+        del self.selection["producers"]["project-reload-darwin-amd64-normal"]
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "pr")
+
+    def test_native_profile_requires_all_project_modes_and_a_matching_profile(self):
+        self.fixture("native")
+        self.selection["profile"] = "native"
+        report = verify_all(self.directory, self.source, self.selection, 7, "native")
+        self.assertEqual((12, 25), (len(report["coordinates"]), len(report["producers"])))
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "full")
+        del self.selection["producers"]["project-reload-darwin-arm64-race"]
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "native")
 
     def test_all_coordinates_bind_complete_consumers_and_independent_sources(self):
         self.fixture()
-        report = verify_all(self.directory, self.source)
+        report = self.verify()
         self.assertEqual(len(report["coordinates"]), 12)
         for coordinate in report["coordinates"]:
             self.assertEqual(len(coordinate["development"]["shared"]), 8)
             self.assertEqual(coordinate["development"]["native_differences"], ["source_failure"])
             self.assertEqual(len(coordinate["events"]), 6)
 
+    def test_partial_rerun_reuses_complete_prior_producers_and_rechecks_their_envelopes(self):
+        self.fixture()
+        rerun = "project-check-darwin-amd64-race"
+        for stem, row in self.selection["producers"].items():
+            if stem == rerun:
+                continue
+            path = self.directory / (stem + "-2")
+            (path / "SHA256SUMS").unlink()
+            source = document(path / "source.json")
+            self.write_json(path / "source.json", source | {"run_attempt": "1"})
+            seal(path)
+            path.rename(self.directory / (stem + "-1"))
+            row["producer_attempt"] = 1
+        report = self.verify()
+        self.assertEqual(len(report["coordinates"]), 12)
+        self.assertEqual(report["producers"], self.selection["producers"])
+        self.assertEqual([stem for stem, row in report["producers"].items() if row["producer_attempt"] == 2], [rerun])
+        python = self.directory / (PYTHON + "-1")
+        (python / "SHA256SUMS").unlink()
+        self.write_json(python / "source.json", self.source | {"python_version": "3.14.3"})
+        seal(python)
+        with self.assertRaisesRegex(ValueError, "Python evidence source/run differs"):
+            self.verify()
+
     def test_missing_coordinate_wrong_run_and_stale_reference_are_rejected(self):
         self.fixture()
-        with self.assertRaises(ValueError): verify_all(self.directory, dict(self.source, run_id="99"))
-        missing = self.directory / "reload/project-reload-linux-amd64-normal-2"
+        with self.assertRaises(ValueError): self.verify(dict(self.source, run_id="99"))
+        missing = self.directory / "project-reload-linux-amd64-normal-2"
         moved = missing.with_name("wrong-coordinate")
         missing.rename(moved)
-        with self.assertRaises((ValueError, OSError)): verify_all(self.directory, self.source)
+        with self.assertRaises((ValueError, OSError)): self.verify()
         moved.rename(missing)
-        python = self.directory / "python"
+        python = self.directory / (PYTHON + "-2")
         (python / "SHA256SUMS").unlink()
         self.development["observer_sha256"] = "0" * 64
         log = python / "python-tests.txt"
@@ -201,7 +257,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         lines[0] = "DJANGO_DEVELOPMENT_OBSERVATION " + json.dumps(self.development)
         log.write_text("\n".join(lines) + "\n")
         seal(python)
-        with self.assertRaises(ValueError): verify_all(self.directory, self.source)
+        with self.assertRaises(ValueError): self.verify()
 
     def test_raw_go_observation_requires_exact_complete_test_lifetime(self):
         path = self.directory / "consumer.json"

@@ -424,6 +424,7 @@ type projectMigratePostgresArticle struct {
 type projectMigratePostgresSnapshot struct {
 	dbstate.PostgresCatalog
 	History  []dbstate.HistoryRow
+	Bindings map[dbstate.HistoryRow]string
 	Revision projectMigratePostgresRevision
 	Counts   map[string]int64
 	Articles []projectMigratePostgresArticle
@@ -458,17 +459,28 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		snapshot.Counts[table] = count
 	}
 
-	rows, err := connection.Query(ctx, `SELECT "app", "name" FROM `+quotedSchema+`."godj_migrations" ORDER BY "app", "name"`)
+	digestColumn := "NULL::bytea"
+	for _, column := range catalog.Columns {
+		if column.Table == "godj_migrations" && column.Name == "definition_digest" {
+			digestColumn = `"definition_digest"`
+			snapshot.Bindings = make(map[dbstate.HistoryRow]string)
+		}
+	}
+	rows, err := connection.Query(ctx, `SELECT "app", "name", `+digestColumn+` FROM `+quotedSchema+`."godj_migrations" ORDER BY "app", "name"`)
 	if err != nil {
 		t.Fatalf("query PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var row dbstate.HistoryRow
-		if err := rows.Scan(&row.App, &row.Name); err != nil {
+		var digest []byte
+		if err := rows.Scan(&row.App, &row.Name, &digest); err != nil {
 			rows.Close()
 			t.Fatalf("scan PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.History = append(snapshot.History, row)
+		if digest != nil {
+			snapshot.Bindings[row] = fmt.Sprintf("sha256:%x", digest)
+		}
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
 		t.Fatalf("finish PostgreSQL migration history query: %v", testfixture.PostgresSafeError(err))
@@ -567,7 +579,10 @@ func projectMigratePostgresAssertLatest(
 	if !reflect.DeepEqual(snapshot.History, expected.History) {
 		t.Fatalf("PostgreSQL latest history = %+v, want %+v", snapshot.History, expected.History)
 	}
-	if snapshot.Revision.FormatVersion != 1 || snapshot.Revision.Epoch == ([16]byte{}) ||
+	if !reflect.DeepEqual(snapshot.Bindings, expected.Bindings) {
+		t.Fatalf("PostgreSQL stored migration digests = %v, want %v", snapshot.Bindings, expected.Bindings)
+	}
+	if snapshot.Revision.FormatVersion != 2 || snapshot.Revision.Epoch == ([16]byte{}) ||
 		snapshot.Revision.Revision != int64(len(expected.History)) ||
 		snapshot.Revision.HistoryFingerprint != expected.HistoryFingerprint ||
 		snapshot.Revision.AdditionalRows != 0 {
@@ -831,6 +846,7 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 		column("godj_migration_revision", 5, "history_fingerprint", "bytea", true, "", false),
 		column("godj_migrations", 1, "app", "character varying(255)", true, "", true),
 		column("godj_migrations", 2, "name", "character varying(255)", true, "", true),
+		column("godj_migrations", 3, "definition_digest", "bytea", false, "", false),
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Table != out[j].Table {

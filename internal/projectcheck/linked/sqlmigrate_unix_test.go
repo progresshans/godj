@@ -184,10 +184,14 @@ func TestRunSQLMigrateStrictRequestCancellationAndSingleWrite(t *testing.T) {
 	}
 
 	var malformed bytes.Buffer
+	oldReport, oldErr := RunSQLMigrate(t.Context(), config, []string{"__godj_project_sqlmigrate_runner_v1"}, strings.NewReader(""), &malformed)
+	if oldErr == nil || oldReport.LoadCalls != 0 || malformed.Len() != 0 || renderer.calls != 0 {
+		t.Fatalf("old private argument reached the runner: %+v, %v", oldReport, oldErr)
+	}
 	report, err := RunSQLMigrate(
 		context.Background(), config,
 		[]string{sqlmigrateprotocol.PrivateArgument},
-		strings.NewReader(`{"protocol_version":2,"command":"migrations.sql","app":"blog","name":"zero"}`),
+		strings.NewReader(`{"protocol_version":1,"command":"migrations.sql","app":"blog","name":"zero"}`),
 		&malformed,
 	)
 	response, failure, failed := sqlmigrateprotocol.ParseResponse(malformed.Bytes(), true)
@@ -309,14 +313,14 @@ func linkedSQLModel() ir.Model {
 
 type linkedSQLRenderer struct {
 	calls   int
-	request backend.ForwardMigrationSQLRequest
+	request backend.MigrationSQLRequest
 	groups  [][]string
 	err     error
 }
 
-func (renderer *linkedSQLRenderer) RenderForwardMigrationSQL(
+func (renderer *linkedSQLRenderer) RenderMigrationSQL(
 	_ context.Context,
-	request backend.ForwardMigrationSQLRequest,
+	request backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	renderer.request = request

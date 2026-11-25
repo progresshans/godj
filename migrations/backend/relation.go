@@ -17,6 +17,18 @@ type MigrationCapabilities struct {
 	AlterFieldInputPolicy      bool
 	AlterFieldDecimalPrecision bool
 	AlterFieldRelation         bool
+	// AlterFieldNullability covers tightening or relaxing a column and applying
+	// its explicit scalar default to existing NULLs when tightening.
+	AlterFieldNullability bool
+	// DefinitionHistory binds a recorder write to the loaded migration and its
+	// declared ancestors in the same transaction as the migration body.
+	DefinitionHistory bool
+	// HistoricalData runs application code with row access to the operation's
+	// historical models on the same connection and transaction as its recorder.
+	HistoricalData bool
+	RenameField    bool
+	DeleteModel    bool
+	RenameModel    bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
@@ -41,6 +53,9 @@ type MigrationModelChange = migrationgraph.ModelChange
 
 const (
 	MigrationAlterManyToMany  = migrationgraph.MigrationAlterManyToMany
+	MigrationRunData          = migrationgraph.MigrationRunData
+	MigrationRenameField      = migrationgraph.MigrationRenameField
+	MigrationRenameModel      = migrationgraph.MigrationRenameModel
 	MigrationCreateModel      = migrationgraph.MigrationCreateModel
 	MigrationDeleteModel      = migrationgraph.MigrationDeleteModel
 	MigrationAddField         = migrationgraph.MigrationAddField

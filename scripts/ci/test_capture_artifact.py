@@ -1,14 +1,46 @@
 from copy import deepcopy
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from capture_artifact import CAPTURES, pack, producer, resolve, verify
+from capture_artifact import CAPTURES, github_read, github_records, pack, producer, resolve, verify
 
 
 class CaptureArtifactTest(unittest.TestCase):
+    def test_job_pages_keep_the_query_and_reject_an_incomplete_inventory(self):
+        first = {"jobs": list(range(30)), "total_count": 31}
+        last = {"jobs": [30], "total_count": 31}
+        with patch("capture_artifact.github_read", side_effect=[json.dumps(first), json.dumps(last)]) as read:
+            self.assertEqual(github_records("run/jobs?filter=all", "jobs"), list(range(31)))
+        self.assertEqual([c.args for c in read.call_args_list],
+                         [("run/jobs?filter=all&per_page=30&page=1",), ("run/jobs?filter=all&per_page=30&page=2",)])
+        with patch("capture_artifact.github_read", return_value=json.dumps({"artifacts": [], "total_count": 1})):
+            with self.assertRaisesRegex(ValueError, "incomplete GitHub artifacts"):
+                github_records("run/artifacts", "artifacts")
+
+    def test_github_read_retries_only_transient_failures_with_a_limit(self):
+        transient = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Server Error (HTTP 502)")
+        forbidden = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Forbidden (HTTP 403)")
+        timeout = subprocess.TimeoutExpired("gh", 90)
+        with patch("capture_artifact.time.sleep") as sleep, patch("capture_artifact.subprocess.run") as call:
+            call.side_effect = [transient, timeout, subprocess.CompletedProcess([], 0, stdout=b"ok")]
+            self.assertEqual(github_read("repos/example/path"), b"ok")
+            self.assertEqual(call.call_count, 3)
+            self.assertEqual(sleep.call_count, 2)
+            call.reset_mock()
+            call.side_effect = forbidden
+            with self.assertRaises(subprocess.CalledProcessError):
+                github_read("repos/example/path")
+            self.assertEqual(call.call_count, 1)
+            call.reset_mock()
+            call.side_effect = transient
+            with self.assertRaises(subprocess.CalledProcessError):
+                github_read("repos/example/path")
+            self.assertEqual(call.call_count, 3)
+
     def setUp(self):
         self.filename = next(iter(CAPTURES))
         self.run = {

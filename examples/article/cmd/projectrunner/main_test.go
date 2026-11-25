@@ -16,7 +16,9 @@ import (
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
+	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/settings/database"
 )
@@ -80,7 +82,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	if err != nil {
 		t.Fatalf("project migration plan: %v", err)
 	}
-	const wantPlanResponse = `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[]}}`
+	const wantPlanResponse = `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[]}}`
 	if got := planOutput.String(); got != wantPlanResponse {
 		t.Fatalf("project migration plan response=%q, want canonical %q", got, wantPlanResponse)
 	}
@@ -97,12 +99,12 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	want := []migrationbackend.AppliedMigration{
 		{App: "godj_account_audit", Name: "0001_initial"},
 		{App: "godj_account_domain", Name: "0001_initial"},
-		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"},
+		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4", HistoryDigest: "sha256:20709649efac31941b23ac45cb246933ef40b9150c92f7233bcefcb56b49cdec"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0002_alter_article_summary"},
 		{App: "godj_conformance", Name: "0003_article_slug"},
 		{App: "godj_identity", Name: "0001_initial"},
-		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_identity", Name: "0002_permission_revision", HistoryDigest: "sha256:9a64814a89c5562a96ea9f07bfeacb61a92e7d8056d5438a41f6239702edb630"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
 		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
 		{App: "godj_sessions", Name: "0001_initial"},
@@ -137,6 +139,77 @@ func readArticleMigrationHistory(t *testing.T, databasePath string) []migrationb
 		t.Fatal(backendCloseErr)
 	}
 	return records
+}
+
+func TestArticleProjectRunnerExecutesRegisteredHistoricalData(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	if err := os.Mkdir("migrations", 0755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "article.sqlite3")
+	config := articleProjectConfig(environmentLookup(map[string]string{databaseconfig.SQLiteDatabaseEnv: path}))
+	key := migrations.DataKey{App: "issues", Name: "freeze", Version: 1}
+	op := migrations.RunData{Key: key, Forward: migrations.DataCall, Reverse: migrations.DataIrreversible}
+	document, err := definition.Encode(definition.Producer{Name: "issues", Version: "1"}, migrations.Migration{App: "issues", Name: "0001_freeze", Operations: []migrations.Operation{op}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.MigrationDefinitionSources = []definition.Source{{SourceID: "embedded-issue-history", Document: document}}
+	calls := 0
+	registry, err := migrations.NewDataRegistry(migrations.DataRegistration{Key: key, Forward: func(ctx context.Context, models migrations.HistoricalModels) error {
+		if _, err := models.Model(ctx, "issues", "ticket"); err == nil {
+			return errors.New("unscoped model became available")
+		}
+		calls++
+		return nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.DataMigrations = registry
+	call := func(mode migrateprotocol.Mode, target migrateprotocol.Target, wantOK bool) migrateprotocol.Response {
+		t.Helper()
+		request, err := migrateprotocol.EncodeRequest(migrateprotocol.Request{Mode: mode, Target: target})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var output bytes.Buffer
+		err = godjproject.Run(t.Context(), config, []string{migrateprotocol.PrivateArgument}, bytes.NewReader(request), &output)
+		if err != nil {
+			t.Fatal("project runner transport", err, output.String())
+		}
+		response, failure, failed := migrateprotocol.ParseResponse(output.Bytes(), true)
+		if failed || response.OK != wantOK {
+			t.Fatal("unexpected outcome", failure, output.String())
+		}
+		return response
+	}
+	latest := migrateprotocol.Target{Kind: migrateprotocol.TargetLatest}
+	zero := migrateprotocol.Target{Kind: migrateprotocol.TargetZero, App: "issues"}
+	if plan := call(migrateprotocol.ModePlan, latest, true).Result.Plan; len(plan) != 1 || plan[0].Irreversible || calls != 0 {
+		t.Fatal("forward plan", plan, calls)
+	}
+	call(migrateprotocol.ModeExecute, latest, true)
+	call(migrateprotocol.ModeExecute, latest, true)
+	records := readArticleMigrationHistory(t, path)
+	if calls != 1 || len(records) != 1 || records[0].HistoryDigest == "" {
+		t.Fatal("registration or receipt", calls, records)
+	}
+	wantPlan := []migrateprotocol.PlanRow{{App: "issues", Name: "0001_freeze", Direction: migrateprotocol.DirectionBackward, Irreversible: true, IrreversibleOperation: 0}}
+	if plan := call(migrateprotocol.ModePlan, zero, true).Result.Plan; !reflect.DeepEqual(plan, wantPlan) {
+		t.Fatal("reverse plan", plan)
+	}
+	if failure := call(migrateprotocol.ModeExecute, zero, false).Failure; failure.Code != string(migrations.CodeIrreversibleData) {
+		t.Fatal("reverse error", failure)
+	}
+	config.DataMigrations = migrations.DataRegistry{}
+	if failure := call(migrateprotocol.ModePlan, latest, false).Failure; failure.Code != string(migrations.CodeMissingDataCallback) {
+		t.Fatal("missing registration", failure)
+	}
+	if calls != 1 || !reflect.DeepEqual(records, readArticleMigrationHistory(t, path)) {
+		t.Fatal("plan or rejected command changed durable history")
+	}
 }
 
 func TestArticleProjectRunnerClosesConfigurationFailureWithoutSecret(t *testing.T) {

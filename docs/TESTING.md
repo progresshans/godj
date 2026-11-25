@@ -32,10 +32,17 @@ go test ./orm -count=1
 `make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
 `make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
 Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. 빠른 검사의 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
-PR 생성·새 commit push·재개와 main push에서 전체 원격 CI를 자동 실행한다. Draft PR도 같은 검증을 받는다.
-수동 실행은 같은 전체 검증을 다시 요청한다. 라벨·부분 실행 범위·문서 경로에 따른 실행 선택은 없다.
-같은 PR이나 branch에 새 실행이 요청되면 진행 중인 이전 실행을 취소하고 최신 source를 검증한다.
-완료 판정은 해당 run의 실제 checkout과 모든 필수 job의 성공을 확인한다. 실패·취소·skip·누락은 전체 성공이 아니다.
+
+## 원격 CI 실행 범위
+
+일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
+macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. runserver 자식이 종료된 뒤에도 완전한 퇴역 응답을 받은 경우에만 다음 세대를 활성화하는지 검사한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
+
+공용 `*_unix.go`가 바뀌면 양쪽 Mac에서 프로젝트 검사·reload·외부 명령을 normal·race·CGO=0으로 모두 실행한다. 네이티브 필수 검사도 같은 race·CGO=0 reload 작업에서 실행한다. Linux 관계 검사는 모든 shard를 유지한다.
+
+PR이 루트 `go.mod`·`go.sum`, `*_darwin.go`·`*_darwin_*.go`를 변경하거나 삭제하면 전체 플랫폼을 자동 실행한다. 계획기는 이벤트의 base·head와 실제 병합 커밋의 양쪽 부모를 확인하고, 이름 변경 전후 경로를 포함해 비교한다. main push와 수동 실행도 전체 플랫폼을 실행한다. 릴리스 후보는 해당 소스에서 전체 결과를 확인한다. [선택 기준](../scripts/ci/platform_policy.py)
+
+같은 PR의 새 push는 진행 중인 이전 실행을 취소한다. 최종 집계는 같은 소스에서 범위를 다시 계산하고 모든 필수 작업의 성공을 요구한다. 일반 PR은 `profile=pr`, 공용 Unix 변경은 `profile=native`, 전체 플랫폼 성공은 `profile=full`과 `full_platform_verified=true`로 기록한다.
 
 Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
 [suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
@@ -45,7 +52,15 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
-일반 CI는 dependency/build cache를 재사용할 수 있다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
+외부 프로젝트의 오프라인 테스트에 필요한 모듈은 `make project-command-dependencies`로 준비한다. 같은 Go 캐시 키를 복원해도 추가 모듈 다운로드가 필요할 수 있다. 확인된 일시적 전송 오류에는 같은 `go mod download all`을 최대 두 번 더 실행한다. 체크섬·권한 오류와 중단 신호는 즉시 실패로 처리한다.
+
+Linux 32비트 컴파일과 관계 테스트는 일반 Portable core에서 한 번 실행한다. PostgreSQL 원본을 기다리는 비교 작업과 병렬로 진행하며 두 작업의 성공을 모두 요구한다.
+
+Darwin 필수 검사는 패키지 하나씩 실행하고 매번 시작·종료 시각, Go 이벤트와 stderr를 남긴다. SQLite는 마지막에 실행한다. `-p=1`로 동시 빌드 도구 수를 제한하고 외부 프로젝트와 같은 `-trimpath`를 사용한다. 각 패키지 테스트의 15분 제한, race·CGO=0, 하위 검사 필수 통과 조건을 유지한다. 단계 제한은 Intel 35분과 ARM64 80분이며 전용 작업에는 준비·증거 업로드 10분을 별도로 둔다.
+
+공개 저장소의 표준 GitHub 호스팅 러너를 사용한다. Go 설정은 OS·CPU·Go 버전별로 루트 모듈과 OpenAPI 클라이언트의 `go.mod`·`go.sum` 조합을 공유하므로 같은 PR에서 Portable과 다른 Linux 작업이 같은 캐시를 복원할 수 있다. Python은 uv의 기존 캐시와 고정 lockfile을 사용한다. GitHub의 PR 캐시 접근 범위와 저장소의 10 GB 상한을 따른다. [GitHub 캐시 정책](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
+
+외부 operator·targeted migration fixture는 준비 단계에서 저장소의 검증된 Go 체크섬을 복사한다. 오프라인에서 실제 실행 파일의 의존성을 해석하고 사용된 합계를 원본과 대조한다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
 다운로드와 compile cache를 재사용한다. Cold build나 private workspace 격리가 검증 대상일 때만 그 경계를 따로 실행한다.
 Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cache로 저장하지 않는다.
 동일 소스를 다른 디렉터리에서 재현하는 일반 compile에는 `-trimpath`를 사용한다. 소스 경로 자체나 cold/private
@@ -73,8 +88,10 @@ OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-r
 단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료와 `--no-reload`의 명시적 재시작을,
 관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
-필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 12개 native 좌표의 원본을 다시 읽어 대조한다.
-Source/tree/run/attempt·member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash가 모두 일치해야 한다.
+필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 일반 PR 8개 또는 공용 Unix·전체 플랫폼 12개 좌표의 원본을 다시 읽어 대조한다.
+비교기는 같은 실행에서 고정 Python과 각 baseline·reload를 실제로 수행한 최신 작업을 찾는다. 해당 범위의 생산자(일반 PR 17개, 공용 Unix·전체 플랫폼 25개)가 모두 성공하고 각 생산 작업에서 업로드 직후 성공한 단계 이름에 고정 업로드 액션이 반환한 artifact ID·SHA-256을 기록한다. 비교기는 작업 API의 해당 시도·단계 순서·영수증을 GitHub artifact 메타데이터와 대조한 뒤 다운로드한다. 일부 작업만 재실행하면 재실행한 생산자는 새 시도의 원본을, 나머지는 같은 실행에서 성공한 원본을 사용한다. 최신 작업이 실패·취소됐거나 원본이 사라지면 비교가 실패한다.
+실패한 작업만 재실행하면 GitHub가 이미 성공한 작업에도 새 ID를 부여할 수 있다. 작업이 끝난 뒤 만들어진 기록은 같은 runner, 시작·종료 시각, 결과와 업로드 영수증을 포함한 전체 단계가 이전 실행과 일치해야 한다. 비교 결과에는 원본을 실제로 올린 작업 ID와 시도를 기록한다.
+각 원본의 source·tree·run·해당 생산자의 attempt, member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash를 확인한다. 비교 결과에 실행 범위와 모든 생산자의 ID·시도·artifact ID·해시를 남긴다.
 개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
 제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.
 SYS-003 등의 단일 worker 준비는 cold 의존성 컴파일을 포함해 최대 5분을 허용하고, 실제 worker 동작은 별도의
@@ -155,12 +172,16 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix는 Linux·macOS의 각 아키텍처와 모드에서 0번 작업이 일반 관계 패키지를 실행한다.
+전체 플랫폼의 관계 matrix와 두 PR 범위의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
 생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
 계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
 
-기본 제한은 작업 45분, Go 패키지 35분이다. macOS의 0번 작업은 90분이며 macOS race는 모든 작업에 90분, 패키지에 70분을 적용한다.
-Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전체를 45분 제한으로 한 번 실행하고 나머지 패키지는 35분으로 실행한다.
+Linux ARM64 race에서는 전용 계정 테스트 16개를 각각 단독 실행한다. 나머지 상위 테스트는 예상 시간이 긴 순서로 5개 작업 중 누적 예상 시간이 가장 짧은 곳에 배정한다. 두 Hosted 실행에서 평균 90초 이상 걸린 일반 테스트는 15초 단위 실측값을 쓰고, 새 테스트를 포함한 나머지는 30초로 계산한다. 매 실행의 바이너리 발견 목록으로 배정 대상이 정해진다.
+두 Linux race runtime 다음에는 ARM64의 일반 소비자 5개 작업과 평균 15분 이상 걸린 전용 소비자 작업을 먼저 제출한다. 실제 러너 배정 시각은 GitHub 대기열에 따라 달라진다. [측정과 재배치 근거](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
+
+기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
+macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
+Linux amd64·arm64 race의 runtime 작업은 full·PR 실행 계획의 맨 앞에 등록한다. 두 좌표 모두 작업 제한은 70분이다. `db/sqlite` 전체를 별도 Go 프로세스에서 45분 제한으로 한 번 실행하고, 나머지 패키지는 35분으로 실행한다.
 두 호출의 Go 이벤트와 stderr를 같은 원본에 보관하고 전체 필수 목록을 대조한다. [SQLite 패키지 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
 각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
 실제 package 집합의 정확한 일치를 요구한다. 실행용 필수 목록은 파일로 보존하고 로그에는 목록의 개수와 상위 테스트 지문을 남긴다.
@@ -173,7 +194,7 @@ Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전
 옛 fixture별 파일 수·이전 내부 ABI의 복제본을 유지하지 않는다. 현재 생성 조합의 일관성·잘못 섞인 snapshot 거부는
 `codegen/consumertest`, 소비자 타입 오류와 publication 실패 시 기존 결과 보존은 각각 compile·projectgenerate 검증이 맡는다.
 
-SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
+SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 Linux의 각 OS/CPU 좌표에서 실행한다. 전체 플랫폼에서는 Darwin의 같은 좌표에서도 실행한다.
 Conformance Go runner 전체는 project-check matrix가 실행하고 관계 matrix는 같은 runner subset을 반복하지 않는다.
 Linux amd64 checker 전체는 Portable이 맡고 관계 matrix의 같은 subset을 생략한다.
 Portable core/conformance는 `scripts/ci/portable_tests.py`가 normal/race/CGO0의 JSON 시작·종료와 package 완료를 대조한다.
@@ -181,7 +202,7 @@ Core의 필수 root/child는 `portable-core-required.txt`에 두고 모두 실�
 기존 선택적 검사의 skip은 core 결과에 구분해 기록한다. Conformance는 옮겨진 checker의 필수 sentinel·package no-skip을 유지한다.
 원격 job은 JSON 전체·stderr·실제 package/필수 목록·결과와 파일 hash를 portable test evidence artifact로 보존한다.
 다른 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
-aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. Darwin CGO-disabled lifecycle도 관계/project-check matrix가 소유한다.
+aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. 일반 PR의 Darwin CGO-disabled lifecycle은 네이티브 필수 검사에서, 전체 플랫폼에서는 관계/project-check matrix에서 검증한다.
 
 ## 남겨야 하는 검증
 
@@ -234,6 +255,7 @@ Source API 관찰은 GoDj 자체를 현재 source로 type-check하고 외부 pac
 GOPATH나 과거 dependency 집합을 가정하지 않으며 native export 조회에도 context·timeout·출력 한도와 readonly/offline 조건을 적용한다.
 외부 CLI fixture의 module 준비는 제품 호출 이전에 수행한다. 실제 제품 명령의 private cache·readonly·무변경 검사는 그대로 유지한다.
 Python compatibility observer는 실제 실행 interpreter를 보고하고 고정 fixture의 runtime metadata와 구분한다.
+각 지원 Python에서 311개 시나리오를 실행한다. 비교기는 Django·DRF 원본의 체크섬과 프로필, manifest의 계약 ID·순서를 확인한다. 호출자가 지정한 ID를 포함한 각 결과를 저장된 관측과 바이트 단위로 대조하고, 전체 크기와 SHA-256을 출력한다. [비교기](../scripts/ci/python_semantics.py)
 고정 Django source hash·관찰 동작과 부정 대조는 각 지원 interpreter에서 유지하며 고정 reference fixture를 다시 쓰지 않는다.
 관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.
 JSON/file 읽기 구현을 공유해도 각 attestation의 source inventory·크기 제한·schema는 독립적으로 검증한다.
@@ -311,6 +333,8 @@ normal/core-account-management에서 [Django 계정 관측기 실행 도구](../
 Go 검사가 읽는 같은 DB의 기준 파일과 관측값·Django 소스 해시를 대조한다. 기준과 실행의 DB 패치 버전은 각각 기록한다.
 18개 원본과 SHA-256 대조표는 해당 작업의 `identity-reference/`에 보관한다.
 
+M1의 독립 Django 기준은 PostgreSQL 일반 모드의 `core` 작업에서 SQLite 파일과 일회용 PostgreSQL DB를 각각 사용한다. 과거 모델로 기존 행을 변환하고, 중간 오류와 비가역 작업 뒤 재접속해 행·제약·적용 기록을 읽는다. 양 DB의 관측 결과와 입력 해시를 대조한 뒤 원본 둘과 해시 목록을 `migration-data-reference/`에 게시한다. GoDj의 데이터 변환 API와 revision 검사는 별도 제품 검증 대상이다. [비교 실행기](../scripts/ci/migration_data_reference.py) · [Django 관측기](../conformance/runners/django/migration_data_reference.py)
+
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
 개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.
@@ -350,7 +374,7 @@ CI는 source/run/attempt별 native build와 수명 receipt를 `s3-service-<mode>
 
 ## 문서와 과거 증거
 
-문서-only 변경의 로컬 검증은 link·상태 일관성과 `git diff --check`로 제한한다. PR/main push에는 같은 원격 CI가 적용된다.
+문서-only 변경의 로컬 검증은 link·상태 일관성과 `git diff --check`로 제한한다. PR과 main push에는 위의 원격 CI 실행 범위를 적용한다.
 현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
 명령, source, 환경, 결과, 실패/skip, 미실행 범위를 남기면 된다. 작은 수정마다 여러 activation/checkpoint/terminal EVID를 만들지 않는다.
 

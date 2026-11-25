@@ -41,7 +41,7 @@ func PrecisionHistory(t testing.TB) (migrations.LoadedDefinitionSet, ir.Model, i
 
 // MixedPrecisionSQLRequest keeps a physical AddField between two different
 // AlterField kinds so metadata-only output cannot shift operation positions.
-func MixedPrecisionSQLRequest(t testing.TB) mb.ForwardMigrationSQLRequest {
+func MixedPrecisionSQLRequest(t testing.TB) mb.MigrationSQLRequest {
 	t.Helper()
 	_, before, after := PrecisionHistory(t)
 	added := after.Clone()
@@ -49,7 +49,7 @@ func MixedPrecisionSQLRequest(t testing.TB) mb.ForwardMigrationSQLRequest {
 	added.Fields = append(added.Fields, note)
 	chosen := added.Clone()
 	chosen.Fields[2].Choices = []ir.Choice{schema.Choice("a", "A")}
-	return mb.ForwardMigrationSQLRequest{App: "decimalref", Name: "0002_mixed", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{
+	return mb.MigrationSQLRequest{App: "decimalref", Name: "0002_mixed", Intent: mb.MigrationIntent{Operations: []mb.MigrationOperation{
 		{OperationIndex: 0, Kind: mb.MigrationAlterField, Before: before, After: after},
 		{OperationIndex: 1, Kind: mb.MigrationAddField, Before: after, After: added},
 		{OperationIndex: 2, Kind: mb.MigrationAlterField, Before: added, After: chosen},

@@ -117,6 +117,16 @@ func TestGlobalShowMigrationsExternalProjectSQLiteProduct(t *testing.T) {
 		}
 		afterSecond := dbstate.CaptureSQLite(t, database)
 		externalStatusAssertSQLiteUnchanged(t, before, afterSecond)
+		t.Run("migrate_rejects_changed_ancestor", func(t *testing.T) {
+			changed := project.environment(database, marker, "changed_author")
+			for _, args := range [][]string{{"migrate", "--plan", "--project", project.descriptor}, {"migrate", "--project", project.descriptor}} {
+				externalStatusResetMarker(t, marker)
+				result := project.run(t, changed, args...)
+				externalStatusAssertFailure(t, result, 1, "migration_history_error/definition_history_mismatch\n", project.sensitive(database)...)
+				externalStatusAssertReadLifecycle(t, marker)
+				externalStatusAssertSQLiteUnchanged(t, before, dbstate.CaptureSQLite(t, database))
+			}
+		})
 	})
 
 	t.Run("MIG-115_cross_app_branch_order", func(t *testing.T) {

@@ -54,6 +54,7 @@ type migrateResult struct {
 type articleCatalogExpectation struct {
 	Command            migrateResult
 	History            []dbstate.HistoryRow
+	Bindings           map[dbstate.HistoryRow]string
 	HistoryFingerprint [sha256.Size]byte
 	DefinitionDigest   [sha256.Size]byte
 }
@@ -321,6 +322,19 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		t.Fatalf("current Article graph = %+v, want %+v", history, wantHistory)
 	}
 	digest := decodeSHA256Digest(t, loaded.Digest())
+	bindings := make(map[dbstate.HistoryRow]string)
+	for _, source := range loaded.Sources() {
+		key := dbstate.HistoryRow{App: source.Migration.App, Name: source.Migration.Name}
+		switch key {
+		case dbstate.HistoryRow{App: "godj_identity", Name: "0002_permission_revision"},
+			dbstate.HistoryRow{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"}:
+			decodeSHA256Digest(t, source.HistoryDigest)
+			bindings[key] = source.HistoryDigest
+		}
+	}
+	if len(bindings) != 2 {
+		t.Fatal("missing Article account-domain or permission migration binding")
+	}
 	return articleCatalogExpectation{
 		Command: migrateResult{
 			SourceCount:         len(loaded.Sources()),
@@ -328,7 +342,8 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 			DefinitionSetDigest: loaded.Digest(),
 		},
 		History:            history,
-		HistoryFingerprint: dbstate.FingerprintHistory(history),
+		Bindings:           bindings,
+		HistoryFingerprint: dbstate.FingerprintBoundHistory(history, bindings),
 		DefinitionDigest:   digest,
 	}
 }
@@ -600,6 +615,7 @@ type columnSnapshot struct {
 type databaseSnapshot struct {
 	Tables   []string
 	History  []dbstate.HistoryRow
+	Bindings map[dbstate.HistoryRow]string
 	Revision revisionRow
 	Columns  map[string][]columnSnapshot
 }
@@ -658,17 +674,28 @@ func inspectDatabase(t *testing.T, databasePath string) databaseSnapshot {
 		}
 	}
 	if containsString(snapshot.Tables, "godj_migrations") {
-		historyRows, err := database.QueryContext(ctx, `SELECT "app", "name" FROM "godj_migrations" ORDER BY "app", "name"`)
+		digestColumn := "NULL"
+		for _, column := range snapshot.Columns["godj_migrations"] {
+			if column.Name == "definition_digest" {
+				digestColumn = `"definition_digest"`
+				snapshot.Bindings = make(map[dbstate.HistoryRow]string)
+			}
+		}
+		historyRows, err := database.QueryContext(ctx, `SELECT "app", "name", `+digestColumn+` FROM "godj_migrations" ORDER BY "app", "name"`)
 		if err != nil {
 			t.Fatal(err)
 		}
 		for historyRows.Next() {
 			var row dbstate.HistoryRow
-			if err := historyRows.Scan(&row.App, &row.Name); err != nil {
+			var digest []byte
+			if err := historyRows.Scan(&row.App, &row.Name, &digest); err != nil {
 				_ = historyRows.Close()
 				t.Fatal(err)
 			}
 			snapshot.History = append(snapshot.History, row)
+			if digest != nil {
+				snapshot.Bindings[row] = "sha256:" + hex.EncodeToString(digest)
+			}
 		}
 		if err := errors.Join(historyRows.Err(), historyRows.Close()); err != nil {
 			t.Fatal(err)
@@ -708,7 +735,7 @@ func assertPrefixDatabase(t *testing.T, databasePath, sentinel string) {
 	if !reflect.DeepEqual(snapshot.History, []dbstate.HistoryRow{{App: "godj_conformance", Name: "0001_initial"}}) {
 		t.Fatalf("prefix history = %+v", snapshot.History)
 	}
-	assertRevision(t, snapshot.Revision, 1, snapshot.History, dbstate.FingerprintHistory(snapshot.History))
+	assertRevision(t, snapshot.Revision, 1, snapshot.History, nil, dbstate.FingerprintHistory(snapshot.History))
 	assertExpectedColumns(t, snapshot, wantTables, false)
 	assertArticleSentinel(t, databasePath, sentinel)
 }
@@ -738,7 +765,10 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 	if !reflect.DeepEqual(snapshot.History, wantHistory) {
 		t.Fatalf("latest history = %+v, want %+v", snapshot.History, wantHistory)
 	}
-	assertRevision(t, snapshot.Revision, int64(len(wantHistory)), wantHistory, expected.HistoryFingerprint)
+	if !reflect.DeepEqual(snapshot.Bindings, expected.Bindings) {
+		t.Fatalf("SQLite stored migration digests = %v, want %v", snapshot.Bindings, expected.Bindings)
+	}
+	assertRevision(t, snapshot.Revision, int64(len(wantHistory)), wantHistory, expected.Bindings, expected.HistoryFingerprint)
 	assertExpectedColumns(t, snapshot, wantTables, true)
 	assertArticleSentinel(t, databasePath, sentinel)
 }
@@ -756,10 +786,11 @@ func assertRevision(
 	got revisionRow,
 	wantRevision int64,
 	wantHistory []dbstate.HistoryRow,
+	bindings map[dbstate.HistoryRow]string,
 	wantFingerprint [sha256.Size]byte,
 ) {
 	t.Helper()
-	calculated := dbstate.FingerprintHistory(wantHistory)
+	calculated := dbstate.FingerprintBoundHistory(wantHistory, bindings)
 	if calculated != wantFingerprint {
 		t.Fatalf("expected migration history fingerprint = %x, loaded-catalog fingerprint = %x", calculated, wantFingerprint)
 	}
@@ -769,6 +800,9 @@ func assertRevision(
 		Revision:           wantRevision,
 		FingerprintBytes:   sha256.Size,
 		HistoryFingerprint: wantFingerprint,
+	}
+	if len(bindings) != 0 {
+		want.FormatVersion = 2
 	}
 	if got != want {
 		t.Fatalf("migration revision = %+v, want %+v", got, want)
@@ -790,11 +824,12 @@ func decodeSHA256Digest(t *testing.T, digest string) [sha256.Size]byte {
 	return result
 }
 
-func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []string, hasSlug bool) {
+func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []string, latest bool) {
 	t.Helper()
 	expected := expectedColumns()
-	if hasSlug {
+	if latest {
 		expected["godj_conformance_article"] = append(expected["godj_conformance_article"], columnSnapshot{Name: "slug", Type: "VARCHAR(50)"})
+		expected["godj_migrations"] = append(expected["godj_migrations"], columnSnapshot{Name: "definition_digest", Type: "BLOB"})
 	}
 	for _, table := range tables {
 		want, exists := expected[table]

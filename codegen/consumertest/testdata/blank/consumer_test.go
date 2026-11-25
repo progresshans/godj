@@ -117,7 +117,7 @@ func runBlankPolicy(t *testing.T, open func(context.Context) (blankBackend, erro
 		t.Fatal(err)
 	}
 	for _, renderer := range []migrationbackend.MigrationSQLRenderer{sqlite.NewMigrationSQLRenderer(), postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"})} {
-		statements, err := migrations.RenderMigrationSQL(ctx, loaded, changed.Key(), renderer)
+		statements, err := migrations.RenderMigrationSQL(ctx, loaded, changed.Key(), migrations.DirectionForward, renderer)
 		if err != nil || len(statements) != 0 {
 			t.Fatal("blank-only change attempted physical DDL", statements, err)
 		}
