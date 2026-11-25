@@ -179,7 +179,7 @@ class RelationShardTest(unittest.TestCase):
             self.assertGreaterEqual(row['job_timeout'], row['step_minutes'] * len(parts))
             self.assertEqual(row['test_timeout'], '70m' if darwin and race else '35m')
             self.assertEqual(row['sqlite_timeout'], '45m' if separate_sqlite else '')
-            self.assertEqual(bool(row.get('serial_runtime_packages')), runtime_part and coordinate[0] == 'macos-26' and coordinate[3] == 'cgo0')
+            self.assertEqual(bool(row.get('serial_runtime_packages')), runtime_part and coordinate[0] == 'macos-26')
         expected = {(runner, goos, arch, mode): list(range(expected_counts[(runner, mode)] + 1))
                     for runner, goos, arch in [('ubuntu-24.04', 'linux', 'amd64'), ('ubuntu-24.04-arm', 'linux', 'arm64'),
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
@@ -259,8 +259,9 @@ class RelationShardTest(unittest.TestCase):
                 for path in (log, stderr):
                     self.assertEqual([line.split() for line in path.read_text().splitlines()], expected)
 
-    def test_apple_cgo0_runs_all_runtime_packages_once_with_one_build_action(self):
-        row = next(r for r in matrix()['include'] if r.get('serial_runtime_packages'))
+    def test_apple_runtime_runs_all_packages_once_with_one_build_action(self):
+        rows = [r for r in matrix()['include'] if r.get('serial_runtime_packages')]
+        self.assertCountEqual([r['mode'] for r in rows], ['normal', 'race', 'cgo0'])
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
         self.assertIn('SERIAL_RUNTIME_PACKAGES: ${{ matrix.serial_runtime_packages }}', workflow)
         body = Path(__file__).with_name('relation-product.sh').read_text()
@@ -268,13 +269,18 @@ class RelationShardTest(unittest.TestCase):
         dispatch = body[body.index('status=0'):body.index('if [ "$status" -ne 0 ]; then')]
         script = 'go() { echo "$CGO_ENABLED $*"; }\npackages=(sqlite "$consumer_package" orm)\n' + flags + dispatch + 'exit "$status"\n'
         log = self.directory / 'runtime-events'
-        env = dict(os.environ, mode=row['mode'], shard='0', shards=str(row['shards']), consumer_package=CONSUMER,
-                   TEST_TIMEOUT=row['test_timeout'], SQLITE_TIMEOUT=row['sqlite_timeout'],
-                   SERIAL_RUNTIME_PACKAGES=json.dumps(row['serial_runtime_packages']), PORTABLE_COVERED='false',
-                   log=str(log), stderr_log=str(self.directory / 'runtime-stderr'), relation_godjcheck='^TestChecker$')
-        subprocess.run(['bash', '-euo', 'pipefail', '-c', script], env=env, check=True, capture_output=True, text=True)
-        self.assertEqual(log.read_text().splitlines(), ['0 test -timeout=35m -json -count=1 -p=1 sqlite orm',
-                         '0 test -timeout=35m -json -count=1 -p=1 -run ^TestChecker$ ./conformance/cmd/godjcheck'])
+        for row in rows:
+            with self.subTest(mode=row['mode']):
+                env = dict(os.environ, mode=row['mode'], shard='0', shards=str(row['shards']), consumer_package=CONSUMER,
+                           TEST_TIMEOUT=row['test_timeout'], SQLITE_TIMEOUT=row['sqlite_timeout'], CGO_ENABLED='1',
+                           SERIAL_RUNTIME_PACKAGES=json.dumps(row['serial_runtime_packages']), PORTABLE_COVERED='false',
+                           log=str(log), stderr_log=str(self.directory / 'runtime-stderr'), relation_godjcheck='^TestChecker$')
+                subprocess.run(['bash', '-euo', 'pipefail', '-c', script], env=env, check=True, capture_output=True, text=True)
+                cgo = '0' if row['mode'] == 'cgo0' else '1'
+                timeout = '70m' if row['mode'] == 'race' else '35m'
+                base = f'{cgo} test -timeout={timeout} -json -count=1' + (' -race' if row['mode'] == 'race' else '')
+                self.assertEqual(log.read_text().splitlines(), [base + ' -p=1 sqlite orm',
+                                 base + ' -p=1 -run ^TestChecker$ ./conformance/cmd/godjcheck'])
 
     def test_isolated_account_roots_keep_all_children_and_reject_wrong_execution(self):
         roots = self.roots + list(ISOLATED_ACCOUNT_ROOTS)

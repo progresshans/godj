@@ -17,6 +17,10 @@ Apple Silicon CGO=0 관계 runtime은 Go 캐시 복원에 성공했다. Go 이�
 
 로컬 Apple Silicon에서 같은 계정 삭제·연쇄 삭제·인증 fixture의 생성 project 세 개를 CGO=0과 세 CPU로 다시 빌드했다. 컴파일러 하나는 최대 약 2.9GiB RSS를 사용했다. Go 빌드 작업을 세 개까지 허용한 실행은 프로세스 그룹 RSS 표본 최대 4,816MiB, 하나씩 처리한 실행은 2,966MiB였다. 병렬 실행은 36초, 직렬 실행은 47초였다. GitHub의 표준 Apple Silicon 러너는 RAM이 7GB여서 이 runtime에만 `-p=1`을 적용한다. 패키지·필수 하위 테스트·Go vet·캐시·135분 step·35분 패키지 제한은 동일하다. [배정과 실행](../../scripts/ci/relation-product.sh) · [GitHub 러너 사양](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
+실제 3 CPU·7GiB Apple Silicon 러너에서 `a348a052`의 CGO=0 전체 runtime을 한 작업으로 측정했다. 러너는 Go 캐시를 복원하지 않았다. 검사는 18분 18초, 준비와 업로드를 포함한 작업은 21분 13초였다. 68개 패키지와 필수 항목 4,547개가 모두 종료·통과했고, 47,430개 Go 이벤트에 테스트 실패·하위 검사 skip이 없었다. 15초 간격 표본 72개의 Go 도구 RSS 합 최대는 3,088MiB였다. 측정용 workflow와 실제 checkout·tree, 업로드 ID·ZIP SHA-256을 대조했다. [단일 작업](https://github.com/progresshans/godj/actions/runs/45662628850/job/139376237429) · [원본과 메모리 표본](https://github.com/progresshans/godj/actions/runs/45662628850/artifacts/15050667293)
+
+같은 #1의 Apple Silicon normal·race는 기존 병렬 설정으로 각각 146분 1초·99분 51초에 통과했다. 생성 fixture 또는 SQLite가 시작되기 전 Go 이벤트 공백이 normal에서 최대 83분 19초, race에서 최대 22분 7초였다. 전체 계획에서는 Apple Silicon의 세 runtime에 같은 직렬 패키지 배정을 적용한다. 각 모드의 실제 시간과 최종 결과는 #1의 전체 CI에서 확인한다. [normal 원본](https://github.com/progresshans/godj/actions/runs/45611163183/artifacts/15049692057) · [race 원본](https://github.com/progresshans/godj/actions/runs/45611163183/artifacts/15038435999)
+
 ## 전체 검사의 러너 공유
 
 `ea1274b6`에서 시작한 #1의 313개 작업은 Linux와 PostgreSQL까지 함께 최적화하기 위해 취소했다. 그 실행의 결과는 취소다. [#1 중간 실행](https://github.com/progresshans/godj/actions/runs/45572633027)
