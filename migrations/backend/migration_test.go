@@ -26,6 +26,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"HistoricalData",
 		"RenameField",
 		"DeleteModel",
+		"RenameModel",
 		"UniqueConstraints",
 		"ColumnIndexes",
 		"ExplicitManyToMany",

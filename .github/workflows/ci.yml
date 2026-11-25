@@ -537,6 +537,7 @@ jobs:
           # Keep common arguments nonempty under macOS Bash 3.2 with nounset.
           partition_args=(--shard "$shard" --shards "$shards")
           if [ "${{ matrix.isolate_accounts }}" = true ]; then partition_args+=(--isolate-accounts); fi
+          if [ "${{ matrix.balance_by_duration }}" = true ]; then partition_args+=(--balance-by-duration); fi
           consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
           # Partitioned coordinates split generated consumers across jobs.
@@ -1138,6 +1139,7 @@ jobs:
             "TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only"
             "TestProjectLinkedTargetedMigrateSQLite/historical_data_public_plan_and_execution"
             "TestProjectLinkedTargetedMigrateSQLite/public_field_rename_preserves_rows"
+            "TestProjectLinkedTargetedMigrateSQLite/public_model_rename_preserves_rows"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume"
             "TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset"
@@ -1728,6 +1730,7 @@ jobs:
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput"
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/historical_reverse_sql_uses_project_schema_without_opening_database"
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/public_delete_model_recreates_empty_storage"
+            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle/public_model_rename_preserves_rows"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )

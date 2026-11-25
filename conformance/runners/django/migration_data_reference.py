@@ -22,6 +22,7 @@ from django.db.migrations.exceptions import IrreversibleError
 from .migration_data_fixture import callbacks
 from .migration_data_fixture.field_contract import observe_blank_tightening
 from .migration_data_fixture.model_deletion import observe_model_deletion
+from .migration_data_fixture.model_rename import observe_model_rename
 
 APP = "migration_data_fixture"
 MIGRATIONS = ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze", "0006_tail"]
@@ -241,7 +242,8 @@ def observe():
             return {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                     "database_version": version, "django_commit": UPSTREAM, "upstream_sha256": SOURCE_SHA256,
                     "input_sha256": sources, "observations": observations, "command_output": commands,
-                    "blank_tightening": observe_blank_tightening(), "model_deletion": observe_model_deletion()}
+                    "blank_tightening": observe_blank_tightening(), "model_deletion": observe_model_deletion(),
+                    "model_rename": observe_model_rename()}
         finally:
             connections.close_all()
 

@@ -86,6 +86,9 @@ func (r loadedStateReconstructor) automaticOwnerAt(creators []loadedModelEvent, 
 		}
 		op := r.definitions[creation.key].Operations[creation.operationIndex]
 		app, name := operationSourceModel(op)
+		if rename, ok := op.(RenameModel); ok {
+			name = rename.After.Name
+		}
 		events := r.modelEvents[loadedModelIdentity{app: app, model: name}]
 		origin, existed := r.liveCreatorAt(events, creation)
 		current, live := r.liveCreatorAt(events, at)
@@ -101,6 +104,12 @@ func (r loadedStateReconstructor) validateLifetimeReferences(key MigrationKey, i
 	check := func(id ir.ModelIdentity, require bool) error {
 		model := loadedModelIdentity{app: id.AppLabel, model: id.ModelName}
 		events := r.modelEvents[model]
+		if len(events) == 1 {
+			first := events[0]
+			if _, renamed := r.definitions[first.key].Operations[first.operationIndex].(RenameModel); renamed {
+				require = true
+			}
+		}
 		if creators := r.automaticCreators[model]; !require && len(events) == 0 && len(creators) != 0 {
 			if r.automaticOwnerAt(creators, at) {
 				return nil
@@ -155,6 +164,12 @@ func visitOperationModels(op Operation, visit func(ir.ModelIdentity) error) erro
 	switch value := op.(type) {
 	case CreateModel:
 		fields, many = value.Model.Fields, value.Model.ManyToMany
+	case RenameModel:
+		if err := visit(ir.ModelIdentity{AppLabel: app, ModelName: value.After.Name}); err != nil {
+			return err
+		}
+		fields = append(slices.Clone(value.Before.Fields), value.After.Fields...)
+		many = append(slices.Clone(value.Before.ManyToMany), value.After.ManyToMany...)
 	case DeleteModel:
 		fields, many = value.Model.Fields, value.Model.ManyToMany
 		if value.BeforeModel != "" {

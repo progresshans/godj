@@ -322,9 +322,17 @@ func (project *targetExternalProject) runAt(t *testing.T, directory string, envi
 }
 
 func targetExactSchemaSQL(arguments []string, schema, want string, result testprocess.CommandResult) bool {
-	return len(arguments) > 0 && arguments[0] == "sqlmigrate" && schema != "" &&
-		strings.Count(want, schema) == 1 && strings.Contains(want, `"`+schema+`".`) &&
-		result.ExitCode == 0 && result.Stderr == "" && result.Stdout == want
+	if len(arguments) == 0 || arguments[0] != "sqlmigrate" || schema == "" ||
+		result.ExitCode != 0 || result.Stderr != "" || result.Stdout != want || !strings.HasSuffix(want, "\n") {
+		return false
+	}
+	qualified := `"` + schema + `".`
+	for line := range strings.SplitSeq(strings.TrimSuffix(want, "\n"), "\n") {
+		if !strings.HasSuffix(line, ";") || strings.Count(line, schema) != 1 || !strings.Contains(line, qualified) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput(t *testing.T) {
@@ -334,6 +342,10 @@ func TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput(t *testing.T) {
 	command := []string{"sqlmigrate"}
 	if !targetExactSchemaSQL(command, schema, sql, good) {
 		t.Fatal("expected qualified SQL was rejected")
+	}
+	const multi = sql + "DROP TABLE \"example_schema\".\"notes\" RESTRICT;\n"
+	if !targetExactSchemaSQL(command, schema, multi, testprocess.CommandResult{Stdout: multi}) {
+		t.Fatal("expected multi-statement schema-qualified SQL was rejected")
 	}
 	for i, check := range []struct {
 		command []string
@@ -348,6 +360,9 @@ func TestTargetSchemaSQLRequiresExactSuccessfulPublicOutput(t *testing.T) {
 		{command, schema, sql, testprocess.CommandResult{Stdout: sql, ExitCode: 1}},
 		{command, schema, schema, testprocess.CommandResult{Stdout: schema}},
 		{command, schema, sql + schema, testprocess.CommandResult{Stdout: sql + schema}},
+		{command, schema, multi, good},
+		{command, schema, sql + "SELECT 1;\n", testprocess.CommandResult{Stdout: sql + "SELECT 1;\n"}},
+		{command, schema, sql + "SELECT example_schema;\n", testprocess.CommandResult{Stdout: sql + "SELECT example_schema;\n"}},
 	} {
 		if targetExactSchemaSQL(check.command, check.schema, check.want, check.result) {
 			t.Fatalf("invalid output case %d was accepted", i)

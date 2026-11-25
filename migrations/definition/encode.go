@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/identifiers"
+	"github.com/progresshans/godj/internal/migrationgraph"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -64,6 +65,8 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 				AppLabel: value.AppLabel,
 				Model:    encodeModel(value.Model),
 			}
+		case migrations.RenameModel:
+			document.Migration.Operations[index] = renameModelDocument{Kind: "rename_model", AppLabel: value.AppLabel, Before: encodeModel(value.Before), After: encodeModel(value.After)}
 		case migrations.DeleteModel:
 			document.Migration.Operations[index] = modelOperationDocument{
 				Kind: "delete_model", AppLabel: value.AppLabel, Model: encodeModel(value.Model), BeforeModel: value.BeforeModel,
@@ -184,14 +187,24 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 				return encodeFailure(path, "invalid data operation or app identity")
 			}
 		case migrations.CreateModel:
-			if err := validateModelOperation(path, migration.App, value.AppLabel, value.Model); err != nil {
+			if err := validateModelOperation(path, "model", migration.App, value.AppLabel, value.Model); err != nil {
 				return err
+			}
+		case migrations.RenameModel:
+			if err := validateModelOperation(path, "before", migration.App, value.AppLabel, value.Before); err != nil {
+				return err
+			}
+			if err := validateModelOperation(path, "after", migration.App, value.AppLabel, value.After); err != nil {
+				return err
+			}
+			if _, err := migrationgraph.NewModelRename(value.AppLabel, value.Before, value.After); err != nil {
+				return encodeFailure(path, "invalid model rename: %v", err)
 			}
 		case migrations.DeleteModel:
 			if value.BeforeModel != "" && (!identifiers.SQL(value.BeforeModel) || value.BeforeModel == value.Model.Name) {
 				return encodeFailure(path+".before_model", "invalid model insertion anchor %q", value.BeforeModel)
 			}
-			if err := validateModelOperation(path, migration.App, value.AppLabel, value.Model); err != nil {
+			if err := validateModelOperation(path, "model", migration.App, value.AppLabel, value.Model); err != nil {
 				return err
 			}
 		case migrations.AddField:
@@ -261,15 +274,15 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 	return nil
 }
 
-func validateModelOperation(path, app, label string, model ir.Model) error {
+func validateModelOperation(path, member, app, label string, model ir.Model) error {
 	if label != app {
 		return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", label, app)
 	}
 	if !fullyNormalizedCreateModel(label, model) {
-		return encodeFailure(path+".model", "model is not exact current normalized IR")
+		return encodeFailure(path+"."+member, "model is not exact current normalized IR")
 	}
 	for fieldIndex, field := range model.Fields {
-		if err := validateFieldWireRange(field, fmt.Sprintf("%s.model.fields[%d]", path, fieldIndex)); err != nil {
+		if err := validateFieldWireRange(field, fmt.Sprintf("%s.%s.fields[%d]", path, member, fieldIndex)); err != nil {
 			return err
 		}
 	}
@@ -308,6 +321,13 @@ type migrationDocument struct {
 type dependencyDocument struct {
 	App  string `json:"app"`
 	Name string `json:"name"`
+}
+
+type renameModelDocument struct {
+	Kind     string        `json:"kind"`
+	AppLabel string        `json:"app_label"`
+	Before   modelDocument `json:"before"`
+	After    modelDocument `json:"after"`
 }
 
 type modelOperationDocument struct {

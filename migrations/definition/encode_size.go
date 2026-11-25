@@ -107,6 +107,21 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			if err := scanner.scanModelOperation(path, index, value.AppLabel, value.Model, ""); err != nil {
 				return err
 			}
+		case migrations.RenameModel:
+			if err := scanner.addStructural(path, uint64(len(`{"kind":"rename_model","app_label":"","before":,"after":}`))); err != nil {
+				return err
+			}
+			if err := scanner.addString(path+".app_label", value.AppLabel); err != nil {
+				return err
+			}
+			if err := scanner.scanOperationModel(path+".before", index, value.Before); err != nil {
+				return err
+			}
+			if err := scanner.scanOperationModel(path+".after", index, value.After); err != nil {
+				return err
+			}
+		case *migrations.RenameModel:
+			return encodeFailure(path, "nil *migrations.RenameModel")
 		case migrations.DeleteModel:
 			if err := scanner.scanModelOperation(path, index, value.AppLabel, value.Model, value.BeforeModel); err != nil {
 				return err
@@ -214,6 +229,13 @@ func (scanner *encodingSizeScanner) scanModelOperation(path string, operationInd
 		}
 	}
 	return scanner.scanModel(path+".model", model)
+}
+
+func (scanner *encodingSizeScanner) scanOperationModel(path string, index int, model ir.Model) error {
+	if len(model.Fields) > MaxFieldsPerCreateModel {
+		return encodeFailure(path+".fields", "field count %d exceeds %d", len(model.Fields), MaxFieldsPerCreateModel)
+	}
+	return scanner.scanModel(path, model)
 }
 
 func (scanner *encodingSizeScanner) scanAddField(path string, operation migrations.AddField) error {

@@ -7,6 +7,66 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+func TestModelRenameKeepsItsPositionAndRequiresBothModelLifetimes(t *testing.T) {
+	old, keep := stateModel("first_model", "app_items"), stateModel("second_model", "app_keep")
+	newModel := old.Clone()
+	newModel.Name, newModel.GoName = "publication", "Publication"
+	base := Migration{App: "app", Name: "0001_base", Operations: []Operation{CreateModel{AppLabel: "app", Model: old}, CreateModel{AppLabel: "app", Model: keep}}}
+	op := RenameModel{AppLabel: "app", Before: old, After: newModel}
+	rename := Migration{App: "app", Name: "0002_rename", Dependencies: []MigrationKey{base.Key()}, Operations: []Operation{op}}
+	audit := Migration{App: "audit", Name: "0001_read", Dependencies: []MigrationKey{base.Key()}, Operations: []Operation{RunData{
+		Key: DataKey{App: "audit", Name: "read", Version: 1}, Forward: DataNoop, Reverse: DataNoop, Models: []ir.ModelIdentity{{AppLabel: "app", ModelName: "publication"}},
+	}}}
+	if _, err := NewStateReconstructor(base, audit, rename); err == nil {
+		t.Fatal("read of the new identity is unordered with the rename")
+	}
+	audit.Dependencies = []MigrationKey{rename.Key()}
+	r, err := NewStateReconstructor(base, rename, audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := r.Reconstruct(AfterStateRequest(rename.Key()))
+	got, _ := state.Schema("app")
+	if err != nil || len(got.Models) != 2 || !got.Models[0].Equal(newModel) || !got.Models[1].Equal(keep) {
+		t.Fatal("rename changed model order or storage", got, err)
+	}
+	before, err := r.Reconstruct(BeforeStateRequest(rename.Key()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct, err := op.stateForward(before)
+	if err != nil || !direct.Equal(state) {
+		t.Fatal("state projections disagree", err)
+	}
+	back, err := op.stateBackward(direct)
+	if err != nil || !back.Equal(before) {
+		t.Fatal("reverse did not recover exact model state", err)
+	}
+	for _, conflict := range []ir.Model{keep, old} {
+		taken := newModel.Clone()
+		if conflict.Name == keep.Name {
+			taken.DBTable = keep.DBTable
+		} else {
+			taken.Name = old.Name
+		}
+		bad := rename
+		bad.Operations = []Operation{RenameModel{AppLabel: "app", Before: old, After: taken}}
+		if _, err := NewStateReconstructor(base, bad); err == nil {
+			t.Fatal("accepted model rename collision", taken)
+		}
+	}
+	alien := stateModel("base_model", "occupied")
+	foreign := Migration{App: "peer", Name: "0001_base", Operations: []Operation{CreateModel{AppLabel: "peer", Model: alien}}}
+	next := newModel.Clone()
+	next.DBTable = alien.DBTable
+	bad := rename
+	bad.Dependencies = []MigrationKey{base.Key(), foreign.Key()}
+	bad.Operations = []Operation{RenameModel{AppLabel: "app", Before: old, After: next}}
+	if _, err := NewStateReconstructor(base, foreign, bad); err == nil {
+		t.Fatal("claimed another installed app's storage")
+	}
+}
+
 func TestDeletedModelIdentityRequiresTheCausalCreationAndExactPriorShape(t *testing.T) {
 	old := stateModel("entry", "archive_entry")
 	keep := stateModel("keeper", "archive_keeper")

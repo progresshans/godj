@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## Linux ARM64 race 소비자 작업 시간
+
+#14 `9ea9b0a1`와 #15 `3fdd1c99`의 전체 PR CI는 각각 1시간 22분 53초와 1시간 27분 34초에 통과했다. 두 실행에서 마지막으로 끝난 제품 작업은 Linux ARM64 race 관계 검사의 19번 묶음이었다. CI 시작부터 배정까지 53분 39초·58분 12초, 배정 후 종료까지 28분 59초·29분 10초가 걸렸다. [#14 작업](https://github.com/progresshans/godj/actions/runs/45235604044/job/137906482604) · [#15 작업](https://github.com/progresshans/godj/actions/runs/45253620235/job/137972926722)
+
+두 커밋에서 소비자 작업 21개씩의 원본 ZIP을 업로드 작업·SHA-256·checkout 트리와 대조했다. 각 실행에서 바이너리가 발견한 상위 테스트 131개와 필수 항목 429개가 한 작업씩에 배정돼 모두 통과했다. 그중 115개 일반 테스트의 기존 실행시간을 새 배정으로 다시 합산하면, 가장 긴 묶음은 #14 기준 27분 12초에서 20분 57초, #15 기준 27분 27초에서 21분 1초로 줄어든다. 러너 대기·도구 준비 시간은 이 재계산에서 제외했다. [#14 원본 예시](https://github.com/progresshans/godj/actions/runs/45235604044/artifacts/14856505974) · [#15 원본 예시](https://github.com/progresshans/godj/actions/runs/45253620235/artifacts/14863623212)
+
+## M1 모델 이름 변경과 관계 보존
+
+#15의 `17a46f27`에서 SQLite는 모델명을 변경하고 테이블명을 유지한 두 선언을 동시 소유자로 처리해 트랜잭션 시작을 거부했다. 테이블 소유권은 초기 모델과 실제 저장소 변경 순서를 따라 검사하도록 수정했다. 정방향·역방향에 대해 고정 테이블의 이름 변경이 DDL을 만들지 않는 경우와, 기존 소유자가 살아 있을 때 새 모델이 같은 테이블을 요구하는 경우를 필수 회귀 검사에 추가했다. 실제 행·관계·재접속 검증은 이 변경의 원격 CI 대상이다. PostgreSQL 이름 변경 미리보기는 두 방향 모두 표·시퀀스·기본 키 이름을 독립적인 catalog 기대값으로 구성해 세 SQL문 전체를 대조한다. 각 줄에는 정확한 스키마 한 곳만 허용한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314909980) · [SQLite 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314915383) · [외부 프로젝트 명령 실패](https://github.com/progresshans/godj/actions/runs/45044933931/job/137314908928)
+
+Django 6.1과 Python 3.14.3의 실제 migration을 실행했다. SQLite 3.50.4와 별도 로컬 PostgreSQL 17.5·psycopg 3.3.6에서 기본 테이블 9개, 고정 테이블 8개 항목이 일치했다. 두 경우 모두 PK·자기 FK·다른 앱의 OneToOne·양 방향에서 참조되는 다대다 행과 링크 키를 대조했다. 명시적 through 모델을 따로 바꿨다가 되돌리고 재접속해 관계와 가중치도 확인했다. 뒤 제약이 실패하면 기존 행과 테이블이 남았고, 기본 테이블의 목적 이름이 이미 사용 중이면 기존 목적 행도 보존됐다. 이름 변경 뒤 추가한 행은 역적용과 재적용 뒤에도 같은 키로 남았다. [Django 비교 앱](../../conformance/runners/django/migration_data_fixture/model_rename.py) · [공통 기준](../../internal/migrationdefaulttest/testdata/model-rename-django61.json) · [고정 소스와 라이선스](../SOURCES.md)
+
+이름 변경 공통 기준 SHA-256은 `87cd4229a94a2c7741fa431d54c9eb07fc89aa5ef0e80f884f206fa36388c0f9`다. 로컬 SQLite 전체 비교기는 기존 역사 관측 15개와 모델 제거 관측 8개도 대조했다. 입력 파일 14개의 해시를 포함한 전체 원본의 SHA-256은 `5fbb7849b55bb6e05771c64be8a5a79edb4dc81d99fc8b30529b5ed127eb8ebb`다. PostgreSQL 17.5에서 어댑터의 실제 catalog 조회문을 실행해 허용된 자기·외부 PK 참조와 대체 고유 키를 참조하는 외부 FK, 의존 뷰를 구분하는 것도 확인했다. [비교기](../../scripts/ci/migration_data_reference.py) · [catalog 조회](../../db/postgres/migration_rename.go)
+
+GoDj의 양 DB 검사는 동일 관측과 함께 자동 중간 모델을 직접 참조하는 외부 행, 삭제된 마지막 키 이후의 sequence, 고정 테이블의 외부 뷰·FK, 저장된 이력과 달라진 정의의 역적용 거부를 확인한다. 공개 명령은 양방향 SQL·실행·역적용을 수행한다. 외부 프로젝트는 기존 순환 FK가 있는 상태에서 `makemigrations`가 추가 변경을 만들지 않는지 확인한 뒤 새 생성 모델로 옛 행을 읽고 저장한다. 이 소스의 Go·고정 PostgreSQL 17.10·전체 원격 CI 수용은 대기 중이다. [양 DB 소비자](../../internal/migrationdefaulttest/model_rename.go) · [생성 프로젝트](../../conformance/migrationwriterproduct/external_project_unix_test.go) · [공개 명령](../../conformance/projectmigratetargetproduct/postgres_unix_test.go)
+
+같은 migration에서 이름 변경 뒤 필수 열을 추가하는 경우도 양 DB 회귀 검사에 넣었다. 빈 원본에서는 적용·역적용 후 열을 실제 조회한다. 행이 있는 원본에서는 DDL 전 오류와 기존 행·관계·이력을 확인한다. PostgreSQL은 같은 물리 테이블에 이미 사용한 열 슬롯과 이후 추가할 열을 함께 계산한다. [양 DB 시나리오](../../internal/migrationdefaulttest/model_rename.go) · [테이블 추적](../../internal/migrationgraph/graph.go)
+
 ## M1 모델 삭제와 빈 테이블 복원
 
 #14의 Portable core에서 새 `DeleteModel`을 추가하자 capability 필드 수를 18개로 고정한 검사와 정상적인 정방향 모델 삭제를 위조로 취급한 검사가 실패했다. 기존 capability와 `DeleteModel`의 이름·불리언 타입을 확인하고, PostgreSQL 위조 사례는 삭제 후에도 모델이 남는 불법 선언을 거부하는지 확인한다. 정상 삭제·역적용은 양 DB의 기존 이력 검사에서 행·제약·빈 테이블 복원을 대조한다. 공개 삭제 명령의 SQL은 #13의 검사기로 정확한 스키마·테이블·SQL 전체와 빈 stderr를 확인한다. [PostgreSQL 명령 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294919543) · [Portable core 실패](https://github.com/progresshans/godj/actions/runs/45044927835/job/137294918739) · [역사 모델 검사](../../internal/migrationdefaulttest/delete_model.go)
@@ -28,6 +46,14 @@ PR #13의 이전 소스 `c7aa202f`에서 PostgreSQL 역방향 SQL이 외부 명�
 로컬에서 Django 6.1·Python 3.14.3·SQLite 3.50.4 비교 앱의 15개 관측이 저장한 기대값과 일치했다. 백필 역방향에는 비SQL 연산 2개가 있고, 역함수 없는 대상은 `IrreversibleError`로 끝났다. 별도 DB에서 두 열의 역방향 DDL을 직접 실행했다. SQLite 3.50.4와 PostgreSQL 17.5 모두 기존 키 1의 행을 보존하고 삭제했던 키 2 다음에 3을 할당했다. SQL 명령 계약의 고정 원본은 MIG-129의 인자 관측만 바뀌었다. 재생성한 원본의 SHA-256은 `102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3`이며 관련 Python 사례 18개가 통과했다. [명령 계약](../../conformance/contracts/migration-sql-rendering-manifest.json) · [고정 관측](../../internal/migrationdefaulttest/testdata/historical-data-django61.json)
 
 CI 도구의 Python 검사 119개가 통과했다. 고정 Django로 다시 만든 MIG-128·MIG-129 원본에 대해 공통 바이트 고정값 99개, SQL 전용 고정값 3개, 체크섬 목록 24개 및 별도로 잠근 14개 항목을 Python으로 파일과 대조했다. GoDj 쪽은 두 역계획의 SQL 결과까지 15개 관측 전체를 비교한다. Go 실행, PostgreSQL 17.10 실제 제품, 프로젝트 자식 프로세스와 플랫폼별 수용은 제출 소스의 원격 결과가 필요하다. [SQLite 공개 명령](../../conformance/projectmigratetargetproduct/product_unix_test.go) · [양 DB 실행 검사](../../internal/migrationdefaulttest/data.go)
+
+## Runserver 자식 종료 후 퇴역 응답 수신
+
+#16의 Intel macOS Notes 검사는 새 세대의 HTTP 응답을 기다리던 중 감독자가 `project_runtime_control_failed`를 반환했다. 같은 커밋의 재실행에서 Notes 필수 8개가 모두 통과했다. 최초 로그가 식별한 범위는 제어 교환 실패까지다. [최초 실패](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14881159952) · [같은 소스 재실행](https://github.com/progresshans/godj/actions/runs/45306328744/artifacts/14885917010)
+
+#17의 `86e6fca2`는 기존 제품 코드에 회귀 검사를 추가했다. 자식이 상속된 Unix 소켓으로 답을 쓰고 정상 종료한 뒤 부모가 읽도록 순서를 고정했다. Linux amd64·arm64와 macOS Apple Silicon에서 완전한 `Retired`에도 부모가 이미 닫힌 연결 오류를 반환했고 후속 세대를 게시하지 못했다. 누락·잘림·다른 메시지도 같은 오류가 났다. 원본 ZIP에서 제출 소스, 업로드 작업, SHA-256과 네 하위 검사의 실제 실패를 대조했다. [Linux amd64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886743309) · [Linux arm64](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886958749) · [Apple Silicon](https://github.com/progresshans/godj/actions/runs/45319333592/artifacts/14886914275)
+
+부모 소켓은 자식 회수를 알리는 시점부터 제어 교환을 끝내고 감독자가 정리할 때까지 열어 둔다. 회귀 검사는 정상 응답으로만 후속 세대가 활성화되는지, 세 가지 잘못된 응답을 거부하는지, 종료된 자식을 한 번 회수하고 부모 소켓까지 닫는지 확인한다. [프로토콜 수명](../adr/0042-project-linked-runserver-and-article-development-loop.md) · [회귀 검사](../../internal/projectcheck/runserver_publication_unix_test.go)
 
 ## 2026-11-23 PR 검증의 macOS 대기와 캐시
 

@@ -141,6 +141,20 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 		return appendCanonicalManyOperation(output, operation)
 	case migrations.CreateModel:
 		return appendCanonicalModelOperation(output, "create_model", value.AppLabel, value.Model, "")
+	case migrations.RenameModel:
+		output, err := appendCanonicalModel(append(output, `{"after":`...), value.After)
+		if err != nil {
+			return nil, err
+		}
+		output, err = appendCanonicalString(append(output, `,"app_label":`...), value.AppLabel)
+		if err != nil {
+			return nil, err
+		}
+		output, err = appendCanonicalModel(append(output, `,"before":`...), value.Before)
+		if err != nil {
+			return nil, err
+		}
+		return append(output, `,"kind":"rename_model"}`...), nil
 	case migrations.DeleteModel:
 		return appendCanonicalModelOperation(output, "delete_model", value.AppLabel, value.Model, value.BeforeModel)
 	case migrations.AddField:

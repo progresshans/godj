@@ -28,6 +28,7 @@ type MigrationCapabilities struct {
 	HistoricalData bool
 	RenameField    bool
 	DeleteModel    bool
+	RenameModel    bool
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
@@ -54,6 +55,7 @@ const (
 	MigrationAlterManyToMany  = migrationgraph.MigrationAlterManyToMany
 	MigrationRunData          = migrationgraph.MigrationRunData
 	MigrationRenameField      = migrationgraph.MigrationRenameField
+	MigrationRenameModel      = migrationgraph.MigrationRenameModel
 	MigrationCreateModel      = migrationgraph.MigrationCreateModel
 	MigrationDeleteModel      = migrationgraph.MigrationDeleteModel
 	MigrationAddField         = migrationgraph.MigrationAddField

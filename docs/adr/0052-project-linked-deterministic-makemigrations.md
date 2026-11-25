@@ -239,7 +239,7 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 
 - 지원 가능한 current schema 변경은 수작업 JSON 없이 strict current definition으로 연결됩니다.
 - Loader/reconstructor/lifecycle는 지원 operation의 전체 이전·이후 의미를 공유하며 생성 model ABI와 구분합니다.
-- 모델 삭제를 적용하면 소유한 테이블의 행이 사라지고, 역적용하면 당시의 빈 구조가 복원된다. 모델 이름 변경은 기존 행과 참조를 보존해야 하므로 별도 연산으로 추적한다. [양 DB 동작](../BACKEND_MATRIX.md#모델-삭제와-역적용)
+- 모델 삭제를 적용하면 소유한 테이블의 행이 사라지고, 역적용하면 당시의 빈 구조가 복원된다. 모델 이름 변경은 프로젝트가 이전·이후 선언을 담은 `RenameModel`로 작성한다. 작성기는 이 이력을 재구성해 현재 선언과 비교한다. [양 DB 동작](../BACKEND_MATRIX.md#모델-삭제와-역적용)
 - Exactly-one filesystem root 제약은 multi-root read configuration을 없애지 않으며 writer invocation만 fail-closed합니다.
 - Flat app-prefixed file roster는 current discovery에 맞지만 Django app-local directory layout과 다릅니다. App-to-root mapping은 실제
   second project 요구가 생길 때 별도 current-format reset/ADR로 결정합니다.
@@ -254,7 +254,7 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 
 ## 의도적으로 결정하지 않은 것
 
-- 일반 model Alter/Rename operation과 interactive rename/default/backfill 질문
+- 임의 모델 속성 변경과 모델 이름 변경·default·backfill에 대한 대화형 질문
 - merge/squash/optimizer, multiple leaves, `--empty`, `--name`, `--update`, app filter
 - RunSQL과 일반 custom operation의 자동 작성. Go 데이터 작업과 역사 모델 접근은 [실행 계획](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)에서 추적한다.
 - DB adoption/introspection, applied-history consistency와 multi-DB router

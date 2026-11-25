@@ -40,7 +40,10 @@ func compileSQLiteStorageOperation(app string, operation mb.MigrationOperation) 
 			}
 			statements = append(statements, body)
 		default:
-			bodies, err := compileSQLiteAutomaticRename(change.Before, change.After)
+			if operation.Kind != mb.MigrationRenameModel && (!slices.EqualFunc(change.Before.Fields, change.After.Fields, ir.Field.Equal) || !slices.EqualFunc(change.Before.UniqueConstraints, change.After.UniqueConstraints, ir.UniqueConstraint.Equal)) {
+				return nil, fmt.Errorf("automatic rename changes storage fields or constraints")
+			}
+			bodies, err := compileSQLiteTableRename(change.Before, change.After)
 			if err != nil {
 				return nil, err
 			}
@@ -50,10 +53,7 @@ func compileSQLiteStorageOperation(app string, operation mb.MigrationOperation) 
 	return statements, nil
 }
 
-func compileSQLiteAutomaticRename(before, after ir.Model) ([]string, error) {
-	if !slices.EqualFunc(before.Fields, after.Fields, ir.Field.Equal) || !slices.EqualFunc(before.UniqueConstraints, after.UniqueConstraints, ir.UniqueConstraint.Equal) {
-		return nil, fmt.Errorf("automatic rename changes storage fields or constraints")
-	}
+func compileSQLiteTableRename(before, after ir.Model) ([]string, error) {
 	if before.DBTable == after.DBTable {
 		return nil, nil
 	}
@@ -66,6 +66,13 @@ func compileSQLiteAutomaticRename(before, after ir.Model) ([]string, error) {
 		return nil, err
 	}
 	statements := []string{"ALTER TABLE " + oldTable + " RENAME TO " + newTable}
+	for _, field := range before.Fields {
+		drops, err := compileSQLiteFieldIndexes(before, field, ir.Field{Column: field.Column})
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, drops...)
+	}
 	for _, constraint := range before.UniqueConstraints {
 		body, err := compileSQLiteNamedUniqueAlter(before, constraint, false)
 		if err != nil {

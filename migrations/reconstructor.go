@@ -215,7 +215,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, DeleteModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
+	case CreateModel, DeleteModel, RenameModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -350,6 +350,7 @@ const (
 	loadedRequiresHistoricalData
 	loadedRequiresRenameField
 	loadedRequiresDeleteModel
+	loadedRequiresRenameModel
 )
 
 const (
@@ -378,6 +379,7 @@ const (
 	loadedRelationAlterManyToMany
 	loadedRunData
 	loadedRenameField
+	loadedRenameModel
 )
 
 type loadedRelationIntent struct {
@@ -644,6 +646,12 @@ func collectLoadedStateGraph(
 		definition := definitions[key]
 		for index, operation := range definition.Operations {
 			switch value := operation.(type) {
+			case RenameModel:
+				old := loadedModelIdentity{app: value.AppLabel, model: value.Before.Name}
+				next := loadedModelIdentity{app: value.AppLabel, model: value.After.Name}
+				events[old] = append(events[old], loadedModelEvent{key: key, operationIndex: index, deleted: true})
+				events[next] = append(events[next], loadedModelEvent{key: key, operationIndex: index})
+				hasDeletes = true
 			case DeleteModel:
 				identity := loadedModelIdentity{app: value.AppLabel, model: value.Model.Name}
 				events[identity] = append(events[identity], loadedModelEvent{key: key, operationIndex: index, deleted: true})
@@ -950,6 +958,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		} else {
 			err = builder.deleteModel(value, "")
 		}
+	case RenameModel:
+		err = builder.renameModel(value, direction == DirectionBackward)
 	case DeleteModel:
 		model := CreateModel{AppLabel: value.AppLabel, Model: value.Model}
 		if direction == DirectionForward {
@@ -1577,12 +1587,17 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 		}
 		appLabel, modelName := operationSourceModel(operation)
+		afterName := modelName
+		if rename, ok := operation.(RenameModel); ok {
+			old, next := rename.models(step.Direction == DirectionBackward)
+			modelName, afterName = old.Name, next.Name
+		}
 		beforeModel, beforeExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
 		changedRelationFields := operationRelationFieldViews(operation)
 		if err := r.applyLoadedOperation(builder, migration, operationIndex, step.Direction); err != nil {
 			return loadedMaterializedStep{}, err
 		}
-		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
+		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: afterName})
 		kind, err := loadedBackendOperationKind(operation, step.Direction)
 		if err != nil {
 			return loadedMaterializedStep{}, migrationError(
@@ -1666,6 +1681,8 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}
+		} else if _, ok := operation.(RenameModel); ok {
+			requirements |= loadedRequiresRenameModel
 		} else if _, ok := operation.(DeleteModel); ok {
 			requirements |= loadedRequiresDeleteModel | loadedRequirementsForSourceFields(kind, changedRelationFields)
 		} else if _, ok := operation.(RenameField); ok {
@@ -1863,9 +1880,11 @@ func loadedBuilderRelationGraph(
 		direct[field.Relation.Target] = true
 	}
 	roots := []migrationgraph.MigrationModel{{AppLabel: app, Model: source}}
-	if rename, ok := operation.(RenameField); ok && rename.Before.PrimaryKey {
+	fieldRename, renamesField := operation.(RenameField)
+	_, renamesModel := operation.(RenameModel)
+	if renamesModel || renamesField && fieldRename.Before.PrimaryKey {
 		var err error
-		roots, err = builder.primaryRenameRoots(ctx, roots, sourceIdentity)
+		roots, err = builder.renameRoots(ctx, roots, sourceIdentity, renamesModel)
 		if err != nil {
 			return fail(err)
 		}
@@ -2075,6 +2094,8 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationCreateModel, nil
 		}
 		return loadedRelationDeleteModel, nil
+	case RenameModel:
+		return loadedRenameModel, nil
 	case DeleteModel:
 		if direction == DirectionForward {
 			return loadedRelationDeleteModel, nil
@@ -2195,6 +2216,8 @@ func operationSourceModel(operation Operation) (string, string) {
 		return value.AppLabel, value.ModelName
 	case AlterManyToMany:
 		return value.AppLabel, value.ModelName
+	case RenameModel:
+		return value.AppLabel, value.Before.Name
 	case DeleteModel:
 		return value.AppLabel, value.Model.Name
 	case CreateModel:
@@ -2382,7 +2405,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, DeleteModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
+	case CreateModel, DeleteModel, RenameModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 	default:
 		return
 	}
@@ -2411,6 +2434,9 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
 	case AlterManyToMany:
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
+	case RenameModel:
+		loadedScanModelResource(budget, migration, index, kind, value.Before)
+		loadedScanModelResource(budget, migration, index, kind, value.After)
 	case DeleteModel:
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].before_model", index), value.BeforeModel, false)
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
@@ -2465,6 +2491,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "rename_many_to_many"
 	case AlterManyToMany, *AlterManyToMany:
 		return "alter_many_to_many"
+	case RenameModel, *RenameModel:
+		return "rename_model"
 	case DeleteModel, *DeleteModel:
 		return "delete_model"
 	case CreateModel, *CreateModel:
