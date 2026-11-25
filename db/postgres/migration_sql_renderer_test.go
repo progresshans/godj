@@ -161,7 +161,7 @@ func TestPostgresMigrationSQLRendererRejectsUnsupportedOperation(t *testing.T) {
 		kind      migrationbackend.MigrationOperationKind
 		integrity bool
 	}{
-		{name: "delete model", kind: migrationbackend.MigrationDeleteModel},
+		{name: "missing kind", kind: 0},
 		{name: "remove field without after shape", kind: migrationbackend.MigrationRemoveField, integrity: true},
 		{name: "unknown", kind: migrationbackend.MigrationOperationKind(255)},
 	} {

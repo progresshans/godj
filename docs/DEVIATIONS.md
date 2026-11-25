@@ -1318,8 +1318,7 @@ Django MIG-103은 관찰한 새 `ForeignKey`의 `on_delete`를 `CASCADE`로 기�
 `0002_category_article_summary_article_category`를 사용합니다. MIG-105/106은 app-local Python migration directory의
 `__init__.py`, `0001_initial.py` roster와 사람이 읽는 다중 행 command output을 관찰합니다.
 
-MIG-107은 Django parity 계약이 아닙니다. 독립 GoDj-owned fail-closed decision oracle이 unsupported scalar/model removal/primary key replacement/required
-field를 `unsupported_delta`, noncanonical applied leaf를 `noncanonical_leaf`로 분류합니다. GDJ-0085에서 지원하는
+MIG-107의 독립 Python 기준은 GoDj가 거부할 변경을 다룹니다. 지원 범위 밖의 필드 변경, 같은 앱에서의 모호한 모델 교체, 기본키 교체, 백필 없는 필수 필드 추가를 `unsupported_delta`, noncanonical applied leaf를 `noncanonical_leaf`로 분류합니다. GDJ-0085에서 지원하는
 self/cyclic 관계를 거부 case에서 제외하고 backfill 없는 required field 추가로 교체했습니다. 현재 독립 Python decision을
 실행하여 MIG-107 관찰만 다시 기록했으며 같은 artifact의 나머지 11개 관찰과 Django profile은 그대로 보존합니다.
 GDJ-0138은 non-PK field removal을 지원하므로 해당 거부 사례를 `primary_key_replacement`로 교체했습니다. 독립 Python
@@ -1334,7 +1333,7 @@ package marker나 `.py` source를 만들지 않습니다.
 
 MIG-107 actual은 production API가 소유하는 안정된 code만 노출합니다. GDJ-0085는 self/cyclic 모델의 자동 계획을 구현했으므로
 현재 Go-owned 거부 목록의 `self_or_cyclic_relation`을 `required_field_without_backfill`로 교체합니다. GDJ-0138에서는
-`field_removal` 대신 `primary_key_replacement`를 거부합니다. 나머지 미지원 변경과 noncanonical leaf를 포함한 일곱 case는
+`field_removal` 대신 `primary_key_replacement`를 거부합니다. M1에서 설치된 앱의 명확한 모델 제거를 지원하면서 모델 거부 사례를 `ambiguous_model_replacement`로 갱신했습니다. 나머지 미지원 변경과 noncanonical leaf를 포함한 일곱 case는
 `unsupported_change`입니다. Go-owned 기준의 재생 일치를 별도 검사하고,
 code selector만 제품 error taxonomy로 변환합니다. Raw cause, path 또는 secret을 error code로 반사하지 않습니다.
 

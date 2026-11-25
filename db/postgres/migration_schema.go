@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/progresshans/godj/internal/migrationgraph"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -48,9 +49,21 @@ func (schema *postgresMigrationSchema) Preflight(
 	if err != nil {
 		return err
 	}
-	pendingAdds := schema.postgresMigrationPendingAdds()
+	pendingAdds := make(map[migrationgraph.TableOrigin]int)
+	for position, operation := range schema.intent.Operations {
+		if operation.Kind != migrationbackend.MigrationAddField {
+			continue
+		}
+		origin := schema.inputTables[position]
+		pendingAdds[origin]++
+		if origin.CreatedAt >= 0 {
+			if err := validatePostgresMigrationAttributeCapacity(origin.Name, origin.InitialFields, pendingAdds[origin]); err != nil {
+				return err
+			}
+		}
+	}
 	for table, model := range absent {
-		if err := validatePostgresMigrationAttributeCapacity(table, len(model.Fields), pendingAdds[table]); err != nil {
+		if err := validatePostgresMigrationAttributeCapacity(table, len(model.Fields), 0); err != nil {
 			return err
 		}
 	}
@@ -84,7 +97,7 @@ func (schema *postgresMigrationSchema) Preflight(
 			return err
 		}
 		if present {
-			return postgresMigrationCatalogDrift(table, "already exists before its sealed CreateModel")
+			return postgresMigrationCatalogDrift(table, "already exists before the sealed storage change")
 		}
 	}
 
@@ -110,31 +123,21 @@ func (schema *postgresMigrationSchema) Preflight(
 		if !present || catalog.oid != entry.oid {
 			return postgresMigrationCatalogDrift(table, "changed identity during physical preflight")
 		}
-		if err := validatePostgresMigrationAttributeCapacity(table, catalog.attributeSlots, pendingAdds[table]); err != nil {
+		origin := migrationgraph.TableOrigin{Name: table, CreatedAt: -1}
+		if err := validatePostgresMigrationAttributeCapacity(table, catalog.attributeSlots, pendingAdds[origin]); err != nil {
 			return err
 		}
 		if err := assertPostgresMigrationModelCatalog(catalog, namespace, entry.model, entry.targets); err != nil {
 			return err
 		}
 	}
-	if err := schema.preflightPostgresRequiredAdds(ctx, executor, namespace, absent); err != nil {
+	if err := schema.preflightPostgresRequiredAdds(ctx, executor, namespace); err != nil {
 		return err
 	}
 
 	schema.namespace = namespace
 	schema.preflight = true
 	return nil
-}
-
-func (schema *postgresMigrationSchema) postgresMigrationPendingAdds() map[string]int {
-	result := make(map[string]int)
-	for index := range schema.intent.Operations {
-		operation := schema.intent.Operations[index]
-		if operation.Kind == migrationbackend.MigrationAddField {
-			result[operation.Before.DBTable]++
-		}
-	}
-	return result
 }
 
 func validatePostgresMigrationAttributeCapacity(table string, physicalSlots, pendingAdds int) error {
@@ -405,15 +408,7 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	namespace string,
-	created map[string]ir.Model,
 ) error {
-	createdAt := make(map[string]int, len(created))
-	for position := range schema.intent.Operations {
-		operation := schema.intent.Operations[position]
-		if operation.Kind == migrationbackend.MigrationCreateModel {
-			createdAt[operation.After.DBTable] = position
-		}
-	}
 	for position := range schema.intent.Operations {
 		operation := schema.intent.Operations[position]
 		if operation.Kind != migrationbackend.MigrationAddField {
@@ -431,19 +426,17 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 			}
 			continue
 		}
-		if createPosition, createdInIntent := createdAt[operation.Before.DBTable]; createdInIntent {
-			if createPosition >= position {
-				return postgresMigrationIntentIntegrity("required AddField precedes its sealed CreateModel", nil)
-			}
+		origin := schema.inputTables[position]
+		if origin.CreatedAt >= 0 {
 			continue
 		}
-		table, err := quoteTable(namespace, operation.Before.DBTable)
+		table, err := quoteTable(namespace, origin.Name)
 		if err != nil {
 			return postgresMigrationIntentIntegrity("quote PostgreSQL required AddField source", err)
 		}
 		var populated bool
 		if err := executor.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM "+table+" LIMIT 1)").Scan(&populated); err != nil {
-			return classifyPostgresRevisionContention(ctx, "inspect PostgreSQL required AddField source "+operation.Before.DBTable, err)
+			return classifyPostgresRevisionContention(ctx, "inspect PostgreSQL required AddField source "+origin.Name, err)
 		}
 		if populated {
 			return postgresMigrationCapability(

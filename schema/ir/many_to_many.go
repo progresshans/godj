@@ -127,11 +127,7 @@ func normalizeManyToMany(app string, model *Model, path string) error {
 			return validation(fieldPath+".symmetry", "invalid", "symmetry requires a self target")
 		}
 		if field.Reverse == (ReverseRelation{}) {
-			if field.Symmetry == ManyToManySymmetrical {
-				field.Reverse.Disabled = true
-			} else {
-				field.Reverse.Name = model.Name + "_set"
-			}
+			field.Reverse = defaultManyReverse(model.Name, field.Symmetry)
 		}
 		if field.Reverse.Disabled == (field.Reverse.Name != "") {
 			return validation(fieldPath+".reverse", "invalid", "choose a name or disable the reverse relation")
@@ -158,6 +154,13 @@ func normalizeManyToMany(app string, model *Model, path string) error {
 		}
 	}
 	return nil
+}
+
+func defaultManyReverse(owner string, symmetry ManyToManySymmetry) ReverseRelation {
+	if symmetry == ManyToManySymmetrical {
+		return ReverseRelation{Disabled: true}
+	}
+	return ReverseRelation{Name: owner + "_set"}
 }
 
 func validateManyToManyIdentity(identity ModelIdentity, path string) error {
@@ -226,9 +229,13 @@ func automaticThroughModel(app string, owner Model, field ManyToManyField) Model
 		return Field{Name: name, GoName: goName, Column: name + "_id", Kind: FieldForeignKey,
 			Relation: &ForeignKeyRelation{Target: target, Cardinality: RelationManyToOne, Reverse: ReverseRelation{Disabled: true}, OnDelete: DeleteCascade}}
 	}
-	return Model{Name: field.StorageThrough(ModelIdentity{AppLabel: app, ModelName: owner.Name}).Model.ModelName, GoName: owner.GoName + field.GoName + "Link", DBTable: owner.DBTable + "_" + field.Name,
+	return Model{Name: field.StorageThrough(ModelIdentity{AppLabel: app, ModelName: owner.Name}).Model.ModelName, GoName: owner.GoName + field.GoName + "Link", DBTable: automaticTableName(owner, field),
 		Fields:            []Field{fk("source", "SourceID", ModelIdentity{AppLabel: app, ModelName: owner.Name}), fk("target", "TargetID", field.Target)},
 		UniqueConstraints: []UniqueConstraint{{Name: "relation_pair", Fields: []string{"source", "target"}}}}
+}
+
+func automaticTableName(owner Model, field ManyToManyField) string {
+	return owner.DBTable + "_" + field.Name
 }
 
 // ManyToManyBinding is a resolved coordinate in the derived storage inventory.

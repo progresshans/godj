@@ -329,7 +329,7 @@ func irreversibleDataError(migration Migration, index int) *Error {
 func needsNewOperationReceipt(migration Migration) bool {
 	for _, op := range migration.Operations {
 		switch op.(type) {
-		case RunData, RenameField:
+		case RunData, RenameField, DeleteModel, RenameModel:
 			return true
 		}
 	}
@@ -339,7 +339,7 @@ func needsNewOperationReceipt(migration Migration) bool {
 func needsDefinitionHistory(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch op := operation.(type) {
-		case RunData, RenameField:
+		case RunData, RenameField, DeleteModel, RenameModel:
 			return true
 		case AlterField:
 			if op.Before.Nullable != op.After.Nullable {
@@ -500,6 +500,8 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresAlterFieldNullability, capabilities.AlterFieldNullability, "AlterFieldNullability"},
 		{loadedRequiresHistoricalData, capabilities.HistoricalData, "HistoricalData"},
+		{loadedRequiresRenameModel, capabilities.RenameModel, "RenameModel"},
+		{loadedRequiresDeleteModel, capabilities.DeleteModel, "DeleteModel"},
 		{loadedRequiresRenameField, capabilities.RenameField, "RenameField"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
@@ -763,6 +765,14 @@ func migrationContainsRelation(migration Migration) bool {
 		switch value := operationValue(operation).(type) {
 		case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 			return true
+		case RenameModel:
+			if modelContainsRelation(value.Before) || modelContainsRelation(value.After) {
+				return true
+			}
+		case DeleteModel:
+			if modelContainsRelation(value.Model) {
+				return true
+			}
 		case CreateModel:
 			if modelContainsRelation(value.Model) {
 				return true

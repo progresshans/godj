@@ -142,7 +142,7 @@ func main() {
 	}
 	var registry migrations.DataRegistry
 	var renderer backend.MigrationSQLRenderer
-	if catalog == "historical_rename" || catalog == "historical_data" {
+	if catalog == "historical_rename" || catalog == "historical_data" || catalog == "historical_delete" || catalog == "historical_model_rename" {
 		if os.Getenv(backendEnvironment) == "postgres" {
 			renderer = postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: os.Getenv(postgresSchemaEnvironment)})
 		} else {
@@ -266,6 +266,11 @@ func (observed *observedTransaction) RunData(ctx context.Context, index int, fn 
 	return port.RunData(ctx, index, fn)
 }
 
+func (observed *observedTransaction) RenameModel(ctx context.Context, before, after ir.Model) error {
+	port, ok := observed.RevisionFencedTransaction.(backend.ModelRenameEditor)
+	if !ok { return errors.New("native transaction has no model rename port") }
+	return port.RenameModel(ctx, before, after)
+}
 func (observed *observedTransaction) RenameField(ctx context.Context, model ir.Model, before, after ir.Field) error {
 	port, ok := observed.RevisionFencedTransaction.(backend.FieldRenameEditor)
 	if !ok { return errors.New("native transaction has no field rename port") }
@@ -367,6 +372,15 @@ func sourcesForCatalog(catalog string) ([]definition.Source, error) {
 		after.Name, after.GoName, after.Column = "label", "Label", "label"
 		rename := migrations.RenameField{AppLabel:"blog", ModelName:source.Name, Before:before, After:after}
 		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_rename", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{rename}}}
+	case "historical_model_rename":
+		initial := blogCatalog()[0]
+		old := initial.Operations[0].(migrations.CreateModel).Model
+		next := model("blog", "publication", "Publication", "target_blog_publication")
+		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_model_rename", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{migrations.RenameModel{AppLabel:"blog", Before:old, After:next}}}}
+	case "historical_delete":
+		initial := blogCatalog()[0]
+		old := initial.Operations[0].(migrations.CreateModel)
+		definitions = []migrations.Migration{initial, {App:"blog", Name:"0002_delete", Dependencies:[]migrations.MigrationKey{initial.Key()}, Operations:[]migrations.Operation{migrations.DeleteModel{AppLabel:old.AppLabel, Model:old.Model}}}}
 	case "reverse_failure":
 		definitions = reverseFailureCatalog()
 	default:

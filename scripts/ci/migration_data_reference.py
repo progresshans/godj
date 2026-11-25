@@ -14,6 +14,8 @@ from project_reference import decode, digest, same
 ROOT = Path(__file__).resolve().parents[2]
 BLANK_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/blank-tightening-django61.json"
 HISTORICAL_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/historical-data-django61.json"
+MODEL_DELETION_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/model-deletion-django61.json"
+MODEL_RENAME_REFERENCE = ROOT / "internal/migrationdefaulttest/testdata/model-rename-django61.json"
 VARIABLE = "GODJ_MIGRATION_DATA_REFERENCE_DATABASE"
 PHASES = {
     "base", "forward_plan", "forward_error", "after_failure", "contracted", "retry_calls",
@@ -49,13 +51,17 @@ def capture(env, directory, vendor, version):
         raise ValueError(f"{vendor} migration capture does not match the current sources")
     if not same(report.get("blank_tightening"), decode(BLANK_REFERENCE.read_bytes())[vendor]):
         raise ValueError(f"{vendor} blank field tightening differs from the native contract")
+    if not same(report.get("model_deletion"), decode(MODEL_DELETION_REFERENCE.read_bytes())):
+        raise ValueError(f"{vendor} model deletion differs from the native contract")
+    if not same(report.get("model_rename"), decode(MODEL_RENAME_REFERENCE.read_bytes())):
+        raise ValueError(f"{vendor} model rename differs from the native contract")
     filename = f"django61-{vendor}.json"
     (directory / filename).write_bytes(result.stdout)
     return report, {"file": filename, "sha256": hashlib.sha256(result.stdout).hexdigest()}
 
 
 def compare(sqlite, postgres):
-    for field in ("input_sha256", "django_commit", "upstream_sha256", "observations"):
+    for field in ("input_sha256", "django_commit", "upstream_sha256", "observations", "model_deletion", "model_rename"):
         if not same(sqlite[field], postgres[field]):
             raise ValueError(f"SQLite and PostgreSQL differ in {field}")
 
@@ -79,7 +85,11 @@ def run(output):
             with private_database(control, VARIABLE) as name:
                 postgres, pg_file = capture(env | {VARIABLE: name}, stage, "postgresql", "170010")
         compare(sqlite, postgres)
-        summary = {"captures": [sqlite_file, pg_file], "phases": sorted(PHASES)}
+        summary = {
+            "captures": [sqlite_file, pg_file], "phases": sorted(PHASES),
+            "model_deletion": sorted(sqlite["model_deletion"]),
+            "model_rename": {mode: sorted(values) for mode, values in sqlite["model_rename"].items()},
+        }
         (stage / "comparison.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
         stage.rename(output)
 
@@ -88,4 +98,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     run(parser.parse_args().output)
-    print(f"Verified {len(PHASES)} migration observations on SQLite and PostgreSQL")
+    print("Verified historical data, field tightening, model deletion and model rename on SQLite and PostgreSQL")

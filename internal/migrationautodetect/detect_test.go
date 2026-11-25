@@ -444,8 +444,8 @@ func TestDetectRejectsRemovalReorderAndAlter(t *testing.T) {
 		desired migrations.ProjectState
 	}{
 		{name: "app removal", desired: migrations.EmptyProjectState()},
-		{name: "model removal", desired: mustProjectState(t, testSchema("content",
-			testModel("article", testChar("title", false, nil), testChar("body", false, nil)),
+		{name: "ambiguous model replacement", desired: mustProjectState(t, testSchema("content",
+			testModel("article", testChar("title", false, nil), testChar("body", false, nil)), testModel("reply", testChar("text", false, nil)),
 		))},
 		{name: "model reorder", desired: mustProjectState(t, testSchema("content",
 			testModel("comment", testChar("text", false, nil)),

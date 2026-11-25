@@ -94,31 +94,34 @@ func assertSQLiteFieldRenameDependencies(ctx context.Context, exec migrationSQLE
 	if err != nil {
 		return err
 	}
-	allowed := op.RenameReferences(app, before)
 	inspected := 0
-	table := sqliteRelationIdentifierKey(op.Before.DBTable)
+	return assertSQLiteRenameForeignKeys(ctx, exec, physical, op.Before.DBTable, before.Column, false, op.RenameReferences(app, before), &inspected)
+}
+
+func assertSQLiteRenameForeignKeys(ctx context.Context, exec migrationSQLExecutor, physical sqliteRelationPhysicalGraph, source, column string, wholeTable bool, allowed map[string]map[string]bool, inspected *int) error {
+	table := sqliteRelationIdentifierKey(source)
 	for owner := range physical.incoming[table] {
 		keys, err := readSQLiteRelationForeignKeys(ctx, exec, owner, -1)
 		if err != nil {
 			return err
 		}
-		inspected += len(keys)
-		if inspected > sqliteRelationMaxNodes {
-			return relationPhysicalDrift("foreign keys exceed the field rename inspection limit")
+		*inspected += len(keys)
+		if *inspected > sqliteRelationMaxNodes {
+			return relationPhysicalDrift("foreign keys exceed the rename inspection limit")
 		}
 		for _, key := range keys {
-			if sqliteRelationIdentifierKey(key.table) != table || sqliteRelationIdentifierKey(key.to) != before.Column {
+			if sqliteRelationIdentifierKey(key.table) != table || !wholeTable && sqliteRelationIdentifierKey(key.to) != column {
 				continue
 			}
-			if !allowed[owner][key.from] {
-				return relationPhysicalDrift("foreign key on %q.%q is outside the field rename authority", owner, key.from)
+			if key.sequence != 0 || sqliteRelationIdentifierKey(key.to) != column || !allowed[owner][key.from] {
+				return relationPhysicalDrift("foreign key on %q.%q is outside the rename authority", owner, key.from)
 			}
 			delete(allowed[owner], key.from)
 		}
 	}
 	for _, fields := range allowed {
 		if len(fields) != 0 {
-			return relationPhysicalDrift("declared foreign key for field rename is missing")
+			return relationPhysicalDrift("declared foreign key for rename is missing")
 		}
 	}
 	return nil

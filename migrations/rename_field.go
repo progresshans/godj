@@ -137,9 +137,17 @@ func (builder *loadedStateBuilder) renameField(op RenameField, reverse bool) err
 	return nil
 }
 
-// A PK column rename also updates existing FK constraints in other tables.
-// Include explicit and automatic intermediary owners in the sealed graph.
-func (builder *loadedStateBuilder) primaryRenameRoots(ctx context.Context, roots []migrationgraph.MigrationModel, key ir.ModelIdentity) ([]migrationgraph.MigrationModel, error) {
+// A table or PK column rename also updates existing FK constraints in other tables.
+// A model rename includes dependents of its automatic intermediaries as well.
+func (builder *loadedStateBuilder) renameRoots(ctx context.Context, roots []migrationgraph.MigrationModel, key ir.ModelIdentity, includeOwned bool) ([]migrationgraph.MigrationModel, error) {
+	affected := map[ir.ModelIdentity]bool{key: true}
+	if includeOwned {
+		for _, f := range roots[0].Model.ManyToMany {
+			if f.Through == nil {
+				affected[f.StorageThrough(key).Model] = true
+			}
+		}
+	}
 	seen := map[ir.ModelIdentity]bool{key: true}
 	add := func(id loadedModelIdentity) error {
 		identity := ir.ModelIdentity{AppLabel: id.app, ModelName: id.model}
@@ -147,7 +155,7 @@ func (builder *loadedStateBuilder) primaryRenameRoots(ctx context.Context, roots
 			return nil
 		}
 		if len(seen) >= loadedDerivedIntentMaxTargets {
-			return fmt.Errorf("primary-key rename exceeds the historical model limit")
+			return fmt.Errorf("rename exceeds the historical model limit")
 		}
 		model, ok := builder.storageModel(id)
 		if !ok {
@@ -157,9 +165,11 @@ func (builder *loadedStateBuilder) primaryRenameRoots(ctx context.Context, roots
 		seen[identity] = true
 		return nil
 	}
-	for owner := range builder.incoming[loadedModelIdentity{app: key.AppLabel, model: key.ModelName}] {
-		if err := add(owner.source); err != nil {
-			return nil, err
+	for target := range affected {
+		for owner := range builder.incoming[loadedModelIdentity{app: target.AppLabel, model: target.ModelName}] {
+			if err := add(owner.source); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if builder.manyCount != 0 {
@@ -169,7 +179,7 @@ func (builder *loadedStateBuilder) primaryRenameRoots(ctx context.Context, roots
 					return nil, err
 				}
 				for _, field := range model.value.ManyToMany {
-					if field.Target == key || field.Through != nil && field.Through.Model == key {
+					if affected[field.Target] || field.Through != nil && affected[field.Through.Model] {
 						if err := add(loadedModelIdentity{app: app, model: name}); err != nil {
 							return nil, err
 						}

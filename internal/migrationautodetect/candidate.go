@@ -15,6 +15,18 @@ import (
 // unresolved cross-app FKs. The next prefix replay detects those missing fields
 // again. It never changes model order or guesses a target migration identity.
 func nextCandidate(changes map[string]appChange, current, desired migrations.ProjectState, leaves map[string][]migrations.MigrationKey, history []migrations.Migration) (migrations.Migration, error) {
+	// Release retained fields and through bindings before selecting any table
+	// deletion. Recompute from each exact published prefix on the next pass.
+	updates := make(map[string]appChange)
+	for app, change := range changes {
+		if len(change.operations) != 0 {
+			updates[app] = change
+		}
+	}
+	if len(updates) == 0 {
+		return nextModelDeletion(changes, current, leaves, history)
+	}
+	changes = updates
 	known := make(map[ir.ModelIdentity]bool)
 	for _, app := range current.Apps() {
 		schema, err := projectStorageSchema(current, app)

@@ -99,5 +99,5 @@ Version·revision은 진단용으로 보존하며 그 version을 scaffold의 고
 [C1](../../work/0137-project-core-startup.md)에 남아 있다.
 
 모델 없는 설치 앱의 identity는 Schema IR/ProjectSpec에 유지한다. 과거 table state에 없던 빈 앱은 migration을 만들지 않는다.
-첫 모델부터 실제 초기 migration을 만든다. 이 규칙으로 기존 nonempty history의 삭제·외부 app의 모델/이력 불일치나
-예상 밖 state를 허용하지 않는다. 생성 snapshot과 storage history는 서로 다른 책임을 갖는다.
+첫 모델부터 실제 초기 migration을 만든다. 마지막 모델을 제거하면 엄격히 재생한 삭제 정의가 이전의 각 모델을 설명해야 한다.
+외부 앱은 공급된 이력과 선언이 일치해야 한다. [작성기의 모델 삭제 기준](0052-project-linked-deterministic-makemigrations.md)

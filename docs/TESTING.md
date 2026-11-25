@@ -36,7 +36,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 ## 원격 CI 실행 범위
 
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
-macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
+macOS Intel·Apple Silicon에서는 프로젝트 생성·검사·재시작, reload, 외부 명령을 normal로 실행한다. 두 아키텍처에서 race와 CGO=0으로 배타적 파일 발행, 터미널 비밀 입력과 복구, 자식 프로세스 종료, SQLite의 다중 프로세스 경쟁·rollback·재접속을 확인한다. runserver 자식이 종료된 뒤에도 완전한 퇴역 응답을 받은 경우에만 다음 세대를 활성화하는지 검사한다. 고정 Darwin/arm64 Django·SQLite 원본 재생도 매번 실행한다. [필수 네이티브 검사](../scripts/ci/darwin-native-required.txt)
 
 공용 `*_unix.go`가 바뀌면 양쪽 Mac에서 프로젝트 검사·reload·외부 명령을 normal·race·CGO=0으로 모두 실행한다. 네이티브 필수 검사도 같은 race·CGO=0 reload 작업에서 실행한다. Linux 관계 검사는 모든 shard를 유지한다.
 
@@ -175,6 +175,9 @@ PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각
 전체 플랫폼의 관계 matrix와 두 PR 범위의 Linux 관계 matrix에서는 각 아키텍처와 모드의 0번 작업이 일반 관계 패키지를 실행한다.
 생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
 계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
+
+Linux ARM64 race에서는 전용 계정 테스트 16개를 각각 단독 실행한다. 나머지 상위 테스트는 예상 시간이 긴 순서로 5개 작업 중 누적 예상 시간이 가장 짧은 곳에 배정한다. 두 Hosted 실행에서 평균 90초 이상 걸린 일반 테스트는 15초 단위 실측값을 쓰고, 새 테스트를 포함한 나머지는 30초로 계산한다. 매 실행의 바이너리 발견 목록으로 배정 대상이 정해진다.
+두 Linux race runtime 다음에는 ARM64의 일반 소비자 5개 작업과 평균 15분 이상 걸린 전용 소비자 작업을 먼저 제출한다. 실제 러너 배정 시각은 GitHub 대기열에 따라 달라진다. [측정과 재배치 근거](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
 
 기본 제한은 작업 45분, Go 패키지 35분이다. macOS race는 작업 90분, 패키지 70분이다.
 macOS runtime(0번)은 전체 패키지 빌드와 실행 시간을 합쳐 잡는다. ARM64 normal·race는 180분, Intel race는 135분, 나머지는 90분이다.
