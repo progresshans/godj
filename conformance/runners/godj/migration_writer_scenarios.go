@@ -1133,7 +1133,7 @@ func migrationWriterUnsupportedCases() ([]struct {
 		history []definition.Source
 		desired codegen.ProjectSpec
 	}{
-		{name: "model_removal", history: modelHistory, desired: migrationWriterBaseSpec()},
+		{name: "ambiguous_model_replacement", history: modelHistory, desired: migrationWriterSpec(migrationWriterApp("blog", migrationWriterArticle(), migrationWriterAuthor()))},
 		{name: "primary_key_replacement", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", replacedKey))},
 		{name: "field_reorder", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", reordered))},
 		{name: "field_rename", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", renamed))},
@@ -1228,7 +1228,7 @@ func migrationWriterProtocolBoundary(ctx context.Context, contract protocol.Cont
 		return protocol.Observation{}, fmt.Errorf("migration-writer protocol accepted unknown member: failure=%+v failed=%t err=%v", unknownFailure, unknownFailed, unknownErr)
 	}
 	existingProtocolsStable := bytes.Equal(checkprotocol.RequestDocument(), []byte(`{"protocol_version":1,"command":"migrations.check"}`)) &&
-		bytes.Equal(migrateprotocol.RequestDocument(), []byte(`{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)) &&
+		bytes.Equal(migrateprotocol.RequestDocument(), []byte(`{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)) &&
 		bytes.Equal(generateprotocol.RequestDocument(), []byte(`{"protocol_version":1,"command":"generate.project_spec"}`))
 	linkedReport := reports[0]
 	oneSnapshot := runnerCalls == 1 && linkedReport.ProjectSpecLoaderCalls == 1 && linkedReport.BuildSnapshotCalls == 1 && linkedReport.RootsOpened == 1

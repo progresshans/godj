@@ -337,7 +337,7 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 			return Snapshot{}, snapshotError(CategoryCandidate, CodeInvalidCandidateCatalog, err)
 		}
 	}
-	if err := verifyFinalState(current, desired, finalState, managed); err != nil {
+	if err := verifyFinalState(current, desired, finalState, managed, migrationsPlan); err != nil {
 		return Snapshot{}, snapshotError(CategoryCandidate, CodeFinalStateMismatch, err)
 	}
 
@@ -552,10 +552,19 @@ func verifyFinalState(
 	desired migrations.ProjectState,
 	actual migrations.ProjectState,
 	managedApps []string,
+	changes []migrations.Migration,
 ) error {
 	managed := make(map[string]struct{}, len(managedApps))
 	for _, app := range managedApps {
 		managed[app] = struct{}{}
+	}
+	removed := make(map[ir.ModelIdentity]bool)
+	for _, change := range changes {
+		for _, op := range change.Operations {
+			if drop, ok := op.(migrations.DeleteModel); ok {
+				removed[ir.ModelIdentity{AppLabel: drop.AppLabel, ModelName: drop.Model.Name}] = true
+			}
+		}
 	}
 	apps := make(map[string]struct{})
 	for _, state := range []migrations.ProjectState{current, desired, actual} {
@@ -571,8 +580,17 @@ func verifyFinalState(
 		expected, expectedExists := expectedState.Schema(app)
 		got, gotExists := actual.Schema(app)
 		if _, owned := managed[app]; owned && expectedExists && !gotExists && len(expected.Models) == 0 {
-			if _, historical := current.Schema(app); !historical {
-				continue // No tables before or after; app identity remains in ProjectSpec.
+			prior, existed := current.Schema(app)
+			if !existed {
+				continue
+			}
+			if len(prior.Models) > 0 {
+				for _, model := range prior.Models {
+					if !removed[ir.ModelIdentity{AppLabel: app, ModelName: model.Name}] {
+						return errors.New("model disappeared without a deletion in the generated plan")
+					}
+				}
+				continue
 			}
 		}
 		if expectedExists != gotExists || (expectedExists && !reflect.DeepEqual(expected, got)) {

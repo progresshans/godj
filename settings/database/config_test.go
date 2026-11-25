@@ -81,9 +81,9 @@ func TestMigrationSQLRendererDerivesCredentialFreeFrozenProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	empty, err := sqliteConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(
+	empty, err := sqliteConfig.MigrationSQLRenderer().RenderMigrationSQL(
 		context.Background(),
-		migrationbackend.ForwardMigrationSQLRequest{
+		migrationbackend.MigrationSQLRequest{
 			App: "blog", Name: "zero",
 			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}},
 		},
@@ -100,7 +100,7 @@ func TestMigrationSQLRendererDerivesCredentialFreeFrozenProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0001_article",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
@@ -113,7 +113,7 @@ func TestMigrationSQLRendererDerivesCredentialFreeFrozenProfile(t *testing.T) {
 			},
 		}}},
 	}
-	statements, err := postgresConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
+	statements, err := postgresConfig.MigrationSQLRenderer().RenderMigrationSQL(context.Background(), request)
 	if err != nil || len(statements) != 1 || len(statements[0]) != 1 || !strings.Contains(statements[0][0], `"frozen_schema".`) ||
 		strings.Contains(statements[0][0], urlSecret) {
 		t.Fatalf("PostgreSQL renderer = %#v, %v", statements, err)

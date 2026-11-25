@@ -13,7 +13,7 @@ import (
 )
 
 func TestSQLiteDecimalPrecisionSQLKeepsMixedOperationGroups(t *testing.T) {
-	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), decimaltest.MixedPrecisionSQLRequest(t))
+	statements, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), decimaltest.MixedPrecisionSQLRequest(t))
 	want := [][]string{nil, {`ALTER TABLE "decimalref_cost" ADD COLUMN "note" TEXT NULL`}, nil}
 	if err != nil || !reflect.DeepEqual(statements, want) {
 		t.Fatalf("mixed SQL groups: %v %v", statements, err)

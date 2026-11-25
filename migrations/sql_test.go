@@ -22,7 +22,7 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 		`CREATE INDEX "article_published" ON "alpha_article" ("published")`,
 	}}}
 
-	statements, err := RenderMigrationSQL(context.Background(), loaded, target, renderer)
+	statements, err := RenderMigrationSQL(context.Background(), loaded, target, DirectionForward, renderer)
 	if err != nil {
 		t.Fatalf("RenderMigrationSQL() error = %v", err)
 	}
@@ -59,7 +59,7 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 		t.Fatalf("published statements changed through renderer alias: %#v", statements)
 	}
 	second := &migrationSQLRendererSpy{groups: [][]string{append([]string(nil), want...)}}
-	if _, err := RenderMigrationSQL(context.Background(), loaded, target, second); err != nil {
+	if _, err := RenderMigrationSQL(context.Background(), loaded, target, DirectionForward, second); err != nil {
 		t.Fatalf("second RenderMigrationSQL() error = %v", err)
 	}
 	if got := second.request.Intent.Operations[0].After.Fields[1].Name; got != "published" {
@@ -76,6 +76,7 @@ func TestRenderMigrationSQLMaterializesCompoundCrossAppTargetInDefinitionOrder(t
 		context.Background(),
 		testLoadedDefinitionSet(t, lifecycleLoadedCompleteIntentDefinitions()),
 		target,
+		DirectionForward,
 		renderer,
 	)
 	if err != nil {
@@ -96,6 +97,53 @@ func TestRenderMigrationSQLMaterializesCompoundCrossAppTargetInDefinitionOrder(t
 	}
 }
 
+func TestRenderMigrationSQLReversesOnlyTheExactTarget(t *testing.T) {
+	t.Parallel()
+	target := MigrationKey{App: "blog", Name: "0001_post"}
+	loaded := testLoadedDefinitionSet(t, lifecycleLoadedCompleteIntentDefinitions())
+	renderer := &migrationSQLRendererSpy{groups: [][]string{{"remove author"}, {"remove published"}, {"drop post"}}}
+	statements, err := RenderMigrationSQL(t.Context(), loaded, target, DirectionBackward, renderer)
+	if err != nil || !reflect.DeepEqual(statements, []string{"remove author", "remove published", "drop post"}) ||
+		renderer.calls != 1 || !renderer.request.Backwards || renderer.request.App != target.App || renderer.request.Name != target.Name {
+		t.Fatalf("reverse SQL %v, calls %d, error %v", statements, renderer.calls, err)
+	}
+	ops := renderer.request.Intent.Operations
+	if len(ops) != 3 || ops[0].OperationIndex != 2 || ops[0].Kind != backend.MigrationRemoveField ||
+		ops[1].OperationIndex != 1 || ops[1].Kind != backend.MigrationRemoveField ||
+		ops[2].OperationIndex != 0 || ops[2].Kind != backend.MigrationDeleteModel {
+		t.Fatalf("inverse operations %#v", ops)
+	}
+	if first, err := ops[0].ChangedField(); err != nil || first.Name != "author" ||
+		len(ops[0].Targets) != 1 || ops[0].Targets[0].TargetModel.Name != "author" {
+		t.Fatalf("historical foreign key %#v, %v", ops[0], err)
+	}
+	if result, err := RenderMigrationSQL(t.Context(), loaded, target, Direction("invalid"), renderer); err == nil || result != nil || renderer.calls != 1 {
+		t.Fatalf("invalid direction %v, %v, renderer calls %d", result, err, renderer.calls)
+	}
+}
+
+func TestBackwardSQLStopsAtLastIrreversibleOperationBeforeRendering(t *testing.T) {
+	t.Parallel()
+	defs := lifecycleTestDefinitions()[:2]
+	target := &defs[1]
+	freeze := RunData{Key: DataKey{App: target.App, Name: "freeze", Version: 1}, Forward: DataCall, Reverse: DataIrreversible,
+		Models: []ir.ModelIdentity{{AppLabel: target.App, ModelName: "article"}}}
+	second := freeze
+	second.Key.Name = "seal"
+	target.Operations = append([]Operation{freeze, second}, target.Operations...)
+	loaded := testLoadedDefinitionSet(t, defs)
+	spy := &migrationSQLRendererSpy{}
+	for _, renderer := range []backend.MigrationSQLRenderer{spy, nil} {
+		statements, err := RenderMigrationSQL(t.Context(), loaded, target.Key(), DirectionBackward, renderer)
+		var detail *Error
+		if statements != nil || !errors.As(err, &detail) || detail.Category != CategoryPlan || detail.Code != CodeIrreversibleData ||
+			detail.App != target.App || detail.Migration != target.Name || detail.Direction != DirectionBackward ||
+			detail.OperationIndex != 1 || detail.Operation != "RunData" || spy.calls != 0 {
+			t.Fatalf("irreversible SQL %v, error %v, renderer calls %d", statements, err, spy.calls)
+		}
+	}
+}
+
 func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +156,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 		}}},
 	})
 	spy := &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
-	if _, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, invalidUnrelated), validTarget, spy); err == nil {
+	if _, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, invalidUnrelated), validTarget, DirectionForward, spy); err == nil {
 		t.Fatal("invalid unrelated definition unexpectedly rendered")
 	}
 	if spy.calls != 0 {
@@ -117,7 +165,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 
 	spy = &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
 	missing := MigrationKey{App: validTarget.App, Name: "0002"}
-	_, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, lifecycleTestDefinitions()), missing, spy)
+	_, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, lifecycleTestDefinitions()), missing, DirectionForward, spy)
 	var planning *PlanningError
 	if !errors.As(err, &planning) || planning.Category != CategoryPlan || planning.Code != CodeTargetNotFound {
 		t.Fatalf("exact miss error = %#v, want plan/target_not_found", err)
@@ -127,10 +175,10 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 	}
 
 	loaded := testLoadedDefinitionSet(t, lifecycleTestDefinitions())
-	_, err = RenderMigrationSQL(context.Background(), loaded, validTarget, nil)
+	_, err = RenderMigrationSQL(context.Background(), loaded, validTarget, DirectionForward, nil)
 	assertMigrationSQLError(t, err, CategorySQLRender, CodeRendererUnavailable, validTarget)
 	var typedNil *migrationSQLRendererSpy
-	_, err = RenderMigrationSQL(context.Background(), loaded, validTarget, typedNil)
+	_, err = RenderMigrationSQL(context.Background(), loaded, validTarget, DirectionForward, typedNil)
 	assertMigrationSQLError(t, err, CategorySQLRender, CodeRendererUnavailable, validTarget)
 }
 
@@ -141,19 +189,19 @@ func TestRenderMigrationSQLRejectsContextAndZeroPublicationBeforeRenderer(t *tes
 	spy := &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	statements, err := RenderMigrationSQL(canceled, LoadedDefinitionSet{}, target, spy)
+	statements, err := RenderMigrationSQL(canceled, LoadedDefinitionSet{}, target, DirectionForward, spy)
 	if statements != nil || !errors.Is(err, context.Canceled) || spy.calls != 0 {
 		t.Fatalf("canceled entry = %#v, %v, calls=%d; want nil/context.Canceled/0", statements, err, spy.calls)
 	}
 
-	statements, err = RenderMigrationSQL(nil, LoadedDefinitionSet{}, target, spy)
+	statements, err = RenderMigrationSQL(nil, LoadedDefinitionSet{}, target, DirectionForward, spy)
 	var migrationError *Error
 	if statements != nil || !errors.As(err, &migrationError) || migrationError.Category != CategoryExecution ||
 		migrationError.Code != CodeOperationFailed || !strings.Contains(err.Error(), "context is nil") || spy.calls != 0 {
 		t.Fatalf("nil-context entry = %#v, %#v, calls=%d; want nil execution error/0", statements, err, spy.calls)
 	}
 
-	statements, err = RenderMigrationSQL(context.Background(), LoadedDefinitionSet{}, target, spy)
+	statements, err = RenderMigrationSQL(context.Background(), LoadedDefinitionSet{}, target, DirectionForward, spy)
 	if statements != nil || !errors.As(err, &migrationError) || migrationError.Category != CategoryState ||
 		migrationError.Code != CodeInvalidState || spy.calls != 0 {
 		t.Fatalf("zero publication = %#v, %#v, calls=%d; want nil state error/0", statements, err, spy.calls)
@@ -173,6 +221,7 @@ func TestRenderMigrationSQLRedactsRendererFailuresAndPartialSQL(t *testing.T) {
 		context.Background(),
 		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
+		DirectionForward,
 		renderer,
 	)
 	if statements != nil {
@@ -193,6 +242,7 @@ func TestRenderMigrationSQLRedactsRendererFailuresAndPartialSQL(t *testing.T) {
 		context.Background(),
 		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
+		DirectionForward,
 		capability,
 	)
 	assertMigrationSQLError(t, err, CategoryCapability, CodeUnsupported, target)
@@ -211,6 +261,7 @@ func TestRenderMigrationSQLObservesCancellationAfterRendererReturn(t *testing.T)
 		ctx,
 		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
+		DirectionForward,
 		renderer,
 	)
 	if statements != nil || !errors.Is(err, context.Canceled) || renderer.calls != 1 {
@@ -350,6 +401,7 @@ func TestRenderMigrationSQLEmptyIntentReturnsNonNilEmptyResult(t *testing.T) {
 		context.Background(),
 		testLoadedDefinitionSet(t, []Migration{{App: target.App, Name: target.Name}}),
 		target,
+		DirectionForward,
 		renderer,
 	)
 	if err != nil {
@@ -362,7 +414,7 @@ func TestRenderMigrationSQLEmptyIntentReturnsNonNilEmptyResult(t *testing.T) {
 
 type migrationSQLRendererSpy struct {
 	calls   int
-	request backend.ForwardMigrationSQLRequest
+	request backend.MigrationSQLRequest
 	groups  [][]string
 	err     error
 }
@@ -372,9 +424,9 @@ type migrationSQLCancelingRenderer struct {
 	cancel context.CancelFunc
 }
 
-func (renderer *migrationSQLCancelingRenderer) RenderForwardMigrationSQL(
+func (renderer *migrationSQLCancelingRenderer) RenderMigrationSQL(
 	_ context.Context,
-	_ backend.ForwardMigrationSQLRequest,
+	_ backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	renderer.cancel()
@@ -401,9 +453,9 @@ func (ctx *migrationSQLCheckpointContext) Err() error {
 	return ctx.Context.Err()
 }
 
-func (renderer *migrationSQLRendererSpy) RenderForwardMigrationSQL(
+func (renderer *migrationSQLRendererSpy) RenderMigrationSQL(
 	_ context.Context,
-	request backend.ForwardMigrationSQLRequest,
+	request backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	renderer.request = request

@@ -15,8 +15,10 @@ class MigrationDataReferenceTests(unittest.TestCase):
     def setUp(self):
         fingerprint = json.loads((runner.ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json").read_bytes())["fingerprint"]
         self.report = {
+            "model_rename": json.loads(runner.MODEL_RENAME_REFERENCE.read_text()),
+            "model_deletion": json.loads(runner.MODEL_DELETION_REFERENCE.read_text()),
             "backend": "sqlite", "database_version": "3.50.4", "django": "6.1", "python": "3.14.3",
-            "observations": dict.fromkeys(runner.PHASES, {"rows": 1}), "command_output": dict.fromkeys(("forward", "reverse", "barrier"), {}),
+            "observations": json.loads(runner.HISTORICAL_REFERENCE.read_text()), "command_output": dict.fromkeys(("forward", "reverse", "barrier"), {}),
             "input_sha256": runner.input_digests(), "django_commit": fingerprint["django_commit"],
             "upstream_sha256": {"module": "ab" * 32},
             "blank_tightening": json.loads(runner.BLANK_REFERENCE.read_text())["sqlite"],
@@ -38,8 +40,11 @@ class MigrationDataReferenceTests(unittest.TestCase):
             for field, replacement in (
                 ("backend", "postgresql"), ("database_version", "3.48.0"), ("django_commit", "other"),
                 ("input_sha256", {"migration_data_reference.py": "ff" * 32}),
+                ("observations", self.report["observations"] | {"reversed": {}}),
                 ("observations", {k: v for k, v in self.report["observations"].items() if k != "first_reverse"}),
+                ("model_deletion", self.report["model_deletion"] | {"restored": self.report["model_deletion"]["before"]}),
                 ("command_output", {"forward": {}, "reverse": {}}),
+                ("model_rename", {"fixed_table": self.report["model_rename"]["derived_table"]}),
                 ("blank_tightening", json.loads(runner.BLANK_REFERENCE.read_text())["postgresql"]),
             ):
                 with self.subTest(field=field), self.assertRaises(ValueError):
@@ -54,3 +59,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
             runner.compare(self.report, other)
         with self.assertRaisesRegex(ValueError, "upstream_sha256"):
             runner.compare(self.report, self.report | {"upstream_sha256": {}})
+        other = copy.deepcopy(self.report)
+        other["model_rename"]["derived_table"]["reversed"] = other["model_rename"]["derived_table"]["renamed"]
+        with self.assertRaisesRegex(ValueError, "model_rename"):
+            runner.compare(self.report, other)

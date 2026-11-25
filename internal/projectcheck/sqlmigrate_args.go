@@ -17,19 +17,26 @@ type sqlMigrateArguments struct {
 
 func parseSQLMigrateArguments(argv []string) (sqlMigrateArguments, *SQLMigrateFailure) {
 	var arguments sqlMigrateArguments
-	valid := false
-	switch {
-	case len(argv) == 3 && argv[0] == "sqlmigrate" && validSQLMigrateToken(argv[1]) && validSQLMigrateToken(argv[2]):
-		arguments.request = sqlmigrateprotocol.Request{App: argv[1], Name: argv[2]}
-		valid = true
-	case len(argv) == 5 && argv[0] == "sqlmigrate" && validSQLMigrateToken(argv[1]) && validSQLMigrateToken(argv[2]) &&
-		argv[3] == "--project" && validSQLMigrateDescriptorToken(argv[4]):
-		arguments.request = sqlmigrateprotocol.Request{App: argv[1], Name: argv[2]}
-		arguments.explicitDescriptor = argv[4]
-		valid = true
-	}
-	if !valid {
+	if len(argv) < 3 || len(argv) > 6 || argv[0] != "sqlmigrate" || !validSQLMigrateToken(argv[1]) || !validSQLMigrateToken(argv[2]) {
 		return invalidSQLMigrateArguments()
+	}
+	arguments.request = sqlmigrateprotocol.Request{App: argv[1], Name: argv[2]}
+	for i := 3; i < len(argv); i++ {
+		switch argv[i] {
+		case "--backwards":
+			if arguments.request.Backwards {
+				return invalidSQLMigrateArguments()
+			}
+			arguments.request.Backwards = true
+		case "--project":
+			i++
+			if arguments.explicitDescriptor != "" || i == len(argv) || !validSQLMigrateToken(argv[i]) {
+				return invalidSQLMigrateArguments()
+			}
+			arguments.explicitDescriptor = argv[i]
+		default:
+			return invalidSQLMigrateArguments()
+		}
 	}
 	document, err := sqlmigrateprotocol.EncodeRequest(arguments.request)
 	if err != nil {
@@ -40,10 +47,6 @@ func parseSQLMigrateArguments(argv []string) (sqlMigrateArguments, *SQLMigrateFa
 }
 
 func validSQLMigrateToken(value string) bool {
-	return value != "" && utf8.ValidString(value) && !strings.HasPrefix(value, "-")
-}
-
-func validSQLMigrateDescriptorToken(value string) bool {
 	return value != "" && utf8.ValidString(value) && !strings.HasPrefix(value, "-")
 }
 

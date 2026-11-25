@@ -215,7 +215,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
+	case CreateModel, DeleteModel, RenameModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -241,8 +241,9 @@ func invalidReconstructorOperation(migration Migration, index int, kind string, 
 type loadedStateReconstructor struct {
 	planner           Planner
 	definitions       map[MigrationKey]Migration
-	creators          map[loadedModelIdentity][]loadedModelCreator
-	automaticCreators map[loadedModelIdentity][]loadedModelCreator
+	modelEvents       map[loadedModelIdentity][]loadedModelEvent
+	hasModelDeletions bool
+	automaticCreators map[loadedModelIdentity][]loadedModelEvent
 	declarations      []loadedRelationDeclaration
 	ancestors         loadedAncestorIndex
 }
@@ -257,10 +258,10 @@ type loadedModelIdentity struct {
 	model string
 }
 
-type loadedModelCreator struct {
+type loadedModelEvent struct {
 	key            MigrationKey
 	operationIndex int
-	model          ir.Model
+	deleted        bool
 }
 
 type loadedRelationDeclaration struct {
@@ -328,7 +329,7 @@ type loadedReverseOwner struct {
 	field  string
 }
 
-type loadedRelationRequirements uint16
+type loadedRelationRequirements uint32
 
 const (
 	loadedRequiresCreateModelForeignKeys loadedRelationRequirements = 1 << iota
@@ -346,6 +347,10 @@ const (
 	loadedRequiresColumnIndexes
 	loadedRequiresAlterFieldInputPolicy
 	loadedRequiresAlterFieldNullability
+	loadedRequiresHistoricalData
+	loadedRequiresRenameField
+	loadedRequiresDeleteModel
+	loadedRequiresRenameModel
 )
 
 const (
@@ -372,6 +377,9 @@ const (
 	loadedRelationAddConstraint
 	loadedRelationRemoveConstraint
 	loadedRelationAlterManyToMany
+	loadedRunData
+	loadedRenameField
+	loadedRenameModel
 )
 
 type loadedRelationIntent struct {
@@ -379,6 +387,7 @@ type loadedRelationIntent struct {
 }
 
 type loadedRelationOperation struct {
+	data           *RunData
 	operationIndex int
 	kind           loadedRelationOperationKind
 	before         ir.Model
@@ -419,6 +428,7 @@ type loadedStepSealPayload struct {
 }
 
 type loadedRelationOperationSeal struct {
+	Data           *RunData                        `json:"data,omitempty"`
 	OperationIndex int                             `json:"operation_index"`
 	Kind           loadedRelationOperationKind     `json:"kind"`
 	Before         ir.Model                        `json:"before"`
@@ -575,7 +585,11 @@ func buildLoadedStateReconstructor(ctx context.Context, definitions []Migration,
 
 	reconstructor := loadedStateReconstructor{planner: planner, definitions: cloned}
 	reconstructor.ancestors = newLoadedAncestorIndex(planner.graph)
-	reconstructor.creators, reconstructor.declarations = collectLoadedStateGraph(planner.graph, cloned)
+	steps, err := reconstructor.fullForwardProjection()
+	if err != nil {
+		return loadedStateReconstructor{}, err
+	}
+	reconstructor.modelEvents, reconstructor.declarations, reconstructor.hasModelDeletions = collectLoadedStateGraph(steps, cloned)
 	reconstructor.automaticCreators = collectAutomaticCreators(planner.graph, cloned)
 	if err := reconstructor.validateChronology(); err != nil {
 		return loadedStateReconstructor{}, err
@@ -583,7 +597,7 @@ func buildLoadedStateReconstructor(ctx context.Context, definitions []Migration,
 	if err := ctx.Err(); err != nil {
 		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
 	}
-	if err := reconstructor.validateReadiness(ctx); err != nil {
+	if err := reconstructor.validateReadiness(ctx, steps); err != nil {
 		return loadedStateReconstructor{}, err
 	}
 	return reconstructor, nil
@@ -621,18 +635,30 @@ func cloneLoadedReconstructorDefinitions(graph *plannerGraph, definitions []Migr
 }
 
 func collectLoadedStateGraph(
-	graph *plannerGraph,
+	steps []PlanStep,
 	definitions map[MigrationKey]Migration,
-) (map[loadedModelIdentity][]loadedModelCreator, []loadedRelationDeclaration) {
-	creators := make(map[loadedModelIdentity][]loadedModelCreator)
+) (map[loadedModelIdentity][]loadedModelEvent, []loadedRelationDeclaration, bool) {
+	events := make(map[loadedModelIdentity][]loadedModelEvent)
 	declarations := make([]loadedRelationDeclaration, 0)
-	for _, key := range graph.nodes {
+	hasDeletes := false
+	for _, step := range steps {
+		key := step.Key
 		definition := definitions[key]
 		for index, operation := range definition.Operations {
 			switch value := operation.(type) {
+			case RenameModel:
+				old := loadedModelIdentity{app: value.AppLabel, model: value.Before.Name}
+				next := loadedModelIdentity{app: value.AppLabel, model: value.After.Name}
+				events[old] = append(events[old], loadedModelEvent{key: key, operationIndex: index, deleted: true})
+				events[next] = append(events[next], loadedModelEvent{key: key, operationIndex: index})
+				hasDeletes = true
+			case DeleteModel:
+				identity := loadedModelIdentity{app: value.AppLabel, model: value.Model.Name}
+				events[identity] = append(events[identity], loadedModelEvent{key: key, operationIndex: index, deleted: true})
+				hasDeletes = true
 			case CreateModel:
 				identity := loadedModelIdentity{app: value.AppLabel, model: value.Model.Name}
-				creators[identity] = append(creators[identity], loadedModelCreator{key: key, operationIndex: index, model: value.Model.Clone()})
+				events[identity] = append(events[identity], loadedModelEvent{key: key, operationIndex: index})
 				for _, field := range value.Model.ManyToMany {
 					targets := []ir.ModelIdentity{field.Target}
 					if field.Through != nil {
@@ -679,7 +705,7 @@ func collectLoadedStateGraph(
 		}
 	}
 	sort.Slice(declarations, func(left, right int) bool { return loadedDeclarationLess(declarations[left], declarations[right]) })
-	return creators, declarations
+	return events, declarations, hasDeletes
 }
 
 func loadedDeclarationLess(left, right loadedRelationDeclaration) bool {
@@ -705,36 +731,17 @@ func loadedDeclarationLess(left, right loadedRelationDeclaration) bool {
 }
 
 func (r loadedStateReconstructor) validateChronology() error {
-	duplicateIdentities := make([]loadedModelIdentity, 0)
-	for identity, creators := range r.creators {
-		if len(creators) > 1 {
-			duplicateIdentities = append(duplicateIdentities, identity)
-		}
-	}
-	sort.Slice(duplicateIdentities, func(left, right int) bool {
-		return loadedIdentityLess(duplicateIdentities[left], duplicateIdentities[right])
-	})
-	if len(duplicateIdentities) != 0 {
-		identity := duplicateIdentities[0]
-		sorted := append([]loadedModelCreator(nil), r.creators[identity]...)
-		sort.Slice(sorted, func(left, right int) bool {
-			if sorted[left].key != sorted[right].key {
-				return migrationKeyLess(sorted[left].key, sorted[right].key)
-			}
-			return sorted[left].operationIndex < sorted[right].operationIndex
-		})
-		creator := sorted[1]
-		return invalidLoadedState(r.definitions[creator.key], creator.operationIndex, operationKindAt(r.definitions[creator.key], creator.operationIndex), fmt.Errorf("model %s.%s has multiple historical creators", identity.app, identity.model))
+	if err := r.validateModelLifetimes(); err != nil {
+		return err
 	}
 	for _, declaration := range r.declarations {
 		if declaration.field.Relation == nil && declaration.manyTarget == nil {
 			continue
 		}
-		sourceCreators := r.creators[declaration.source]
-		if len(sourceCreators) != 1 {
+		sourceCreator, found := r.creatorAt(declaration.source, declaration)
+		if !found {
 			return r.declarationError(declaration, fmt.Errorf("source model %s.%s requires exactly one historical creator", declaration.source.app, declaration.source.model))
 		}
-		sourceCreator := sourceCreators[0]
 		sourceOwnedByCreate := declaration.operationKind == (CreateModel{}).Kind() &&
 			sourceCreator.key == declaration.key && sourceCreator.operationIndex == declaration.operationIndex
 		if !sourceOwnedByCreate && !r.creatorVisibleBefore(sourceCreator, declaration) {
@@ -750,8 +757,7 @@ func (r loadedStateReconstructor) validateChronology() error {
 			targetIR = declaration.field.Relation.Target
 		}
 		target := loadedModelIdentity{app: targetIR.AppLabel, model: targetIR.ModelName}
-		creators := r.creators[target]
-		if len(creators) == 0 && len(r.automaticCreators[target]) != 0 {
+		if len(r.modelEvents[target]) == 0 && len(r.automaticCreators[target]) != 0 {
 			visible := false
 			for _, creator := range r.automaticCreators[target] {
 				if r.creatorVisibleBefore(creator, declaration) || sourceOwnedByCreate && creator.key == declaration.key && creator.operationIndex == declaration.operationIndex {
@@ -764,10 +770,10 @@ func (r loadedStateReconstructor) validateChronology() error {
 			}
 			continue
 		}
-		if len(creators) != 1 {
+		creator, found := r.creatorAt(target, declaration)
+		if !found {
 			return r.declarationError(declaration, fmt.Errorf("target model %s.%s requires exactly one historical creator", target.app, target.model))
 		}
-		creator := creators[0]
 		switch {
 		case target == declaration.source && sourceOwnedByCreate:
 			// The table and its self constraint are created by one operation.
@@ -781,10 +787,19 @@ func (r loadedStateReconstructor) validateChronology() error {
 			return r.declarationError(declaration, fmt.Errorf("target creator %s.%s is not dependency ancestry of the relation migration", creator.key.App, creator.key.Name))
 		}
 	}
+	if r.hasModelDeletions {
+		for _, key := range r.planner.graph.nodes {
+			for index, op := range r.definitions[key].Operations {
+				if err := r.validateLifetimeReferences(key, index, op); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 
-func (r loadedStateReconstructor) creatorVisibleBefore(creator loadedModelCreator, declaration loadedRelationDeclaration) bool {
+func (r loadedStateReconstructor) creatorVisibleBefore(creator loadedModelEvent, declaration loadedRelationDeclaration) bool {
 	if creator.key == declaration.key {
 		return creator.operationIndex < declaration.operationIndex
 	}
@@ -933,13 +948,24 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	hadMany := builder.manyCount != 0
 	var err error
 	switch value := operation.(type) {
+	case RunData:
+		_, err = value.Normalized()
 	case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		err = builder.changeMany(operation, direction == DirectionBackward)
 	case CreateModel:
 		if direction == DirectionForward {
-			err = builder.createModel(value)
+			err = builder.createModel(value, "")
 		} else {
-			err = builder.deleteModel(value)
+			err = builder.deleteModel(value, "")
+		}
+	case RenameModel:
+		err = builder.renameModel(value, direction == DirectionBackward)
+	case DeleteModel:
+		model := CreateModel{AppLabel: value.AppLabel, Model: value.Model}
+		if direction == DirectionForward {
+			err = builder.deleteModel(model, value.BeforeModel)
+		} else {
+			err = builder.createModel(model, value.BeforeModel)
 		}
 	case AddField:
 		if direction == DirectionForward {
@@ -961,6 +987,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionForward)
 	case RemoveConstraint:
 		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionBackward)
+	case RenameField:
+		err = builder.renameField(value, direction == DirectionBackward)
 	case AlterField:
 		err = builder.alterField(value, direction == DirectionBackward)
 	default:
@@ -975,7 +1003,7 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	return nil
 }
 
-func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
+func (builder *loadedStateBuilder) createModel(operation CreateModel, before string) error {
 	normalized, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
@@ -1002,10 +1030,14 @@ func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
 	if err != nil {
 		return err
 	}
+	position, err := modelInsertionPosition(app.order, before)
+	if err != nil {
+		return err
+	}
 	model := newLoadedStateModel(normalized, primaryKey)
 	app.models[normalized.Name] = model
 	builder.manyCount += uint64(len(normalized.ManyToMany))
-	app.order = append(app.order, normalized.Name)
+	app.order = slices.Insert(app.order, position, normalized.Name)
 	app.goNames[normalized.GoName] = normalized.Name
 	app.dbTables[normalized.DBTable] = normalized.Name
 	identity := loadedModelIdentity{app: operation.AppLabel, model: normalized.Name}
@@ -1020,7 +1052,7 @@ func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
 	return nil
 }
 
-func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
+func (builder *loadedStateBuilder) deleteModel(operation CreateModel, before string) error {
 	want, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
@@ -1034,7 +1066,7 @@ func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
 		return fmt.Errorf("model %s.%s does not exist", operation.AppLabel, want.Name)
 	}
 	if !modelEqual(actual.value, want) {
-		return fmt.Errorf("model %s.%s does not match CreateModel state", operation.AppLabel, want.Name)
+		return fmt.Errorf("model %s.%s does not match its historical declaration", operation.AppLabel, want.Name)
 	}
 	identity := loadedModelIdentity{app: operation.AppLabel, model: want.Name}
 	for owner := range builder.incoming[identity] {
@@ -1042,15 +1074,16 @@ func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
 			return fmt.Errorf("model %s.%s is still targeted by relation reverse owners", identity.app, identity.model)
 		}
 	}
+	position, err := modelRemovalPosition(app.order, want.Name, before)
+	if err != nil {
+		return err
+	}
 	for _, field := range actual.value.Fields {
 		if err := builder.removeRelation(identity, field); err != nil {
 			return err
 		}
 	}
-	if len(app.order) == 0 || app.order[len(app.order)-1] != want.Name {
-		return fmt.Errorf("model %s.%s is not the latest model in its app", operation.AppLabel, want.Name)
-	}
-	app.order = app.order[:len(app.order)-1]
+	app.order = slices.Delete(app.order, position, position+1)
 	builder.manyCount -= uint64(len(actual.value.ManyToMany))
 	delete(app.models, want.Name)
 	delete(app.goNames, want.GoName)
@@ -1258,11 +1291,7 @@ func (builder *loadedStateBuilder) removeRelation(source loadedModelIdentity, fi
 	return nil
 }
 
-func (r loadedStateReconstructor) validateReadiness(ctx context.Context) error {
-	steps, err := r.fullForwardProjection()
-	if err != nil {
-		return err
-	}
+func (r loadedStateReconstructor) validateReadiness(ctx context.Context, steps []PlanStep) error {
 	builder := newLoadedStateBuilder()
 	for _, step := range steps {
 		if err := r.applyLoadedMigrationContext(ctx, builder, r.definitions[step.Key], DirectionForward); err != nil {
@@ -1525,6 +1554,10 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 
 	operationViews := make([]loadedOperationView, 0, len(indices))
 	var requirements loadedRelationRequirements
+	historical, err := r.dataScopeBuilder(ctx, migration, step.Direction)
+	if err != nil {
+		return loadedMaterializedStep{}, err
+	}
 	for intentIndex, operationIndex := range indices {
 		if err := ctx.Err(); err != nil {
 			return loadedMaterializedStep{}, executionContextError(step, err)
@@ -1536,13 +1569,35 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				operationIndex, "", errors.New("operation is nil"),
 			)
 		}
+		if data, ok := operation.(RunData); ok {
+			models, err := dataScopeModels(ctx, historical, builder, data)
+			if err != nil {
+				return loadedMaterializedStep{}, migrationError(CategoryState, CodeInvalidState, step.Direction, migration, operationIndex, data.Kind(), err)
+			}
+			if err := budget.scanOperation(intentIndex, ir.Model{}, ir.Model{}, nil, nil, models); err != nil {
+				return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, operationIndex, data.Kind(), err)
+			}
+			operationViews = append(operationViews, loadedOperationView{index: operationIndex, operation: data, appLabel: data.App(), relatedModels: migrationgraph.CloneMigrationModels(models)})
+			requirements |= loadedRequiresHistoricalData
+			continue
+		}
+		if historical != nil {
+			if err := r.applyLoadedOperation(historical, migration, operationIndex, step.Direction); err != nil {
+				return loadedMaterializedStep{}, err
+			}
+		}
 		appLabel, modelName := operationSourceModel(operation)
+		afterName := modelName
+		if rename, ok := operation.(RenameModel); ok {
+			old, next := rename.models(step.Direction == DirectionBackward)
+			modelName, afterName = old.Name, next.Name
+		}
 		beforeModel, beforeExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
 		changedRelationFields := operationRelationFieldViews(operation)
 		if err := r.applyLoadedOperation(builder, migration, operationIndex, step.Direction); err != nil {
 			return loadedMaterializedStep{}, err
 		}
-		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
+		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: afterName})
 		kind, err := loadedBackendOperationKind(operation, step.Direction)
 		if err != nil {
 			return loadedMaterializedStep{}, migrationError(
@@ -1626,6 +1681,12 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}
+		} else if _, ok := operation.(RenameModel); ok {
+			requirements |= loadedRequiresRenameModel
+		} else if _, ok := operation.(DeleteModel); ok {
+			requirements |= loadedRequiresDeleteModel | loadedRequirementsForSourceFields(kind, changedRelationFields)
+		} else if _, ok := operation.(RenameField); ok {
+			requirements |= loadedRequiresRenameField
 		} else if _, ok := operation.(AlterManyToMany); ok {
 			requirements |= loadedRequiresAlterFieldBlank
 		} else {
@@ -1698,6 +1759,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				after:          loadedOptionalModel(view.after, view.afterExists),
 				targets:        backendTargets,
 				relatedModels:  migrationgraph.CloneMigrationModels(view.relatedModels),
+			}
+			if data, ok := view.operation.(RunData); ok {
+				intent.operations[viewIndex].data = &data
 			}
 		}
 	}
@@ -1815,73 +1879,22 @@ func loadedBuilderRelationGraph(
 		fields = append(fields, field)
 		direct[field.Relation.Target] = true
 	}
-	if len(fields) == 0 && len(source.ManyToMany) == 0 {
-		return nil, nil, nil
-	}
-	budget := irresource.New(irresource.Limits{
-		Fields: loadedDerivedIntentMaxFields, StringBytes: loadedDerivedIntentMaxStringBytes,
-		Nodes: loadedDerivedIntentMaxNodes, Bytes: loadedDerivedIntentMaxAggregateBytes,
-	})
-	scan := func(identity ir.ModelIdentity, model ir.Model) error {
-		if err := budget.ConsumeString("relation_graph.app", identity.AppLabel); err != nil {
-			return err
-		}
-		return budget.ScanModel("relation_graph.model", model)
-	}
-	if err := scan(sourceIdentity, source); err != nil {
-		return fail(err)
-	}
-	models := map[ir.ModelIdentity]ir.Model{sourceIdentity: source}
-	queue := []ir.ModelIdentity{sourceIdentity}
-	for position := 0; position < len(queue); position++ {
-		if err := ctx.Err(); err != nil {
+	roots := []migrationgraph.MigrationModel{{AppLabel: app, Model: source}}
+	fieldRename, renamesField := operation.(RenameField)
+	_, renamesModel := operation.(RenameModel)
+	if renamesModel || renamesField && fieldRename.Before.PrimaryKey {
+		var err error
+		roots, err = builder.renameRoots(ctx, roots, sourceIdentity, renamesModel)
+		if err != nil {
 			return fail(err)
 		}
-		model := models[queue[position]]
-		for _, field := range model.ManyToMany {
-			if field.Through != nil {
-				continue
-			}
-			derived, err := ir.AutomaticThroughModel(queue[position].AppLabel, model, field)
-			if err != nil {
-				return fail(err)
-			}
-			id := field.StorageThrough(queue[position]).Model
-			if previous, exists := models[id]; exists {
-				if !previous.Equal(derived) {
-					return fail(fmt.Errorf("automatic storage model has conflicting historical snapshots"))
-				}
-				continue
-			}
-			if len(models) >= loadedDerivedIntentMaxTargets {
-				return fail(fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets))
-			}
-			if err := scan(id, derived); err != nil {
-				return fail(err)
-			}
-			models[id] = derived
-			queue = append(queue, id)
-		}
-		for _, identity := range migrationgraph.References(queue[position].AppLabel, model) {
-			if _, exists := models[identity]; exists {
-				continue
-			}
-			if len(models) >= loadedDerivedIntentMaxTargets {
-				return fail(fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets))
-			}
-			target, exists := builder.storageModel(loadedModelIdentity{app: identity.AppLabel, model: identity.ModelName})
-			if !exists {
-				return fail(fmt.Errorf("historical target model %s.%s is not visible", identity.AppLabel, identity.ModelName))
-			}
-			if err := scan(identity, target); err != nil {
-				return fail(err)
-			}
-			if _, err := exactAutoPrimaryKeyView(target); err != nil {
-				return fail(err)
-			}
-			models[identity] = target
-			queue = append(queue, identity)
-		}
+	}
+	if len(fields) == 0 && len(source.ManyToMany) == 0 && len(roots) == 1 {
+		return nil, nil, nil
+	}
+	models, err := historicalModelClosure(ctx, builder, roots)
+	if err != nil {
+		return fail(err)
 	}
 	targets := make([]loadedRelationTargetView, 0, len(fields))
 	for _, field := range fields {
@@ -1907,6 +1920,82 @@ func loadedBuilderRelationGraph(
 		return related[left].Model.Name < related[right].Model.Name
 	})
 	return targets, related, nil
+}
+
+// historicalModelClosure resolves concrete and automatic through models once
+// for all roots, with one traversal and byte budget for the operation.
+func historicalModelClosure(ctx context.Context, builder *loadedStateBuilder, roots []migrationgraph.MigrationModel) (map[ir.ModelIdentity]ir.Model, error) {
+	budget := irresource.New(irresource.Limits{
+		Fields: loadedDerivedIntentMaxFields, StringBytes: loadedDerivedIntentMaxStringBytes,
+		Nodes: loadedDerivedIntentMaxNodes, Bytes: loadedDerivedIntentMaxAggregateBytes,
+	})
+	scan := func(identity ir.ModelIdentity, model ir.Model) error {
+		if err := budget.ConsumeString("relation_graph.app", identity.AppLabel); err != nil {
+			return err
+		}
+		return budget.ScanModel("relation_graph.model", model)
+	}
+	models := make(map[ir.ModelIdentity]ir.Model, len(roots))
+	queue := make([]ir.ModelIdentity, 0, len(roots))
+	for _, root := range roots {
+		id := root.Identity()
+		if err := scan(id, root.Model); err != nil {
+			return nil, err
+		}
+		models[id] = root.Model
+		queue = append(queue, id)
+	}
+	for position := 0; position < len(queue); position++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		model := models[queue[position]]
+		for _, field := range model.ManyToMany {
+			if field.Through != nil {
+				continue
+			}
+			derived, err := ir.AutomaticThroughModel(queue[position].AppLabel, model, field)
+			if err != nil {
+				return nil, err
+			}
+			id := field.StorageThrough(queue[position]).Model
+			if previous, exists := models[id]; exists {
+				if !previous.Equal(derived) {
+					return nil, fmt.Errorf("automatic storage model has conflicting historical snapshots")
+				}
+				continue
+			}
+			if len(models) >= loadedDerivedIntentMaxTargets {
+				return nil, fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets)
+			}
+			if err := scan(id, derived); err != nil {
+				return nil, err
+			}
+			models[id] = derived
+			queue = append(queue, id)
+		}
+		for _, identity := range migrationgraph.References(queue[position].AppLabel, model) {
+			if _, exists := models[identity]; exists {
+				continue
+			}
+			if len(models) >= loadedDerivedIntentMaxTargets {
+				return nil, fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets)
+			}
+			target, exists := builder.storageModel(loadedModelIdentity{app: identity.AppLabel, model: identity.ModelName})
+			if !exists {
+				return nil, fmt.Errorf("historical target model %s.%s is not visible", identity.AppLabel, identity.ModelName)
+			}
+			if err := scan(identity, target); err != nil {
+				return nil, err
+			}
+			if _, err := exactAutoPrimaryKeyView(target); err != nil {
+				return nil, err
+			}
+			models[identity] = target
+			queue = append(queue, identity)
+		}
+	}
+	return models, nil
 }
 
 func loadedModelFieldView(model ir.Model, name string) (ir.Field, bool) {
@@ -1996,6 +2085,8 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 
 func loadedBackendOperationKind(operation Operation, direction Direction) (loadedRelationOperationKind, error) {
 	switch operation.(type) {
+	case RunData:
+		return loadedRunData, nil
 	case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		return loadedRelationAlterManyToMany, nil
 	case CreateModel:
@@ -2003,6 +2094,13 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationCreateModel, nil
 		}
 		return loadedRelationDeleteModel, nil
+	case RenameModel:
+		return loadedRenameModel, nil
+	case DeleteModel:
+		if direction == DirectionForward {
+			return loadedRelationDeleteModel, nil
+		}
+		return loadedRelationCreateModel, nil
 	case AddField:
 		if direction == DirectionForward {
 			return loadedRelationAddField, nil
@@ -2023,6 +2121,8 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationRemoveConstraint, nil
 		}
 		return loadedRelationAddConstraint, nil
+	case RenameField:
+		return loadedRenameField, nil
 	case AlterField:
 		return loadedRelationAlterField, nil
 	default:
@@ -2086,6 +2186,7 @@ func loadedRelationSealOperations(intent loadedRelationIntent) []loadedRelationO
 			}
 		}
 		operations[operationIndex] = loadedRelationOperationSeal{
+			Data:           operation.data,
 			OperationIndex: operation.operationIndex,
 			Kind:           operation.kind,
 			Before:         operation.before.Clone(),
@@ -2115,6 +2216,10 @@ func operationSourceModel(operation Operation) (string, string) {
 		return value.AppLabel, value.ModelName
 	case AlterManyToMany:
 		return value.AppLabel, value.ModelName
+	case RenameModel:
+		return value.AppLabel, value.Before.Name
+	case DeleteModel:
+		return value.AppLabel, value.Model.Name
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
 	case AddField:
@@ -2124,6 +2229,8 @@ func operationSourceModel(operation Operation) (string, string) {
 	case AddConstraint:
 		return value.AppLabel, value.ModelName
 	case RemoveConstraint:
+		return value.AppLabel, value.ModelName
+	case RenameField:
 		return value.AppLabel, value.ModelName
 	case AlterField:
 		return value.AppLabel, value.ModelName
@@ -2142,6 +2249,8 @@ func operationRelationFieldViews(operation Operation) []ir.Field {
 		}
 	}
 	switch value := operation.(type) {
+	case DeleteModel:
+		appendRelations(value.Model.Fields)
 	case CreateModel:
 		appendRelations(value.Model.Fields)
 	case AddField:
@@ -2296,7 +2405,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
+	case CreateModel, DeleteModel, RenameModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany, RunData, RenameField:
 	default:
 		return
 	}
@@ -2305,6 +2414,18 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].kind", index), wireKind, false)
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].app_label", index), operation.App(), false)
 	switch value := operationValue(operation).(type) {
+	case RunData:
+		loadedConsumeString(budget, migration, index, kind, "data.name", value.Key.Name, false)
+		loadedConsumeString(budget, migration, index, kind, "data.forward", string(value.Forward), false)
+		loadedConsumeString(budget, migration, index, kind, "data.reverse", string(value.Reverse), false)
+		loadedConsumeNodes(budget, uint64(len(value.Models)))
+		if budget.nodeOverflow {
+			return
+		}
+		for _, model := range value.Models {
+			loadedConsumeString(budget, migration, index, kind, "data.models.app_label", model.AppLabel, false)
+			loadedConsumeString(budget, migration, index, kind, "data.models.model_name", model.ModelName, false)
+		}
 	case AddManyToMany:
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, value.BeforeField, value.Field)
 	case RemoveManyToMany:
@@ -2313,6 +2434,12 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
 	case AlterManyToMany:
 		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
+	case RenameModel:
+		loadedScanModelResource(budget, migration, index, kind, value.Before)
+		loadedScanModelResource(budget, migration, index, kind, value.After)
+	case DeleteModel:
+		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].before_model", index), value.BeforeModel, false)
+		loadedScanModelResource(budget, migration, index, kind, value.Model)
 	case CreateModel:
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
 	case AddField:
@@ -2335,19 +2462,27 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
 	case RemoveConstraint:
 		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
+	case RenameField:
+		loadedScanFieldTransition(budget, migration, index, kind, AlterField(value))
 	case AlterField:
-		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
-		loadedConsumeNodes(budget, 2)
-		if budget.nodeOverflow {
-			return
-		}
-		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].before", index), value.Before)
-		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].after", index), value.After)
+		loadedScanFieldTransition(budget, migration, index, kind, value)
 	}
+}
+
+func loadedScanFieldTransition(budget *loadedResourceBudget, migration Migration, index int, kind string, value AlterField) {
+	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
+	loadedConsumeNodes(budget, 2)
+	if budget.nodeOverflow {
+		return
+	}
+	loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].before", index), value.Before)
+	loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].after", index), value.After)
 }
 
 func loadedOperationWireKind(operation Operation) string {
 	switch operation.(type) {
+	case RunData, *RunData:
+		return "run_data"
 	case AddManyToMany, *AddManyToMany:
 		return "add_many_to_many"
 	case RemoveManyToMany, *RemoveManyToMany:
@@ -2356,6 +2491,10 @@ func loadedOperationWireKind(operation Operation) string {
 		return "rename_many_to_many"
 	case AlterManyToMany, *AlterManyToMany:
 		return "alter_many_to_many"
+	case RenameModel, *RenameModel:
+		return "rename_model"
+	case DeleteModel, *DeleteModel:
+		return "delete_model"
 	case CreateModel, *CreateModel:
 		return "create_model"
 	case AddField, *AddField:
@@ -2366,6 +2505,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "add_constraint"
 	case RemoveConstraint, *RemoveConstraint:
 		return "remove_constraint"
+	case RenameField, *RenameField:
+		return "rename_field"
 	case AlterField, *AlterField:
 		return "alter_field"
 	default:

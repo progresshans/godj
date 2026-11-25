@@ -131,13 +131,13 @@ K2는 provider·backend별 기능, T1은 tag/filter/확장 계약을 각각 열�
 
 #### M1의 첫 구현과 검증
 
-기준 소스 `512c17f1`의 `makemigrations`는 지원하는 필드·관계·제약 변경을 감지하며, 모호한 필드 교체를 거부한다. `migrate`는 definition에서 당시의 모델 상태를 복원하고 실행 직전에 적용 이력을 다시 읽는다. 각 migration은 스키마 변경, 적용 기록, 다음 revision을 한 트랜잭션에 저장한다. 현재 이 경계에서 앱이 과거 모델의 행을 읽고 쓰는 API는 없다. [변경 감지](../internal/migrationautodetect/detect.go) · [프로젝트 실행기](../internal/projectcheck/linked/migrate_unix.go) · [트랜잭션 계약](../migrations/backend/lifecycle.go)
+기준 소스 `512c17f1`의 `makemigrations`는 지원하는 필드·관계·제약 변경을 감지하며, 모호한 필드 교체를 거부한다. `migrate`는 definition에서 당시의 모델 상태를 복원하고 실행 직전에 적용 이력을 다시 읽는다. 각 migration은 스키마 변경, 적용 기록, 다음 revision을 한 트랜잭션에 저장한다. M1에서 이 트랜잭션에 한정한 역사 모델의 행 조회·갱신과 버전별 Go 함수 등록을 추가했다. [변경 감지](../internal/migrationautodetect/detect.go) · [프로젝트 실행기](../internal/projectcheck/linked/migrate_unix.go) · [트랜잭션 계약](../migrations/backend/lifecycle.go)
 
 1. 첫 소비자는 데이터가 있는 앱이다. nullable 필드를 추가하고 기존 관계와 각 행의 키로 값을 채운 뒤 필수·고유 제약을 적용한다. 최신 앱에서 옛 필드명이 바뀐 뒤에도 새 DB와 이전 버전의 DB 모두에서 같은 정의를 재생할 수 있어야 한다.
-2. 데이터 작업이 사용할 과거 모델과 필드는 그 작업 순서의 `ProjectState`로 결정한다. 프로젝트에 등록한 Go 함수와 정의의 식별자·버전을 연결하는 방식을 검토한다. 행 접근은 해당 migration의 트랜잭션과 context를 공유하고, 커밋·적용 기록은 실행기가 소유한다. `migrate --plan`과 `sqlmigrate`에서는 변환 함수를 실행하지 않는다. [역사 상태](../migrations/reconstructor.go) · [실행과 계획](../migrations/lifecycle.go) · [SQL 표시](../migrations/sql.go)
-   loader의 `HistoryDigest`는 해당 migration과 선행 정의를 식별한다. NULL 허용 변경과 선언한 기본값을 쓰는 필드 추가·제거에서 이 값을 DB 이력과 함께 저장하고 재개 시 대조하는 경로를 구현했다. 향후 Go 데이터 작업에는 등록한 함수의 식별자·버전도 포함해야 한다. 선행 정의 수정, 후속 정의 추가, 예전 형식 DB의 재시작·역적용 검증을 추적한다. [정의 해시](../migrations/definition/digest.go) · [저장·대조 검증](status/TEST_EVIDENCE.md#m1-적용한-migration의-정의-대조)
+2. 데이터 작업이 사용할 과거 모델과 필드는 그 작업 순서의 `ProjectState`로 결정한다. 프로젝트가 등록한 Go 함수를 정의의 앱·이름·버전으로 찾는다. 행 접근은 해당 migration의 트랜잭션과 context를 공유하고, 커밋·적용 기록은 실행기가 소유한다. `migrate --plan`과 `sqlmigrate`에서는 변환 함수를 실행하지 않는다. [역사 상태](../migrations/reconstructor.go) · [실행과 계획](../migrations/lifecycle.go) · [SQL 표시](../migrations/sql.go)
+   loader의 `HistoryDigest`는 해당 migration과 선행 정의를 식별한다. NULL 허용 변경과 선언한 기본값을 쓰는 필드 추가·제거에서 이 값을 DB 이력과 함께 저장하고 재개 시 대조하는 경로를 구현했다. Go 데이터 작업에는 함수의 식별자·버전, 양방향 동작, 접근할 모델과 선행 정의를 묶어 저장한다. 선행 정의 수정, 후속 정의 추가, 예전 형식 DB의 재시작·역적용 검증을 추적한다. [정의 해시](../migrations/definition/digest.go) · [저장·대조 검증](status/TEST_EVIDENCE.md#m1-적용한-migration의-정의-대조)
 3. 고정 Django 6.1은 데이터 함수에 해당 시점의 모델을 전달한다. 명시적 역방향 무동작과 역함수 누락을 구분하며, 역적용할 migration 안의 모든 작업이 가역인지 먼저 확인한다. GoDj의 계획에는 유효한 비가역 작업의 위치를 표시한다. 실행은 해당 migration의 첫 변경 전에 멈추고 앞서 역적용한 migration의 커밋을 보존하는지 대조한다. 선언한 함수의 등록 누락은 정의 오류로 별도 검사한다. [고정 버전·라이선스](SOURCES.md) · [Django 데이터 작업](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/special.py) · [Django 적용·역적용](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/migration.py)
-4. SQLite와 PostgreSQL에서 정방향·역방향, 중간 오류·취소, 미리보기 뒤 다른 프로세스의 적용, 커밋 응답 유실 뒤 재실행을 대조한다. 재접속해 실제 행·열·제약, 적용 기록과 revision을 확인한다. 이어서 필드·모델 이름 변경과 제거에서 보존·소실되는 데이터, `RunSQL`의 매개변수·역방향과 `SeparateDatabaseAndState`의 역사 상태·물리 변경을 명시하는 Go 방식을 검토한다. 각 작업의 데이터와 역방향 결과도 M1의 수용 범위에 둔다. 다중 DB·adoption·repair·squash는 M2가 담당한다. [현행 definition 연산](../migrations/definition/codec.go) · [Django 비교 연산](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/special.py)
+4. SQLite와 PostgreSQL에서 정방향·역방향, 중간 오류·취소, 미리보기 뒤 다른 프로세스의 적용, 커밋 응답 유실 뒤 재실행을 대조한다. 재접속해 실제 행·열·제약, 적용 기록과 revision을 확인한다. 작성한 필드 이름 변경의 행·제약·역사 관계 보존은 [필드 이름 변경 검증](status/TEST_EVIDENCE.md#m1-필드-이름-변경과-역사-데이터-대조)에서 추적한다. 역방향 SQL 표시는 같은 역사 상태와 연산 컴파일러를 사용한다. [양 DB 검증 범위](status/TEST_EVIDENCE.md#m1-역방향-sql-표시). 모델 제거는 순방향에서 대상 행과 소유한 자동 중간 테이블의 행을 삭제하고 역방향에서 빈 구조를 복원하도록 구현했다. [실행 근거와 대기 항목](status/TEST_EVIDENCE.md#m1-모델-삭제와-빈-테이블-복원). 작성한 모델 이름 변경은 기존 PK·자기참조·다른 앱의 FK와 중간 테이블을 보존하도록 구현했다. [기본·고정 테이블 검증](status/TEST_EVIDENCE.md#m1-모델-이름-변경과-관계-보존). 다음으로 `RunSQL`의 매개변수·역방향과 `SeparateDatabaseAndState`의 역사 상태·물리 변경을 명시하는 Go 방식을 검토한다. 각 작업의 데이터와 역방향 결과도 M1의 수용 범위에 둔다. 다중 DB·adoption·repair·squash는 M2가 담당한다. [현행 definition 연산](../migrations/definition/codec.go) · [Django 비교 연산](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/special.py)
 
 ### 공통 기능과 Realtime의 첫 사용
 
@@ -225,7 +225,7 @@ A1 이후 실제 결함이 나타나면 소비자·재현·영향 기능·필요
    기능과 무관한 옛 증거·새 문서의 존재를 제품 완료 증거로 사용하지 않는다.
 
 로컬은 포맷·필요한 최소 compile·실패 재현에 사용한다. 완성된 제품 변경 묶음을 push하고 원격 CI에서 검증한다.
-PR 생성·갱신·재개와 main push의 전체 CI, 새 source에 의한 이전 실행 취소 정책은 유지한다.
+PR과 main push에는 [원격 CI 실행 범위](TESTING.md#원격-ci-실행-범위)를 적용한다. 새 PR 커밋은 이전 실행을 취소한다.
 문서-only 계획 변경은 링크·상태·diff·계획의 누락/의존성 검사를 적용한다. 제품 전체를 로컬에서 다시 실행하지 않는다.
 
 ## 의존성·환경과 미결정 사항 관리

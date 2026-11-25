@@ -22,6 +22,7 @@ import (
 	projectgeneratelinked "github.com/progresshans/godj/internal/projectgenerate/linked"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
+	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project/compatibility"
@@ -63,6 +64,8 @@ type SystemStateBackend interface {
 // initialize a fresh identity domain only; existing operators require explicit
 // adoption. No startup policy replaces stored user roles or permissions.
 type Config struct {
+	// DataMigrations binds the versioned Go functions declared in authored migration definitions.
+	DataMigrations             migrations.DataRegistry
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
 	LoadProjectSpec            func(context.Context) (codegen.ProjectSpec, error)
@@ -224,6 +227,7 @@ func run(
 		_, err := linked.RunMigrate(
 			migrationContext,
 			linked.MigrateConfig{
+				DataMigrations:             config.DataMigrations,
 				MigrationDefinitionRoots:   roots,
 				MigrationDefinitionSources: sources,
 				OpenMigrationBackend:       opener,

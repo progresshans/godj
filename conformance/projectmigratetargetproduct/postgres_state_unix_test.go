@@ -369,7 +369,7 @@ func targetExpectedPostgresConstraints(tables []string) []dbstate.PostgresConstr
 		primary("godj_migrations", "godj_migrations_pkey", "1,2"),
 	}
 	for _, table := range tables {
-		result = append(result, primary(table, targetPostgresDerivedName("godj/postgres/primary-key/v1", "godj_pk_", table), "1"))
+		result = append(result, primary(table, targetPostgresPrimaryName(table), "1"))
 	}
 	sort.Slice(result, func(left, right int) bool {
 		if result[left].Table != result[right].Table {
@@ -392,7 +392,7 @@ func targetExpectedPostgresIndexes(tables []string) []dbstate.PostgresIndex {
 		primary("godj_migrations", "godj_migrations_pkey", "app,name", 2),
 	}
 	for _, table := range tables {
-		result = append(result, primary(table, targetPostgresDerivedName("godj/postgres/primary-key/v1", "godj_pk_", table), "id", 1))
+		result = append(result, primary(table, targetPostgresPrimaryName(table), "id", 1))
 	}
 	sort.Slice(result, func(left, right int) bool {
 		if result[left].Table != result[right].Table {
@@ -413,7 +413,7 @@ func targetExpectedPostgresSequences(tables []string, values map[string][]target
 			called = true
 		}
 		result = append(result, dbstate.PostgresSequence{
-			Name: targetPostgresDerivedName("godj/postgres/identity-sequence/v1", "godj_seq_", table, "id"),
+			Name: targetPostgresSequenceName(table),
 			Kind: "S", Persistence: "p", DataType: "bigint", Start: 1, Increment: 1, Minimum: 1,
 			Maximum: math.MaxInt64, Cache: 1, OwnerTable: table, OwnerColumn: "id", Dependency: "i",
 			Last: last, Called: called,
@@ -421,6 +421,14 @@ func targetExpectedPostgresSequences(tables []string, values map[string][]target
 	}
 	sort.Slice(result, func(left, right int) bool { return result[left].Name < result[right].Name })
 	return result
+}
+
+func targetPostgresPrimaryName(table string) string {
+	return targetPostgresDerivedName("godj/postgres/primary-key/v1", "godj_pk_", table)
+}
+
+func targetPostgresSequenceName(table string) string {
+	return targetPostgresDerivedName("godj/postgres/identity-sequence/v1", "godj_seq_", table, "id")
 }
 
 func targetPostgresDerivedName(domain, prefix string, values ...string) string {

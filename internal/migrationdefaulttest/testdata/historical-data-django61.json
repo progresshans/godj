@@ -1,0 +1,17 @@
+{
+  "after_failure": {"applied": ["0001_initial", "0002_expand"], "categories": [[2, "한'글"], [9, ""]], "category_column": "legacy_code", "category_fk": true, "external_nullable": true, "external_unique": false, "tickets": [[11, 2, "", null], [17, 2, "", null], [23, 9, "", null]]},
+  "barrier_plan": {"irreversible": true, "migrations": ["0006_tail", "0005_freeze", "0004_contract", "0003_backfill"], "sql_error": "IrreversibleError", "sql_target": "0005_freeze"},
+  "base": {"applied": ["0001_initial"], "categories": [[2, "한'글"], [9, ""]], "category_column": "legacy_code", "category_fk": true, "external_nullable": null, "external_unique": false, "tickets": [[11, 2, "", null], [17, 2, "", null], [23, 9, "", null]]},
+  "before_barrier": {"applied": ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze", "0006_tail"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "label", "category_fk": true, "external_nullable": false, "external_unique": true, "tickets": [[11, 2, "reviewed", "한'글/11"], [17, 2, "frozen", "한'글/17"], [23, 9, "tail", "β/23"]]},
+  "constraint_errors": {"duplicate": "IntegrityError", "null": "IntegrityError"},
+  "contracted": {"applied": ["0001_initial", "0002_expand", "0003_backfill", "0004_contract"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "label", "category_fk": true, "external_nullable": false, "external_unique": true, "tickets": [[11, 2, "reviewed", "한'글/11"], [17, 2, "", "한'글/17"], [23, 9, "", "β/23"]]},
+  "first_reverse": {"calls": [["note", 23, ""]], "database": {"applied": ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "label", "category_fk": true, "external_nullable": false, "external_unique": true, "tickets": [[11, 2, "reviewed", "한'글/11"], [17, 2, "frozen", "한'글/17"], [23, 9, "", "β/23"]]}, "error": "IrreversibleError"},
+  "forward_error": {"calls": [["backfill", 11], ["backfill", 17]], "error": "MissingLegacyCode", "key": 23},
+  "forward_plan": {"irreversible": false, "migrations": ["0002_expand", "0003_backfill", "0004_contract"], "non_sql_operations": 2, "sql_target": "0003_backfill"},
+  "reopened_reverse": {"calls": [], "database": {"applied": ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "label", "category_fk": true, "external_nullable": false, "external_unique": true, "tickets": [[11, 2, "reviewed", "한'글/11"], [17, 2, "frozen", "한'글/17"], [23, 9, "", "β/23"]]}, "error": "IrreversibleError"},
+  "resumed": {"applied": ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze", "0006_tail"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "label", "category_fk": true, "external_nullable": false, "external_unique": true, "tickets": [[11, 2, "reviewed", "한'글/11"], [17, 2, "frozen", "한'글/17"], [23, 9, "tail", "β/23"]]},
+  "retry_calls": [["backfill", 11], ["backfill", 17], ["backfill", 23], ["note", 11, "reviewed"]],
+  "reverse_calls": [["clear_backfill", 3]],
+  "reverse_plan": {"irreversible": false, "migrations": ["0004_contract", "0003_backfill"], "non_sql_operations": 2, "sql_target": "0003_backfill"},
+  "reversed": {"applied": ["0001_initial", "0002_expand"], "categories": [[2, "한'글"], [9, "β"]], "category_column": "legacy_code", "category_fk": true, "external_nullable": true, "external_unique": false, "tickets": [[11, 2, "reviewed", null], [17, 2, "", null], [23, 9, "", null]]}
+}

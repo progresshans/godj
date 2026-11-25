@@ -155,7 +155,7 @@ func TestMigrationSQLRenderingActualSourceIsOracleBlindAndBoundaryLocked(t *test
 				"sqlmigrateprotocol.EncodeRequest":                   3,
 				"sqlmigrateprotocol.EncodeResponse":                  1,
 				"sqlmigrateprotocol.ParseResponse":                   4,
-				"unsupportedBuiltin.RenderForwardMigrationSQL":       1,
+				"unsupportedBuiltin.RenderMigrationSQL":              1,
 				"writeMigrationCommandActualFile":                    4,
 			},
 		},

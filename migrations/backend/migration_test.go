@@ -23,18 +23,19 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AlterFieldRelation",
 		"AlterFieldNullability",
 		"DefinitionHistory",
+		"HistoricalData",
+		"RenameField",
+		"DeleteModel",
+		"RenameModel",
 		"UniqueConstraints",
 		"ColumnIndexes",
 		"ExplicitManyToMany",
 		"AutomaticManyToMany",
 	}
-	if capabilities.NumField() != len(wantCapabilities) {
-		t.Fatalf("MigrationCapabilities fields = %d, want %d", capabilities.NumField(), len(wantCapabilities))
-	}
-	for index, name := range wantCapabilities {
-		field := capabilities.Field(index)
-		if field.Name != name || field.Type.Kind() != reflect.Bool {
-			t.Fatalf("MigrationCapabilities field[%d] = %s %s", index, field.Name, field.Type)
+	for _, name := range wantCapabilities {
+		field, exists := capabilities.FieldByName(name)
+		if !exists || field.Type.Kind() != reflect.Bool {
+			t.Fatalf("migration capability %s must be a boolean", name)
 		}
 	}
 

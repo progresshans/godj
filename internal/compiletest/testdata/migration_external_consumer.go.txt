@@ -91,7 +91,7 @@ func ApplyDirect(ctx context.Context, before migrations.ProjectState, migration 
 }
 
 func RenderLoadedSQL(ctx context.Context, definitions migrations.LoadedDefinitionSet, target migrations.MigrationKey) ([]string, error) {
-	return migrations.RenderMigrationSQL(ctx, definitions, target, externalMigrationSQLRenderer{})
+	return migrations.RenderMigrationSQL(ctx, definitions, target, migrations.DirectionForward, externalMigrationSQLRenderer{})
 }
 
 var (
@@ -112,7 +112,7 @@ var (
 
 type externalMigrationSQLRenderer struct{}
 
-func (externalMigrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+func (externalMigrationSQLRenderer) RenderMigrationSQL(context.Context, backend.MigrationSQLRequest) ([][]string, error) {
 	return [][]string{{"SELECT 1"}}, nil
 }
 

@@ -481,7 +481,7 @@ func TestRunMigrateCompletedDatabaseOutcomeWinsResponseBarrierCancellation(t *te
 		ctx,
 		MigrateConfig{ProjectRoot: root},
 		[]string{migrateprotocol.PrivateArgument},
-		bytes.NewReader([]byte(`{"protocol_version":2,"command":"migrations.migrate"}`)),
+		bytes.NewReader([]byte(`{"protocol_version":3,"command":"migrations.migrate"}`)),
 		&output,
 		systemDependencies{beforeResponseWrite: cancel},
 	)

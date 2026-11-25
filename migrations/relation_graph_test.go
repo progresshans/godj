@@ -120,20 +120,20 @@ func TestLoadedMigrationGraphTracksDisabledReverseOwnersAndClonesThem(t *testing
 	a := loadedGraphModel(t, "a", loadedGraphFK("self", "a"))
 	b := loadedGraphModel(t, "b", loadedGraphFK("a", "a"))
 	builder := newLoadedStateBuilder()
-	if err := builder.createModel(CreateModel{AppLabel: "graph", Model: a}); err != nil {
+	if err := builder.createModel(CreateModel{AppLabel: "graph", Model: a}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := builder.createModel(CreateModel{AppLabel: "graph", Model: b}); err != nil {
+	if err := builder.createModel(CreateModel{AppLabel: "graph", Model: b}, ""); err != nil {
 		t.Fatal(err)
 	}
 	clone := builder.clone()
-	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: a}); err == nil || !strings.Contains(err.Error(), "still targeted") {
+	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: a}, ""); err == nil || !strings.Contains(err.Error(), "still targeted") {
 		t.Fatalf("disabled reverse accessor hid an inbound relation: %v", err)
 	}
-	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: b}); err != nil {
+	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: b}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: a}); err != nil {
+	if err := clone.deleteModel(CreateModel{AppLabel: "graph", Model: a}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if !clone.empty() || builder.empty() || len(builder.incoming) != 1 {

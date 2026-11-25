@@ -4,15 +4,111 @@ package projectmigratetargetproduct_test
 
 import (
 	"errors"
-	"github.com/progresshans/godj/conformance/internal/dbstate"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/dbstate"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
 func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 	databaseURL := targetPostgresTestURL(t)
 	project := newTargetExternalProject(t)
+
+	t.Run("public_model_rename_preserves_rows", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "model-rename")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_model_rename")
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "before"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := targetCapturePostgres(t, databaseURL, schema)
+		targetResetMarker(t, marker)
+		const next = "target_blog_publication"
+		for _, reverse := range []bool{false, true} {
+			from, to := targetBlog1Table, next
+			args := []string{"sqlmigrate", "blog", "0002_model_rename"}
+			if reverse {
+				from, to = to, from
+				args = append(args, "--backwards")
+			}
+			want := fmt.Sprintf("ALTER TABLE %q.%q RENAME TO %q;\n", schema, from, to) +
+				fmt.Sprintf("ALTER SEQUENCE %q.%q RENAME TO %q;\n", schema, targetPostgresSequenceName(from), targetPostgresSequenceName(to)) +
+				fmt.Sprintf("ALTER TABLE %q.%q RENAME CONSTRAINT %q TO %q;\n", schema, to, targetPostgresPrimaryName(from), targetPostgresPrimaryName(to))
+			project.runAt(t, project.nested, env, want, append(args, "--project", project.descriptor)...)
+		}
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		renamed := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(renamed, targetBlog1Table) || !reflect.DeepEqual(renamed.values[next], before.values[targetBlog1Table]) {
+			t.Fatal("renamed rows", renamed.values)
+		}
+		if id := targetInsertPostgresValue(t, databaseURL, schema, next, "after"); id != 2 {
+			t.Fatal("renamed key", id)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		restored := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(restored, next) || !reflect.DeepEqual(restored.values[targetBlog1Table], []targetPostgresValue{{1, "before"}, {2, "after"}}) {
+			t.Fatal("restored rows", restored.values)
+		}
+	})
+
+	t.Run("public_delete_model_recreates_empty_storage", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "delete-model")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_delete")
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		run := func(args ...string) testprocess.CommandResult {
+			return project.run(t, env, append(args, "--project", project.descriptor)...)
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "removed"); id != 1 {
+			t.Fatal("original key", id)
+		}
+		before := targetCapturePostgres(t, databaseURL, schema)
+		targetResetMarker(t, marker)
+		wantSQL := `DROP TABLE "` + schema + `"."target_blog_initial" RESTRICT;` + "\n"
+		project.runAt(t, project.nested, env, wantSQL, "sqlmigrate", "blog", "0002_delete", "--project", project.descriptor)
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+		targetAssertExecuteSuccess(t, run("migrate"), 2, sensitive...)
+		after := targetCapturePostgres(t, databaseURL, schema)
+		if targetPostgresHasTable(after, targetBlog1Table) || len(after.history) != 2 {
+			t.Fatal("model deletion did not commit with history")
+		}
+		targetAssertExecuteSuccess(t, run("migrate", "blog", targetBlog1), 2, sensitive...)
+		restored := targetCapturePostgres(t, databaseURL, schema)
+		if !targetPostgresHasTable(restored, targetBlog1Table) || restored.counts[targetBlog1Table] != 0 || len(restored.history) != 1 {
+			t.Fatal("restored data or lost the surviving prefix")
+		}
+		if id := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "new"); id != 1 {
+			t.Fatal("recreated sequence", id)
+		}
+	})
+
+	t.Run("historical_reverse_sql_uses_project_schema_without_opening_database", func(t *testing.T) {
+		schema := targetCreatePostgresSchema(t, databaseURL)
+		marker := project.postgresMarker(t, "reverse-sql")
+		env := project.postgresEnvironment(t, databaseURL, schema, marker, "historical_rename")
+		sensitive := targetPostgresSensitive(t, project, databaseURL, schema)
+		before := targetCapturePostgres(t, databaseURL, schema)
+		wantSQL := `ALTER TABLE "` + schema + `"."target_blog_initial" RENAME COLUMN "label" TO "value";` + "\n"
+		project.runAt(t, project.nested, env, wantSQL, "sqlmigrate", "blog", "0002_rename", "--backwards", "--project", project.descriptor)
+		targetAssertPathAbsent(t, marker)
+		env = project.postgresEnvironment(t, databaseURL, schema, marker, "historical_data")
+		result := project.run(t, env, "sqlmigrate", "blog", "0002_freeze", "--project", project.descriptor, "--backwards")
+		targetAssertFailure(t, result, 1, "migration_plan_error/irreversible_data_operation\n", sensitive...)
+		targetAssertPathAbsent(t, marker)
+		targetAssertPostgresUnchanged(t, databaseURL, schema, before)
+	})
 
 	t.Run("MIG-120_named_forward_plan_and_exact_state", func(t *testing.T) {
 		schema := targetCreatePostgresSchema(t, databaseURL)

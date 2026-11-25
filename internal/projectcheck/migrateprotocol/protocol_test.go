@@ -14,9 +14,9 @@ import (
 
 const nonemptyDigest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-func TestRequestDocumentIsFreshCanonicalV2LatestExecute(t *testing.T) {
+func TestRequestDocumentIsFreshCanonicalLatestExecute(t *testing.T) {
 	t.Parallel()
-	want := `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`
+	want := `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`
 	first := RequestDocument()
 	if string(first) != want {
 		t.Fatalf("request = %q, want %q", first, want)
@@ -38,12 +38,12 @@ func TestEncodeAndReadRequestAllModesAndTargets(t *testing.T) {
 		request Request
 		want    string
 	}{
-		{name: "execute latest", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetLatest}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`},
-		{name: "plan latest", request: Request{Mode: ModePlan, Target: Target{Kind: TargetLatest}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"plan","target":{"kind":"latest"}}`},
-		{name: "execute named", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetNamed, App: "blog", Name: "0001_article"}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"0001_article"}}`},
-		{name: "plan named", request: Request{Mode: ModePlan, Target: Target{Kind: TargetNamed, App: "blog", Name: "0001_article"}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"plan","target":{"kind":"named","app":"blog","name":"0001_article"}}`},
-		{name: "execute zero", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetZero, App: "blog"}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"zero","app":"blog"}}`},
-		{name: "plan zero", request: Request{Mode: ModePlan, Target: Target{Kind: TargetZero, App: "blog"}}, want: `{"protocol_version":2,"command":"migrations.migrate","mode":"plan","target":{"kind":"zero","app":"blog"}}`},
+		{name: "execute latest", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetLatest}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`},
+		{name: "plan latest", request: Request{Mode: ModePlan, Target: Target{Kind: TargetLatest}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"plan","target":{"kind":"latest"}}`},
+		{name: "execute named", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetNamed, App: "blog", Name: "0001_article"}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"0001_article"}}`},
+		{name: "plan named", request: Request{Mode: ModePlan, Target: Target{Kind: TargetNamed, App: "blog", Name: "0001_article"}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"plan","target":{"kind":"named","app":"blog","name":"0001_article"}}`},
+		{name: "execute zero", request: Request{Mode: ModeExecute, Target: Target{Kind: TargetZero, App: "blog"}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"zero","app":"blog"}}`},
+		{name: "plan zero", request: Request{Mode: ModePlan, Target: Target{Kind: TargetZero, App: "blog"}}, want: `{"protocol_version":3,"command":"migrations.migrate","mode":"plan","target":{"kind":"zero","app":"blog"}}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestEncodeAndReadRequestAllModesAndTargets(t *testing.T) {
 		})
 	}
 
-	reordered := `{"target":{"name":"0001_article","kind":"named","app":"blog"},"mode":"plan","command":"migrations.migrate","protocol_version":2}`
+	reordered := `{"target":{"name":"0001_article","kind":"named","app":"blog"},"mode":"plan","command":"migrations.migrate","protocol_version":3}`
 	request, failure, failed, err := ReadRequest(strings.NewReader(reordered))
 	wantRequest := Request{Mode: ModePlan, Target: Target{Kind: TargetNamed, App: "blog", Name: "0001_article"}}
 	if err != nil || failed || failure != (Failure{}) || request != wantRequest {
@@ -104,10 +104,10 @@ func TestReadRequestRejectsStrictShapeAndSemanticViolations(t *testing.T) {
 		code string
 	}{
 		{name: "valid", wire: valid},
-		{name: "incompatible", wire: strings.Replace(valid, `"protocol_version":2`, `"protocol_version":1`, 1), code: CodeProtocolIncompatible},
+		{name: "incompatible", wire: strings.Replace(valid, `"protocol_version":3`, `"protocol_version":1`, 1), code: CodeProtocolIncompatible},
 		{name: "missing version", wire: `{"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`, code: CodeInvalidRequest},
-		{name: "duplicate", wire: strings.Replace(valid, `"protocol_version":2`, `"protocol_version":2,"protocol_version":2`, 1), code: CodeInvalidRequest},
-		{name: "noncanonical number", wire: strings.Replace(valid, `"protocol_version":2`, `"protocol_version":2.0`, 1), code: CodeInvalidRequest},
+		{name: "duplicate", wire: strings.Replace(valid, `"protocol_version":3`, `"protocol_version":3,"protocol_version":3`, 1), code: CodeInvalidRequest},
+		{name: "noncanonical number", wire: strings.Replace(valid, `"protocol_version":3`, `"protocol_version":3.0`, 1), code: CodeInvalidRequest},
 		{name: "unknown command", wire: strings.Replace(valid, `migrations.migrate`, `migrations.check`, 1), code: CodeInvalidRequest},
 		{name: "unknown root member", wire: strings.Replace(valid, `"mode":`, `"dsn":"secret","mode":`, 1), code: CodeInvalidRequest},
 		{name: "unknown mode", wire: strings.Replace(valid, `"mode":"execute"`, `"mode":"dry-run"`, 1), code: CodeInvalidRequest},
@@ -150,7 +150,7 @@ func TestReadRequestRejectsStrictShapeAndSemanticViolations(t *testing.T) {
 
 func TestWireRejectsUnpairedSurrogatesWithoutCollapsingValidIdentities(t *testing.T) {
 	t.Parallel()
-	requestPrefix := `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"`
+	requestPrefix := `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"`
 	requestSuffix := `"}}`
 	for _, identity := range []string{`\ud800`, `\udfff`, `\ud800\u0041`, `\ud800x`, `\ud800\ud800`} {
 		request, failure, failed, err := ReadRequest(strings.NewReader(requestPrefix + identity + requestSuffix))
@@ -158,7 +158,7 @@ func TestWireRejectsUnpairedSurrogatesWithoutCollapsingValidIdentities(t *testin
 			t.Fatalf("unpaired request identity %q = %+v, %+v, %v, %v", identity, request, failure, failed, err)
 		}
 
-		responseWire := `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"` + identity + `","direction":"forward"}]}}`
+		responseWire := `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"` + identity + `","direction":"forward"}]}}`
 		response, responseFailure, responseFailed := ParseResponse([]byte(responseWire), true)
 		if !responseFailed || !reflect.DeepEqual(response, Response{}) || responseFailure != (Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}) {
 			t.Fatalf("unpaired response identity %q = %+v, %+v, %v", identity, response, responseFailure, responseFailed)
@@ -182,7 +182,7 @@ func TestWireRejectsUnpairedSurrogatesWithoutCollapsingValidIdentities(t *testin
 				t.Fatalf("valid request identity %q = %+v, %+v, %v, %v", test.identity, request, failure, failed, err)
 			}
 
-			responseWire := `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"` + test.identity + `","direction":"forward"}]}}`
+			responseWire := `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"` + test.identity + `","direction":"forward"}]}}`
 			response, responseFailure, responseFailed := ParseResponse([]byte(responseWire), true)
 			if responseFailed || responseFailure != (Failure{}) || !response.OK || len(response.Result.Plan) != 1 || response.Result.Plan[0].Name != test.want {
 				t.Fatalf("valid response identity %q = %+v, %+v, %v", test.identity, response, responseFailure, responseFailed)
@@ -216,7 +216,7 @@ func TestRequestIdentityAndResourceBounds(t *testing.T) {
 
 	worstIdentityBytes := 2 * MaxIdentityBytes
 	worstEscapedIdentityBytes := 6 * worstIdentityBytes
-	staticNamedRequestBytes := len(`{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":,"name":}}`)
+	staticNamedRequestBytes := len(`{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":,"name":}}`)
 	if maximum := worstEscapedIdentityBytes + staticNamedRequestBytes + 4; maximum > MaxRequestBytes {
 		t.Fatalf("valid request worst case %d exceeds cap %d", maximum, MaxRequestBytes)
 	}
@@ -266,7 +266,7 @@ func TestExecuteResponseRoundTripAndTransportPrecedence(t *testing.T) {
 		}
 	}
 
-	wantSuccess := `{"protocol_version":2,"status":"ok","result":{"mode":"execute","execute":{"source_count":1,"definition_count":2,"definition_set_digest":"` + nonemptyDigest + `"}}}`
+	wantSuccess := `{"protocol_version":3,"status":"ok","result":{"mode":"execute","execute":{"source_count":1,"definition_count":2,"definition_set_digest":"` + nonemptyDigest + `"}}}`
 	document, err := EncodeResponse(Response{OK: true, Result: Result{Mode: ModeExecute, Execute: ExecuteResult{SourceCount: 1, DefinitionCount: 2, DefinitionSetDigest: nonemptyDigest}}})
 	if err != nil || string(document) != wantSuccess {
 		t.Fatalf("execute response = %s, %v, want %s", document, err, wantSuccess)
@@ -277,7 +277,7 @@ func TestExecuteResponseRoundTripAndTransportPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantFailure := `{"protocol_version":2,"status":"error","error":{"category":"migration_transaction_error","code":"commit_outcome_unknown","cleanup_failed":true}}`
+	wantFailure := `{"protocol_version":3,"status":"error","error":{"category":"migration_transaction_error","code":"commit_outcome_unknown","cleanup_failed":true}}`
 	if string(document) != wantFailure {
 		t.Fatalf("failure response = %s, want %s", document, wantFailure)
 	}
@@ -302,7 +302,7 @@ func TestPlanResponseAndPublicPlanRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantPrivate := `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[{"app":"accounts","name":"0001_user","direction":"forward"},{"app":"blog","name":"0001_article","direction":"forward"}]}}`
+	wantPrivate := `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[{"app":"accounts","name":"0001_user","direction":"forward"},{"app":"blog","name":"0001_article","direction":"forward"}]}}`
 	if string(document) != wantPrivate {
 		t.Fatalf("private plan = %s, want %s", document, wantPrivate)
 	}
@@ -325,7 +325,7 @@ func TestPlanResponseAndPublicPlanRoundTrip(t *testing.T) {
 
 	empty := []PlanRow{}
 	document, err = EncodeResponse(Response{OK: true, Result: Result{Mode: ModePlan, Plan: empty}})
-	if err != nil || string(document) != `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[]}}` {
+	if err != nil || string(document) != `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[]}}` {
 		t.Fatalf("empty private plan = %s, %v", document, err)
 	}
 	response, failure, failed = ParseResponse(document, true)
@@ -398,11 +398,11 @@ func TestResponseRejectsStrictShapeVersionAndUnionViolations(t *testing.T) {
 		{name: "plan row wrong type", wire: bytes.Replace(validPlan, []byte(`"app":"blog"`), []byte(`"app":true`), 1), code: CodeInvalidResponse},
 		{name: "plan invalid direction", wire: bytes.Replace(validPlan, []byte(`"direction":"forward"`), []byte(`"direction":"sideways"`), 1), code: CodeInvalidResponse},
 		{name: "invalid utf8", wire: append(append([]byte(nil), validExecute...), 0xff), code: CodeInvalidResponse},
-		{name: "incompatible", wire: bytes.Replace(validExecute, []byte(`"protocol_version":2`), []byte(`"protocol_version":1`), 1), code: CodeProtocolIncompatible},
-		{name: "missing cleanup observation", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_backend_error","code":"backend_close_failed"}}`), code: CodeInvalidResponse},
-		{name: "close without cleanup failure", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_backend_error","code":"backend_close_failed","cleanup_failed":false}}`), code: CodeInvalidResponse},
-		{name: "preflight with cleanup failure", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_definition_source_error","code":"invalid_definition_document","cleanup_failed":true}}`), code: CodeInvalidResponse},
-		{name: "unknown taxonomy", wire: []byte(`{"protocol_version":2,"status":"error","error":{"category":"migration_transaction_error","code":"secret text","cleanup_failed":false}}`), code: CodeInvalidResponse},
+		{name: "incompatible", wire: bytes.Replace(validExecute, []byte(`"protocol_version":3`), []byte(`"protocol_version":1`), 1), code: CodeProtocolIncompatible},
+		{name: "missing cleanup observation", wire: []byte(`{"protocol_version":3,"status":"error","error":{"category":"migration_backend_error","code":"backend_close_failed"}}`), code: CodeInvalidResponse},
+		{name: "close without cleanup failure", wire: []byte(`{"protocol_version":3,"status":"error","error":{"category":"migration_backend_error","code":"backend_close_failed","cleanup_failed":false}}`), code: CodeInvalidResponse},
+		{name: "preflight with cleanup failure", wire: []byte(`{"protocol_version":3,"status":"error","error":{"category":"migration_definition_source_error","code":"invalid_definition_document","cleanup_failed":true}}`), code: CodeInvalidResponse},
+		{name: "unknown taxonomy", wire: []byte(`{"protocol_version":3,"status":"error","error":{"category":"migration_transaction_error","code":"secret text","cleanup_failed":false}}`), code: CodeInvalidResponse},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -491,8 +491,8 @@ func TestPlanResponseDecodeBoundsAndUniqueness(t *testing.T) {
 	t.Parallel()
 	row := `{"app":"blog","name":"0001","direction":"forward"}`
 	tests := []string{
-		`{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[` + row + `,` + row + `]}}`,
-		`{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"0002","direction":"backward"},{"app":"blog","name":"0001","direction":"forward"}]}}`,
+		`{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[` + row + `,` + row + `]}}`,
+		`{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"0002","direction":"backward"},{"app":"blog","name":"0001","direction":"forward"}]}}`,
 	}
 	for _, document := range tests {
 		_, failure, failed := ParseResponse([]byte(document), true)
@@ -502,19 +502,62 @@ func TestPlanResponseDecodeBoundsAndUniqueness(t *testing.T) {
 	}
 
 	rows := strings.TrimSuffix(strings.Repeat(`{},`, MaxPlanRows+1), ",")
-	document := `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[` + rows + `]}}`
+	document := `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[` + rows + `]}}`
 	_, failure, failed := ParseResponse([]byte(document), true)
 	if !failed || failure != (Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}) {
 		t.Fatalf("oversized plan array = %+v, %v", failure, failed)
 	}
 }
 
+func TestIrreversibleOperationPlanWire(t *testing.T) {
+	t.Parallel()
+	oldRequest := bytes.Replace(RequestDocument(), []byte(`"protocol_version":3`), []byte(`"protocol_version":2`), 1)
+	if _, failure, failed, err := ReadRequest(bytes.NewReader(oldRequest)); err != nil || !failed || failure.Code != CodeProtocolIncompatible {
+		t.Fatal("previous migrate request version", failure, err)
+	}
+	for _, index := range []int{0, MaxCount - 1} {
+		row := PlanRow{App: "issues", Name: "0003", Direction: DirectionBackward, Irreversible: true, IrreversibleOperation: index}
+		result := Response{OK: true, Result: Result{Mode: ModePlan, Plan: []PlanRow{row}}}
+		document, err := EncodeResponse(result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		public, err := EncodePublicPlan(result.Result.Plan)
+		marker := `,"irreversible_operation":` + strconv.Itoa(index)
+		if err != nil || !bytes.Contains(document, []byte(marker)) || !bytes.Contains(public, []byte(marker)) {
+			t.Fatal("missing operation index", string(document), string(public), err)
+		}
+		decoded, failure, failed := ParseResponse(document, true)
+		if failed || !reflect.DeepEqual(decoded, result) {
+			t.Fatal("lost irreversible index", decoded, failure)
+		}
+		oldResponse := bytes.Replace(document, []byte(`"protocol_version":3`), []byte(`"protocol_version":2`), 1)
+		if _, failure, failed := ParseResponse(oldResponse, true); !failed || failure.Code != CodeProtocolIncompatible {
+			t.Fatal("previous migrate response version", failure)
+		}
+		for _, bad := range []string{"-1", "2048", "0.5", "null", `"0"`, "false"} {
+			invalid := strings.Replace(string(document), marker, `,"irreversible_operation":`+bad, 1)
+			if _, _, failed := ParseResponse([]byte(invalid), true); !failed {
+				t.Fatal("accepted invalid operation index", bad)
+			}
+		}
+		if _, _, failed := ParseResponse(bytes.Replace(document, []byte("backward"), []byte("forward"), 1), true); !failed {
+			t.Fatal("accepted irreversible forward plan")
+		}
+		row.Irreversible = false
+		row.IrreversibleOperation = 1
+		if _, err := EncodePublicPlan([]PlanRow{row}); err == nil {
+			t.Fatal("serialized hidden nonzero operation index")
+		}
+	}
+}
+
 func TestDerivedWireBoundsCoverWorstCaseMinimalEscaping(t *testing.T) {
 	t.Parallel()
-	if maxPrivatePlanDocumentBytes != 100_753_478 {
+	if maxPrivatePlanDocumentBytes != 100_814_918 {
 		t.Fatalf("private derived maximum = %d", maxPrivatePlanDocumentBytes)
 	}
-	if maxPublicPlanDocumentBytes != 100_753_419 {
+	if maxPublicPlanDocumentBytes != 100_814_859 {
 		t.Fatalf("public derived maximum = %d", maxPublicPlanDocumentBytes)
 	}
 	if maxPrivatePlanDocumentBytes > MaxResponseBytes || maxPublicPlanDocumentBytes > MaxResponseBytes {
@@ -526,6 +569,8 @@ func TestDerivedWireBoundsCoverWorstCaseMinimalEscaping(t *testing.T) {
 	framingRows := make([]PlanRow, MaxPlanRows)
 	for index := range framingRows {
 		framingRows[index].Direction = DirectionBackward
+		framingRows[index].Irreversible = true
+		framingRows[index].IrreversibleOperation = MaxCount - 1
 	}
 	privateFraming := encodedPrivatePlanLength(framingRows)
 	publicFraming := encodedPublicPlanLength(framingRows)

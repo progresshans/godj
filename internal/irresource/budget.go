@@ -153,12 +153,17 @@ func (budget *Budget) ConsumeNodes(path string, count int) error {
 }
 
 func (budget *Budget) ConsumeString(path, value string) error {
-	if len(value) > budget.limits.StringBytes {
-		return fmt.Errorf("%s contains a string of %d bytes, maximum %d", path, len(value), budget.limits.StringBytes)
+	return budget.ConsumeStringBytes(path, len(value))
+}
+
+// ConsumeStringBytes admits a derived identifier before it is concatenated.
+func (budget *Budget) ConsumeStringBytes(path string, size int) error {
+	if size < 0 || size > budget.limits.StringBytes {
+		return fmt.Errorf("%s contains a string of %d bytes, maximum %d", path, size, budget.limits.StringBytes)
 	}
-	if uint64(len(value)) > budget.limits.Bytes-budget.bytes {
+	if uint64(size) > budget.limits.Bytes-budget.bytes {
 		return fmt.Errorf("%s exceeds the aggregate relation intent byte limit %d", path, budget.limits.Bytes)
 	}
-	budget.bytes += uint64(len(value))
+	budget.bytes += uint64(size)
 	return nil
 }

@@ -14,7 +14,8 @@ import re
 import subprocess
 
 from go_test_events import discover_roots, events, inspect
-from project_artifacts import COORDINATES, PYTHON, resolve, validated_producers
+from platform_policy import coordinates
+from project_artifacts import PYTHON, resolve, validated_producers
 from runserver_tests import PACKAGE, SPECIAL, plan, verify as verify_runserver
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -242,9 +243,9 @@ def verify_native(directory, owner, coordinate, expected_source):
     return seal_hash
 
 
-def verify_all(directory, expected_source, selection, repository_id):
+def verify_all(directory, expected_source, selection, repository_id, profile):
     directory = Path(directory)
-    selected = validated_producers(selection, expected_source, repository_id)
+    selected = validated_producers(selection, expected_source, repository_id, profile)
     names = {f"{stem}-{row['producer_attempt']}" for stem, row in selected.items()}
     paths = list(directory.iterdir())
     require({p.name for p in paths} == names and all(p.is_dir() and not p.is_symlink() for p in paths),
@@ -268,7 +269,8 @@ def verify_all(directory, expected_source, selection, repository_id):
         verify_reference(found[0], name, "3.14.3")
         observed[name] = found[0]
     outputs = []
-    for coordinate in COORDINATES:
+    for _, system, arch, mode in coordinates(profile):
+        coordinate = (system, arch, mode)
         suffix = "-".join(coordinate)
         baseline, baseline_source = producer_input("project-check-" + suffix)
         reload, reload_source = producer_input("project-reload-" + suffix)
@@ -283,7 +285,7 @@ def verify_all(directory, expected_source, selection, repository_id):
         outputs.append({"coordinate": coordinate, "seals": seals,
                         "development": compare_development(observed["development"], consumers),
                         "events": compare_events(observed["event"], event_observation)})
-    return {"kind": "project-reference-comparison-v2", "source": expected_source, "repository_id": repository_id,
+    return {"kind": "project-reference-comparison-v3", "source": expected_source, "repository_id": repository_id, "profile": profile,
             "producers": selected, "python_seal": python_seal,
             "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
 
@@ -303,7 +305,7 @@ def main():
         elif args.action == "seal":
             seal(args.path)
         elif args.action == "resolve":
-            selection = resolve(source_identity(), int(os.environ["GITHUB_REPOSITORY_ID"]))
+            selection = resolve(source_identity(), int(os.environ["GITHUB_REPOSITORY_ID"]), os.environ["GODJ_CI_PROFILE"])
             with args.path.open("x") as output:
                 json.dump(selection, output, sort_keys=True)
             ids = ",".join(str(row["artifact_id"]) for row in selection["producers"].values())
@@ -311,7 +313,8 @@ def main():
                 print("artifact_ids=" + ids, file=output)
         else:
             require(args.selection is not None, "verification requires the authorized project evidence selection")
-            result = verify_all(args.path, source_identity(), document(args.selection), int(os.environ["GITHUB_REPOSITORY_ID"]))
+            result = verify_all(args.path, source_identity(), document(args.selection), int(os.environ["GITHUB_REPOSITORY_ID"]),
+                                os.environ["GODJ_CI_PROFILE"])
             report = json.dumps(result, sort_keys=True) + "\n"
             if args.output:
                 args.output.write_text(report)

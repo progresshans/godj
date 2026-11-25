@@ -1948,7 +1948,7 @@ func migrationTargetPlanOwnership(ctx context.Context, contract protocol.Contrac
 	partialBackend := newMigrationTargetPlanBackend()
 	partial, err := project.run(ctx, project.root, []string{"migrate", "--plan"}, sources, partialBackend, func(owner *migrationTargetPlanProcessOwner) {
 		owner.runner = func(context.Context, <-chan struct{}, productcheck.Command) productcheck.ProcessResult {
-			wire := []byte(`{"protocol_version":2,"status":"ok","result":`)
+			wire := []byte(`{"protocol_version":3,"status":"ok","result":`)
 			return productcheck.ProcessResult{
 				Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire,
 				StdoutScalar: productcheck.StreamScalar{RetainedBytes: len(wire)},
@@ -2129,12 +2129,12 @@ func migrationTargetPlanWireRejections() (protocol.Value, error) {
 		return nil
 	}
 	requestCases := []struct{ name, document string }{
-		{name: "request_duplicate_key", document: strings.Replace(validRequest, `"protocol_version":2`, `"protocol_version":2,"protocol_version":2`, 1)},
+		{name: "request_duplicate_key", document: strings.Replace(validRequest, `"protocol_version":3`, `"protocol_version":3,"protocol_version":3`, 1)},
 		{name: "request_unknown_key", document: strings.Replace(validRequest, `"mode":`, `"secret":"value","mode":`, 1)},
 		{name: "request_trailing_bytes", document: validRequest + `{}`},
-		{name: "request_noncanonical_number", document: strings.Replace(validRequest, `"protocol_version":2`, `"protocol_version":2.0`, 1)},
+		{name: "request_noncanonical_number", document: strings.Replace(validRequest, `"protocol_version":3`, `"protocol_version":3.0`, 1)},
 		{name: "request_invalid_utf8", document: validRequest + "\xff"},
-		{name: "request_unpaired_utf16_surrogate", document: `{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"\ud800"}}`},
+		{name: "request_unpaired_utf16_surrogate", document: `{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"named","app":"blog","name":"\ud800"}}`},
 	}
 	for _, test := range requestCases {
 		if err := appendRequest(test.name, test.document, migrateprotocol.CodeInvalidRequest); err != nil {
@@ -2150,7 +2150,7 @@ func migrationTargetPlanWireRejections() (protocol.Value, error) {
 		{name: "response_trailing_bytes", document: append(append([]byte(nil), validResponse...), []byte(`{}`)...)},
 		{name: "response_noncanonical_number", document: bytes.Replace(validResponse, []byte(`"source_count":0`), []byte(`"source_count":0.0`), 1)},
 		{name: "response_invalid_utf8", document: append(append([]byte(nil), validResponse...), 0xff)},
-		{name: "response_unpaired_utf16_surrogate", document: []byte(`{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"\ud800","direction":"forward"}]}}`)},
+		{name: "response_unpaired_utf16_surrogate", document: []byte(`{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[{"app":"blog","name":"\ud800","direction":"forward"}]}}`)},
 	}
 	for _, test := range responseCases {
 		if err := appendResponse(test.name, test.document); err != nil {
@@ -2159,7 +2159,7 @@ func migrationTargetPlanWireRejections() (protocol.Value, error) {
 	}
 	if err := appendRequest(
 		"request_retired_protocol_version",
-		strings.Replace(validRequest, `"protocol_version":2`, `"protocol_version":1`, 1),
+		strings.Replace(validRequest, `"protocol_version":3`, `"protocol_version":1`, 1),
 		migrateprotocol.CodeProtocolIncompatible,
 	); err != nil {
 		return protocol.Value{}, err

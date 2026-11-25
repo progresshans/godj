@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"errors"
-	"strings"
 	"unicode/utf8"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
@@ -14,14 +13,14 @@ type migrationSQLRenderer struct{}
 var _ migrationbackend.MigrationSQLRenderer = migrationSQLRenderer{}
 
 // NewMigrationSQLRenderer returns the immutable, zero-configuration SQLite
-// forward SQL projector. It owns no database handle or credential.
+// SQL projector. It owns no database handle or credential.
 func NewMigrationSQLRenderer() migrationbackend.MigrationSQLRenderer {
 	return migrationSQLRenderer{}
 }
 
-func (migrationSQLRenderer) RenderForwardMigrationSQL(
+func (migrationSQLRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	request migrationbackend.ForwardMigrationSQLRequest,
+	request migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("render SQLite migration SQL: context is nil")
@@ -35,24 +34,16 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	if request.Intent.Operations == nil {
 		return nil, errors.New("render SQLite migration SQL: migration intent is missing")
 	}
-	for index := range request.Intent.Operations {
-		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
-			return nil, migrationbackend.NewCapabilityError(
-				"sqlite_migration_sql",
-				"current SQL projection supports forward model, field and named constraint changes",
-				nil,
-			)
+	for _, operation := range request.Intent.Operations {
+		switch operation.Kind {
+		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationRenameModel, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
+			migrationbackend.MigrationAddField, migrationbackend.MigrationRemoveField, migrationbackend.MigrationAlterField,
+			migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint, migrationbackend.MigrationAlterManyToMany:
+			continue
 		}
+		return nil, migrationbackend.NewCapabilityError("sqlite_migration_sql", "unsupported operation for this SQL direction", nil)
 	}
-
-	transition := migrationbackend.HistoryTransition{
-		Migration: migrationbackend.AppliedMigration{
-			App:  strings.Clone(request.App),
-			Name: strings.Clone(request.Name),
-		},
-		Kind: migrationbackend.HistoryTransitionApply,
-	}
+	transition := request.Transition()
 	seal, err := validateAndSealSQLiteRelationIntent(transition, request.Intent)
 	if err != nil {
 		return nil, err
@@ -67,7 +58,10 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		}
 		operation := seal.intent.Operations[index]
 		switch operation.Kind {
-		case migrationbackend.MigrationAlterManyToMany:
+		case migrationbackend.MigrationRunData:
+			groups[index] = []string{migrationbackend.RunDataSQLComment}
+			continue
+		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany, migrationbackend.MigrationRenameModel:
 			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 			constraint, deltaErr := operation.ChangedConstraint()
@@ -77,6 +71,12 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			var statement string
 			statement, err = compileSQLiteNamedUniqueAlter(operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
 			groups[index] = []string{statement}
+		case migrationbackend.MigrationRenameField:
+			before, after, deltaErr := operation.RenamedField(request.App)
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid field rename: %v", deltaErr)
+			}
+			groups[index], err = compileSQLiteFieldRename(operation.Before, before, after)
 		case migrationbackend.MigrationAlterField:
 			before, field, _, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {
@@ -87,8 +87,6 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			} else {
 				groups[index], err = compileSQLiteFieldIndexes(operation.After, before, field)
 			}
-		case migrationbackend.MigrationCreateModel:
-			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddField:
 			field, deltaErr := operation.ChangedField()
 			if deltaErr != nil {

@@ -42,7 +42,7 @@ func TestSQLProjectionRetainsMetadataGroupsAndRejectsMissingPhysicalOperations(t
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			renderer := &migrationSQLRendererSpy{groups: test.groups}
-			statements, err := RenderMigrationSQL(context.Background(), loaded, target, renderer)
+			statements, err := RenderMigrationSQL(context.Background(), loaded, target, DirectionForward, renderer)
 			if err != nil || !reflect.DeepEqual(statements, test.want) || renderer.calls != 1 {
 				t.Fatalf("ordered SQL projection: %v %v", statements, err)
 			}
@@ -58,7 +58,7 @@ func TestSQLProjectionRetainsMetadataGroupsAndRejectsMissingPhysicalOperations(t
 		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, {""}},
 		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT", ""}, nil},
 	} {
-		result, err := RenderMigrationSQL(context.Background(), loaded, target, &migrationSQLRendererSpy{groups: groups})
+		result, err := RenderMigrationSQL(context.Background(), loaded, target, DirectionForward, &migrationSQLRendererSpy{groups: groups})
 		if result != nil || err == nil {
 			t.Fatal("missing, shifted, extra or malformed operation group was published")
 		}

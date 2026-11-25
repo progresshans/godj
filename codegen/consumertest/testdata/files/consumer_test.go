@@ -215,7 +215,7 @@ func runFiles(t *testing.T, open func(context.Context) (fileBackend, error)) {
 	}
 	for _, renderer := range []migrationbackend.MigrationSQLRenderer{sqlite.NewMigrationSQLRenderer(), postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"})} {
 		for _, target := range []migrations.MigrationKey{change.Key(), dimensions.Key()} {
-			statements, err := migrations.RenderMigrationSQL(ctx, loaded, target, renderer)
+			statements, err := migrations.RenderMigrationSQL(ctx, loaded, target, migrations.DirectionForward, renderer)
 			if err != nil || len(statements) != 0 {
 				t.Fatal("file meaning transition attempted physical DDL", err, statements)
 			}

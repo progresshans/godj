@@ -161,7 +161,7 @@ func materializeManyOperation(value jsonValue, app, kind string) (migrations.Ope
 	}
 	raw, _ := value.member("field")
 	field, ok := materializeManyField(raw)
-	anchor, valid := materializeBeforeField(value)
+	anchor, valid := materializeAnchor(value, "before_field", "field")
 	if !ok || !valid {
 		return nil, false
 	}
