@@ -97,7 +97,7 @@ func RunFieldPositions(t *testing.T, ctx context.Context, open func() Binding) {
 		}
 	}
 	for index, migration := range definitions {
-		sql, err := migrations.RenderMigrationSQL(ctx, loaded, migration.Key(), binding.Renderer)
+		sql, err := migrations.RenderMigrationSQL(ctx, loaded, migration.Key(), migrations.DirectionForward, binding.Renderer)
 		if err != nil || len(sql) != []int{2, 3, 2}[index] {
 			t.Fatalf("position SQL %d: %v", index, err)
 		}

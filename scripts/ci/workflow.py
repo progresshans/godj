@@ -68,7 +68,9 @@ def main():
             report = verify(json.loads(os.environ['REQUIRED_RESULTS_JSON']), event_profile())
             print(json.dumps(report, sort_keys=True))
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-                label = 'Full platform validation' if report['full_platform_verified'] else 'Linux suite and native macOS PR checks'
+                label = {'pr': 'Linux suite and native macOS PR checks',
+                         'native': 'Linux suite and all macOS project modes',
+                         'full': 'Full platform validation'}[report['profile']]
                 print(label + ' **passed**', file=output)
     except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + '\n')

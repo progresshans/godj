@@ -110,6 +110,10 @@ func compilePostgresFieldRename(namespace string, model ir.Model, before, after 
 
 func assertPostgresFieldRenameDependencies(ctx context.Context, exec migrationSQLExecutor, namespace string, op backend.MigrationOperation, app string, before ir.Field) (resultErr error) {
 	allowed := op.RenameReferences(app, before)
+	return assertPostgresRenameDependencies(ctx, exec, namespace, op.Before.DBTable, before.Column, false, allowed)
+}
+
+func assertPostgresRenameDependencies(ctx context.Context, exec migrationSQLExecutor, namespace, table, column string, wholeTable bool, allowed map[string]map[string]bool) (resultErr error) {
 	count := 0
 	for _, fields := range allowed {
 		count += len(fields)
@@ -122,16 +126,16 @@ func assertPostgresFieldRenameDependencies(ctx context.Context, exec migrationSQ
 		JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid AND NOT a.attisdropped
 		WHERE n.nspname=$1 AND c.relname=$2 AND a.attname=$3
 	)
-	SELECT ns.nspname, child.relname, att.attname, cardinality(k.conkey)
+	SELECT ns.nspname, child.relname, att.attname, cardinality(k.conkey), k.confkey = ARRAY[source.attnum]
 	FROM source JOIN pg_catalog.pg_constraint k ON k.confrelid=source.oid
-		AND k.contype='f' AND source.attnum=ANY(k.confkey)
+		AND k.contype='f' AND ($5 OR source.attnum=ANY(k.confkey))
 	JOIN pg_catalog.pg_class child ON child.oid=k.conrelid
 	JOIN pg_catalog.pg_namespace ns ON ns.oid=child.relnamespace
 	JOIN pg_catalog.pg_attribute att ON att.attrelid=child.oid AND att.attnum=k.conkey[1]
-	UNION ALL SELECT '', '', '', 0 FROM source JOIN pg_catalog.pg_depend d
-		ON d.refobjid=source.oid AND d.refobjsubid IN (0,source.attnum)
+	UNION ALL SELECT '', '', '', 0, false FROM source JOIN pg_catalog.pg_depend d
+		ON d.refobjid=source.oid AND ($5 OR d.refobjsubid IN (0,source.attnum))
 		AND d.refclassid='pg_catalog.pg_class'::regclass AND d.classid='pg_catalog.pg_rewrite'::regclass
-	LIMIT $4`, namespace, op.Before.DBTable, before.Column, count+1)
+	LIMIT $4`, namespace, table, column, count+1, wholeTable)
 	if err != nil {
 		return err
 	}
@@ -141,22 +145,23 @@ func assertPostgresFieldRenameDependencies(ctx context.Context, exec migrationSQ
 		}
 	}()
 	for rows.Next() {
-		var schema, table, column string
+		var schema, owner, from string
 		var arity int
-		if err := rows.Scan(&schema, &table, &column, &arity); err != nil {
+		var exactKey bool
+		if err := rows.Scan(&schema, &owner, &from, &arity, &exactKey); err != nil {
 			return err
 		}
-		if schema != namespace || arity != 1 || !allowed[table][column] {
-			return postgresMigrationCatalogDrift(op.Before.DBTable, "has a dependent view or foreign key outside its field rename authority")
+		if schema != namespace || arity != 1 || !exactKey || !allowed[owner][from] {
+			return postgresMigrationCatalogDrift(table, "has a dependent view or foreign key outside its rename authority")
 		}
-		delete(allowed[table], column)
+		delete(allowed[owner], from)
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 	for _, fields := range allowed {
 		if len(fields) != 0 {
-			return postgresMigrationCatalogDrift(op.Before.DBTable, "is missing a declared incoming key for the field rename")
+			return postgresMigrationCatalogDrift(table, "is missing a declared incoming key for the rename")
 		}
 	}
 	return nil

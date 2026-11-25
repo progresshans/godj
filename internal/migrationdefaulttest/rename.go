@@ -97,7 +97,7 @@ func checkFieldRename(t *testing.T, open func() Fixture, constraint func(error) 
 	sql("INSERT INTO " + ticket + " (category_id,tag_id,note) VALUES (1,1,'retained'),(2,1,'retained')")
 	sql("INSERT INTO " + watchTable + " (category_id) VALUES (2)")
 	before := stored()
-	statements, err := migrations.RenderMigrationSQL(t.Context(), set, renamed.Key(), f.Renderer)
+	statements, err := migrations.RenderMigrationSQL(t.Context(), set, renamed.Key(), migrations.DirectionForward, f.Renderer)
 	rendered := strings.Join(statements, "\n")
 	if err != nil || strings.Count(rendered, " RENAME COLUMN ") != 3 || strings.Contains(rendered, `RENAME COLUMN "note"`) || !reflect.DeepEqual(stored(), before) {
 		t.Fatal("pure field rename SQL", statements, err)

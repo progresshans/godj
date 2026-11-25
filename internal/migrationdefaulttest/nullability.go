@@ -180,7 +180,7 @@ func RunFieldNullability(t *testing.T, database func(*testing.T) func() Fixture,
 		m := newFieldMigration(t, open(), constraint, "external_id", false, true, nil)
 		table := m.table("m1_ticket")
 		links := snapshot(t, m.Fixture, "m1_bookmark")
-		statements, err := migrations.RenderMigrationSQL(t.Context(), m.loaded, m.change, m.Renderer)
+		statements, err := migrations.RenderMigrationSQL(t.Context(), m.loaded, m.change, migrations.DirectionForward, m.Renderer)
 		body := strings.Join(statements, "\n")
 		if err != nil || !strings.Contains(body, "NOT NULL") || !strings.Contains(body, "UNIQUE") {
 			t.Fatal("missing physical constraints in SQL projection", body, err)
@@ -224,7 +224,7 @@ func RunFieldNullability(t *testing.T, database func(*testing.T) func() Fixture,
 		m := newFieldMigration(t, database(t)(), constraint, "external_id", true, false, fill)
 		table := m.table("m1_ticket")
 		prefix := m.state(t)
-		projection, err := migrations.RenderMigrationSQL(t.Context(), m.loaded, m.change, m.Renderer)
+		projection, err := migrations.RenderMigrationSQL(t.Context(), m.loaded, m.change, migrations.DirectionForward, m.Renderer)
 		if err != nil {
 			t.Fatal("render literal backfill", err)
 		}

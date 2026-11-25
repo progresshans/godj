@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/backend"
 )
 
 //go:embed testdata/historical-data-django61.json
@@ -46,7 +47,7 @@ func compareObservation(t *testing.T, phase string, want, actual any) {
 	}
 }
 
-func (o historicalOracle) plan(t *testing.T, phase string, steps []migrations.PlanStep, sqlTarget string, comments int) {
+func (o historicalOracle) plan(t *testing.T, phase string, steps []migrations.PlanStep, loaded migrations.LoadedDefinitionSet, target migrations.Migration, direction migrations.Direction, renderer backend.MigrationSQLRenderer) {
 	t.Helper()
 	names := make([]string, len(steps))
 	irreversible := false
@@ -54,15 +55,25 @@ func (o historicalOracle) plan(t *testing.T, phase string, steps []migrations.Pl
 		names[i] = step.Key.Name
 		irreversible = irreversible || step.Irreversible
 	}
-	if sqlTarget != "" {
-		o.check(t, phase, map[string]any{"migrations": names, "irreversible": irreversible, "sql_target": sqlTarget, "non_sql_operations": comments})
-		return
+	actual := map[string]any{"migrations": names, "irreversible": irreversible, "sql_target": target.Name}
+	statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, target.Key(), direction, renderer)
+	if err != nil {
+		var detail *migrations.Error
+		if !errors.As(err, &detail) || detail.Category != migrations.CategoryPlan || detail.Code != migrations.CodeIrreversibleData ||
+			detail.App != target.App || detail.Migration != target.Name || detail.Direction != migrations.DirectionBackward ||
+			detail.OperationIndex != 0 || detail.Operation != "RunData" || statements != nil {
+			t.Fatalf("unexpected SQL error for %s: %v, statements %v", target.Name, err, statements)
+		}
+		actual["sql_error"] = "IrreversibleError"
+	} else {
+		for _, statement := range statements {
+			if statement != backend.RunDataSQLComment {
+				t.Fatalf("unexpected SQL for historical callback: %q", statement)
+			}
+		}
+		actual["non_sql_operations"] = len(statements)
 	}
-	// The currently public SQL renderer only projects forward operations.
-	// Its reverse SQL diagnostics are a separate M1 acceptance condition.
-	want := o[phase].(map[string]any)
-	compareObservation(t, phase+".migrations", want["migrations"], names)
-	compareObservation(t, phase+".irreversible", want["irreversible"], irreversible)
+	o.check(t, phase, actual)
 }
 
 func nativeHistoricalSnapshot(t *testing.T, f Fixture) map[string]any {
@@ -116,34 +127,7 @@ func nativeHistoricalSnapshot(t *testing.T, f Fixture) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
-	read := func(stmt string) [][]any {
-		t.Helper()
-		rows, err := f.SQL.QueryContext(ctx, stmt)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rows.Close()
-		cols, err := rows.Columns()
-		if err != nil {
-			t.Fatal(err)
-		}
-		values := [][]any{}
-		for rows.Next() {
-			row := make([]any, len(cols))
-			dest := make([]any, len(cols))
-			for i := range row {
-				dest[i] = &row[i]
-			}
-			if err := rows.Scan(dest...); err != nil {
-				t.Fatal(err)
-			}
-			values = append(values, row)
-		}
-		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		return values
-	}
+
 	projected := "NULL"
 	var externalNullable any
 	if nullable.Valid {
@@ -162,7 +146,36 @@ func nativeHistoricalSnapshot(t *testing.T, f Fixture) map[string]any {
 	}
 	return map[string]any{
 		"applied": applied, "category_column": names[0], "external_nullable": externalNullable, "external_unique": unique, "category_fk": fk,
-		"categories": read("SELECT id," + names[0] + " FROM " + f.table("m1_category") + " ORDER BY id"),
-		"tickets":    read("SELECT id,category_id,note," + projected + " FROM " + f.table("m1_ticket") + " ORDER BY id"),
+		"categories": f.readRows(t, "SELECT id,"+names[0]+" FROM "+f.table("m1_category")+" ORDER BY id"),
+		"tickets":    f.readRows(t, "SELECT id,category_id,note,"+projected+" FROM "+f.table("m1_ticket")+" ORDER BY id"),
 	}
+}
+
+func (f Fixture) readRows(t *testing.T, stmt string, args ...any) [][]any {
+	t.Helper()
+	rows, err := f.SQL.QueryContext(t.Context(), stmt, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := [][]any{}
+	for rows.Next() {
+		row := make([]any, len(cols))
+		dest := make([]any, len(cols))
+		for i := range row {
+			dest[i] = &row[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			t.Fatal(err)
+		}
+		values = append(values, row)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return values
 }

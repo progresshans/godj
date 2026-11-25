@@ -279,7 +279,7 @@ func TestPostgresAutomaticManyToManyInlineCreateTransientAndMetadataRename(t *te
 			loaded := postgresUniqueHistory(t, history...)
 			executor := migrations.Executor{Backend: database}
 			if mode == "go_name" {
-				bodies, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[2].Key(), NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
+				bodies, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[2].Key(), migrations.DirectionForward, NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
 				if err != nil || len(bodies) != 0 {
 					t.Fatal("Go-name-only rename changed physical storage", bodies, err)
 				}
@@ -352,8 +352,10 @@ func TestPostgresAutomaticManyToManySQLProjectionExecutesCompleteStorage(t *test
 		}
 		return found
 	}
-	for i, change := range history {
-		bodies, err := migrations.RenderMigrationSQL(t.Context(), loaded, change.Key(), NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
+	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace})
+	executeSQL := func(i int, direction migrations.Direction) {
+		t.Helper()
+		bodies, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[i].Key(), direction, renderer)
 		if err != nil || len(bodies) == 0 {
 			t.Fatal("missing physical SQL group", i, bodies, err)
 		}
@@ -370,6 +372,9 @@ func TestPostgresAutomaticManyToManySQLProjectionExecutesCompleteStorage(t *test
 		if err := tx.Commit(); err != nil {
 			t.Fatal(err)
 		}
+	}
+	for i := range history {
+		executeSQL(i, migrations.DirectionForward)
 		if i == 1 {
 			for _, sql := range []string{"INSERT INTO " + quote("manyhistory_owner") + "(id,note) VALUES(1,'kept')", "INSERT INTO " + quote("manyhistory_label") + "(id) VALUES(1)", "INSERT INTO " + quote("manyhistory_owner_labels") + "(id,source_id,target_id) VALUES(0,1,1)"} {
 				if _, err := database.database.ExecContext(t.Context(), sql); err != nil {
@@ -386,5 +391,26 @@ func TestPostgresAutomaticManyToManySQLProjectionExecutesCompleteStorage(t *test
 	}
 	if exists("manyhistory_owner_labels") || exists("manyhistory_owner_tags") || !exists("manyhistory_owner") || !exists("manyhistory_label") {
 		t.Fatal("projection left wrong owned inventory")
+	}
+	for i := len(history) - 1; i >= 0; i-- {
+		executeSQL(i, migrations.DirectionBackward)
+		if i == 3 {
+			var links int
+			if err := database.database.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+quote("manyhistory_owner_tags")).Scan(&links); err != nil || links != 0 {
+				t.Fatal("reversing removal must recreate empty link storage", links, err)
+			}
+		}
+		if i == 1 {
+			var note string
+			if exists("manyhistory_owner_tags") || exists("manyhistory_owner_labels") {
+				t.Fatal("reversing addition left owned link storage")
+			}
+			if err := database.database.QueryRowContext(t.Context(), "SELECT note FROM "+quote("manyhistory_owner")+" WHERE id=1").Scan(&note); err != nil || note != "kept" {
+				t.Fatal("reverse SQL lost owner row", note, err)
+			}
+		}
+	}
+	if exists("manyhistory_owner") || exists("manyhistory_label") {
+		t.Fatal("reversing the initial migration left model tables")
 	}
 }

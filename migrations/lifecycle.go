@@ -284,11 +284,8 @@ func (e Executor) prepareLoadedLifecycle(
 		migration := reconstructor.definitions[step.step.Key]
 		if step.step.Direction == DirectionBackward {
 			step.historyDigest = boundHistory[step.step.Key]
-			for index := len(migration.Operations) - 1; index >= 0; index-- {
-				if op, ok := migration.Operations[index].(RunData); ok && op.Reverse == DataIrreversible {
-					step.step.Irreversible, step.step.IrreversibleOperation = true, index
-					break
-				}
+			if index := irreversibleDataOperation(migration); index != NoOperation {
+				step.step.Irreversible, step.step.IrreversibleOperation = true, index
 			}
 		} else if needsDefinitionHistory(migration) {
 			step.historyDigest = sourceDigests[step.step.Key]
@@ -313,13 +310,26 @@ func (e Executor) prepareLoadedLifecycle(
 	return prepared, resultState, nil
 }
 
+func irreversibleDataOperation(migration Migration) int {
+	for index := len(migration.Operations) - 1; index >= 0; index-- {
+		if op, ok := migration.Operations[index].(RunData); ok && op.Reverse == DataIrreversible {
+			return index
+		}
+	}
+	return NoOperation
+}
+
+func irreversibleDataError(migration Migration, index int) *Error {
+	return migrationError(CategoryPlan, CodeIrreversibleData, DirectionBackward, migration, index, "RunData", errors.New("data migration has no reverse action"))
+}
+
 // These field operations can use historical declarations to rewrite existing
 // values on apply or reverse. The loader has normalized operation pointers
 // to values in the invocation-owned reconstructor.
 func needsNewOperationReceipt(migration Migration) bool {
 	for _, op := range migration.Operations {
 		switch op.(type) {
-		case RunData, RenameField:
+		case RunData, RenameField, DeleteModel, RenameModel:
 			return true
 		}
 	}
@@ -329,7 +339,7 @@ func needsNewOperationReceipt(migration Migration) bool {
 func needsDefinitionHistory(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch op := operation.(type) {
-		case RunData, RenameField:
+		case RunData, RenameField, DeleteModel, RenameModel:
 			return true
 		case AlterField:
 			if op.Before.Nullable != op.After.Nullable {
@@ -361,7 +371,7 @@ func (e Executor) executePreparedLifecycle(
 		}
 		if expected.step.Irreversible {
 			migration := prepared.reconstructor.definitions[expected.step.Key]
-			return working.Clone(), migrationError(CategoryPlan, CodeIrreversibleData, DirectionBackward, migration, expected.step.IrreversibleOperation, "RunData", errors.New("data migration has no reverse action"))
+			return working.Clone(), irreversibleDataError(migration, expected.step.IrreversibleOperation)
 		}
 		materialized, materializeErr := prepared.reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
 		if materializeErr != nil {
@@ -490,6 +500,8 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresAlterFieldNullability, capabilities.AlterFieldNullability, "AlterFieldNullability"},
 		{loadedRequiresHistoricalData, capabilities.HistoricalData, "HistoricalData"},
+		{loadedRequiresRenameModel, capabilities.RenameModel, "RenameModel"},
+		{loadedRequiresDeleteModel, capabilities.DeleteModel, "DeleteModel"},
 		{loadedRequiresRenameField, capabilities.RenameField, "RenameField"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresColumnIndexes, capabilities.ColumnIndexes, "ColumnIndexes"},
@@ -753,6 +765,14 @@ func migrationContainsRelation(migration Migration) bool {
 		switch value := operationValue(operation).(type) {
 		case AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 			return true
+		case RenameModel:
+			if modelContainsRelation(value.Before) || modelContainsRelation(value.After) {
+				return true
+			}
+		case DeleteModel:
+			if modelContainsRelation(value.Model) {
+				return true
+			}
 		case CreateModel:
 			if modelContainsRelation(value.Model) {
 				return true

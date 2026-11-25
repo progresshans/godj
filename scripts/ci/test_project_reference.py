@@ -197,6 +197,17 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_all(self.directory, self.source, self.selection, 7, "pr")
 
+    def test_native_profile_requires_all_project_modes_and_a_matching_profile(self):
+        self.fixture("native")
+        self.selection["profile"] = "native"
+        report = verify_all(self.directory, self.source, self.selection, 7, "native")
+        self.assertEqual((12, 25), (len(report["coordinates"]), len(report["producers"])))
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "full")
+        del self.selection["producers"]["project-reload-darwin-arm64-race"]
+        with self.assertRaises(ValueError):
+            verify_all(self.directory, self.source, self.selection, 7, "native")
+
     def test_all_coordinates_bind_complete_consumers_and_independent_sources(self):
         self.fixture()
         report = self.verify()

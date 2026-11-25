@@ -1,0 +1,154 @@
+{
+  "before": {
+    "archives": [
+      [
+        1,
+        "old"
+      ]
+    ],
+    "keepers": [
+      [
+        1,
+        "kept"
+      ],
+      [
+        2,
+        "kept"
+      ]
+    ],
+    "links": [
+      [
+        1,
+        1
+      ]
+    ],
+    "tables": [
+      "retire_archive",
+      "retire_archive_tags",
+      "retire_keeper",
+      "retire_tag"
+    ],
+    "tags": [
+      1
+    ]
+  },
+  "drop_order": [
+    "retire_archive_tags",
+    "retire_archive"
+  ],
+  "refilled": {
+    "archives": [
+      [
+        1,
+        "fresh"
+      ]
+    ],
+    "keepers": [
+      [
+        1,
+        "kept"
+      ],
+      [
+        2,
+        "kept"
+      ]
+    ],
+    "links": [
+      [
+        1,
+        1
+      ]
+    ],
+    "tables": [
+      "retire_archive",
+      "retire_archive_tags",
+      "retire_keeper",
+      "retire_tag"
+    ],
+    "tags": [
+      1
+    ]
+  },
+  "removed": {
+    "archives": null,
+    "keepers": [
+      [
+        1,
+        "kept"
+      ],
+      [
+        2,
+        "kept"
+      ]
+    ],
+    "links": null,
+    "tables": [
+      "retire_keeper",
+      "retire_tag"
+    ],
+    "tags": [
+      1
+    ]
+  },
+  "restore_order": [
+    "retire_archive",
+    "retire_archive_tags"
+  ],
+  "restored": {
+    "archives": [],
+    "keepers": [
+      [
+        1,
+        "kept"
+      ],
+      [
+        2,
+        "kept"
+      ]
+    ],
+    "links": [],
+    "tables": [
+      "retire_archive",
+      "retire_archive_tags",
+      "retire_keeper",
+      "retire_tag"
+    ],
+    "tags": [
+      1
+    ]
+  },
+  "rollback": {
+    "archives": [
+      [
+        1,
+        "old"
+      ]
+    ],
+    "keepers": [
+      [
+        1,
+        "kept"
+      ],
+      [
+        2,
+        "kept"
+      ]
+    ],
+    "links": [
+      [
+        1,
+        1
+      ]
+    ],
+    "tables": [
+      "retire_archive",
+      "retire_archive_tags",
+      "retire_keeper",
+      "retire_tag"
+    ],
+    "tags": [
+      1
+    ]
+  },
+  "unique": true
+}

@@ -216,7 +216,7 @@ func TestNamedUniquePhysicalProjectionCreatesAndRemovesExactConstraints(t *testi
 					if err != nil {
 						t.Fatal(err)
 					}
-					statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[len(history)-1].Key(), renderer)
+					statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[len(history)-1].Key(), migrations.DirectionForward, renderer)
 					if err != nil || len(statements) == 0 {
 						t.Fatal("physical named constraint projection failed", err)
 					}

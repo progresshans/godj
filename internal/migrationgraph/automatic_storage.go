@@ -41,6 +41,26 @@ func (operation MigrationOperation) AutomaticStorageChanges(app string) ([]Model
 		return model, nil
 	}
 	switch operation.Kind {
+	case MigrationRenameModel:
+		if _, err := NewModelRename(app, operation.Before, operation.After); err != nil {
+			return nil, err
+		}
+		var changes []ModelChange
+		for i, field := range operation.Before.ManyToMany {
+			if field.Through != nil {
+				continue
+			}
+			old, err := derive(operation.Before, field)
+			if err != nil {
+				return nil, err
+			}
+			next, err := derive(operation.After, operation.After.ManyToMany[i])
+			if err != nil {
+				return nil, err
+			}
+			changes = append(changes, ModelChange{Before: old, After: next})
+		}
+		return changes, nil
 	case MigrationRenameField:
 		_, _, err := operation.RenamedField(app)
 		return nil, err
@@ -102,6 +122,9 @@ func (operation MigrationOperation) StorageChanges(app string) ([]ModelChange, e
 	changes, err := operation.AutomaticStorageChanges(app)
 	if err != nil {
 		return nil, err
+	}
+	if operation.Kind == MigrationRenameModel {
+		return append([]ModelChange{{Before: operation.Before, After: operation.After}}, changes...), nil
 	}
 	if operation.Kind != MigrationCreateModel && operation.Kind != MigrationDeleteModel {
 		return changes, nil

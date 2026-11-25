@@ -143,14 +143,15 @@ func migrationSQLRenderingArgv(ctx context.Context, contract protocol.Contract) 
 	if err != nil {
 		return protocol.Observation{}, err
 	}
+	literal := accepted[len(accepted)-1]
 	if accepted[0].caseName != "implicit" || accepted[0].form != "implicit" || accepted[0].literalZero ||
 		accepted[1].caseName != "explicit" || accepted[1].form != "explicit" || accepted[1].literalZero ||
-		accepted[2].caseName != "literal_zero" || accepted[2].form != "implicit" || !accepted[2].literalZero ||
-		accepted[2].app != "blog" || accepted[2].name != "zero" || accepted[2].project != migrationSQLRenderingArgvProbeDefault ||
-		!accepted[2].success || accepted[2].output != migrationSQLRenderingArgvProbeOutput {
+		literal.caseName != "literal_zero" || literal.form != "implicit" || !literal.literalZero ||
+		literal.app != "blog" || literal.name != "zero" || literal.project != migrationSQLRenderingArgvProbeDefault ||
+		!literal.success || literal.output != migrationSQLRenderingArgvProbeOutput {
 		return protocol.Observation{}, errors.New("migration SQL argv probe did not preserve literal zero as an exact migration name")
 	}
-	const acceptedForms = 2
+	const acceptedForms = migrationSQLRenderingArgvProbeCases - 1
 	acceptedValues := make([]protocol.Value, acceptedForms)
 	for index := 0; index < acceptedForms; index++ {
 		candidate := accepted[index]
@@ -167,7 +168,7 @@ func migrationSQLRenderingArgv(ctx context.Context, contract protocol.Contract) 
 		{name: "project_before_identity", argv: []string{"sqlmigrate", "--project", "./godj.toml", "blog", "0002_render_sql"}},
 		{name: "missing_project_path", argv: []string{"sqlmigrate", "blog", "0002_render_sql", "--project"}},
 		{name: "latest_reserved", argv: []string{"sqlmigrate", "blog", "latest"}},
-		{name: "backwards_option", argv: []string{"sqlmigrate", "blog", "0002_render_sql", "--backwards"}},
+		{name: "duplicate_backwards", argv: []string{"sqlmigrate", "blog", "0002_render_sql", "--backwards", "--backwards"}},
 		{name: "reverse_option", argv: []string{"sqlmigrate", "blog", "0002_render_sql", "--reverse"}},
 		{name: "leading_dash_app", argv: []string{"sqlmigrate", "--blog", "0002_render_sql"}},
 		{name: "leading_dash_name", argv: []string{"sqlmigrate", "blog", "--0002"}},
@@ -314,14 +315,14 @@ func migrationSQLRenderingSources(definitions []migrations.Migration) ([]definit
 type migrationSQLRenderingSpy struct {
 	mu       sync.Mutex
 	calls    int
-	requests []migrationbackend.ForwardMigrationSQLRequest
+	requests []migrationbackend.MigrationSQLRequest
 	groups   [][]string
 	err      error
 }
 
-func (renderer *migrationSQLRenderingSpy) RenderForwardMigrationSQL(
+func (renderer *migrationSQLRenderingSpy) RenderMigrationSQL(
 	_ context.Context,
-	request migrationbackend.ForwardMigrationSQLRequest,
+	request migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.mu.Lock()
 	defer renderer.mu.Unlock()
@@ -330,10 +331,10 @@ func (renderer *migrationSQLRenderingSpy) RenderForwardMigrationSQL(
 	return append([][]string(nil), renderer.groups...), renderer.err
 }
 
-func (renderer *migrationSQLRenderingSpy) snapshot() (int, []migrationbackend.ForwardMigrationSQLRequest) {
+func (renderer *migrationSQLRenderingSpy) snapshot() (int, []migrationbackend.MigrationSQLRequest) {
 	renderer.mu.Lock()
 	defer renderer.mu.Unlock()
-	return renderer.calls, append([]migrationbackend.ForwardMigrationSQLRequest(nil), renderer.requests...)
+	return renderer.calls, append([]migrationbackend.MigrationSQLRequest(nil), renderer.requests...)
 }
 
 type migrationSQLRenderingObservedRenderer struct {
@@ -341,15 +342,15 @@ type migrationSQLRenderingObservedRenderer struct {
 	spy      migrationSQLRenderingSpy
 }
 
-func (renderer *migrationSQLRenderingObservedRenderer) RenderForwardMigrationSQL(
+func (renderer *migrationSQLRenderingObservedRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	request migrationbackend.ForwardMigrationSQLRequest,
+	request migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.spy.mu.Lock()
 	renderer.spy.calls++
 	renderer.spy.requests = append(renderer.spy.requests, request)
 	renderer.spy.mu.Unlock()
-	return renderer.delegate.RenderForwardMigrationSQL(ctx, request)
+	return renderer.delegate.RenderMigrationSQL(ctx, request)
 }
 
 func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
@@ -358,12 +359,12 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 		return protocol.Observation{}, err
 	}
 	renderer := &migrationSQLRenderingSpy{groups: [][]string{{"CREATE TABLE category"}, {"ALTER TABLE article ADD summary"}}}
-	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, renderer)
+	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, renderer)
 	if err != nil || len(statements) != 2 {
 		return protocol.Observation{}, fmt.Errorf("render migration SQL request: statements=%v err=%w", statements, err)
 	}
 	calls, requests := renderer.snapshot()
-	if calls != 1 || len(requests) != 1 || requests[0].App != fixture.target.App || requests[0].Name != fixture.target.Name ||
+	if calls != 1 || len(requests) != 1 || requests[0].App != fixture.target.App || requests[0].Name != fixture.target.Name || requests[0].Backwards ||
 		len(requests[0].Intent.Operations) != 2 {
 		return protocol.Observation{}, fmt.Errorf("render migration SQL request observation = calls:%d requests:%+v", calls, requests)
 	}
@@ -374,7 +375,7 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 	}
 	firstRequest.Intent.Operations[1].After.Fields[len(firstRequest.Intent.Operations[1].After.Fields)-1].Name = "mutated"
 	second := &migrationSQLRenderingSpy{groups: append([][]string(nil), renderer.groups...)}
-	if _, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, second); err != nil {
+	if _, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, second); err != nil {
 		return protocol.Observation{}, err
 	}
 	_, secondRequests := second.snapshot()
@@ -408,19 +409,19 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 		return protocol.Observation{}, fmt.Errorf("invalid unrelated SQL migration catalog = report:%+v response:%+v parse:%+v/%t calls:%d", malformedReport, malformedResponse, malformedFailure, malformedFailed, malformedCalls)
 	}
 	prefixSpy := &migrationSQLRenderingSpy{groups: [][]string{{"SHOULD NOT RUN"}, {"SHOULD NOT RUN"}}}
-	_, prefixErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, migrations.MigrationKey{App: "blog", Name: "0002"}, prefixSpy)
+	_, prefixErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, migrations.MigrationKey{App: "blog", Name: "0002"}, migrations.DirectionForward, prefixSpy)
 	var planningError *migrations.PlanningError
 	if !errors.As(prefixErr, &planningError) || planningError.Code != migrations.CodeTargetNotFound {
 		return protocol.Observation{}, fmt.Errorf("prefix-looking exact miss = %v", prefixErr)
 	}
 	prefixCalls, _ := prefixSpy.snapshot()
-	_, unavailableErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, nil)
+	_, unavailableErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, nil)
 	if !migrationSQLRenderingErrorIs(unavailableErr, migrations.CategorySQLRender, migrations.CodeRendererUnavailable) {
 		return protocol.Observation{}, fmt.Errorf("nil renderer failure = %v", unavailableErr)
 	}
-	zeroStatements, zeroErr := sqlite.NewMigrationSQLRenderer().RenderForwardMigrationSQL(
+	zeroStatements, zeroErr := sqlite.NewMigrationSQLRenderer().RenderMigrationSQL(
 		ctx,
-		migrationbackend.ForwardMigrationSQLRequest{},
+		migrationbackend.MigrationSQLRequest{},
 	)
 	if zeroErr == nil || zeroStatements != nil {
 		return protocol.Observation{}, errors.New("zero SQL request unexpectedly rendered")
@@ -542,7 +543,7 @@ func migrationSQLRenderingBeforeState(ctx context.Context, contract protocol.Con
 		return protocol.Observation{}, err
 	}
 	renderer := &migrationSQLRenderingObservedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}
-	if _, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, renderer); err != nil {
+	if _, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, renderer); err != nil {
 		return protocol.Observation{}, err
 	}
 	calls, requests := renderer.spy.snapshot()
@@ -671,7 +672,7 @@ func migrationSQLRenderingSQLite(ctx context.Context, contract protocol.Contract
 		return protocol.Observation{}, err
 	}
 	renderer := &migrationSQLRenderingObservedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}
-	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, renderer)
+	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, renderer)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -820,7 +821,7 @@ func migrationSQLRenderingPostgres(ctx context.Context, contract protocol.Contra
 	renderer := postgres.NewMigrationSQLRenderer(configuration)
 	configuration.Schema = "mutated_after_construction"
 	observed := &migrationSQLRenderingObservedRenderer{delegate: renderer}
-	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, observed)
+	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, observed)
 	if err != nil || len(statements) != 2 {
 		return protocol.Observation{}, fmt.Errorf("PostgreSQL migration SQL = %v, %w", statements, err)
 	}
@@ -874,7 +875,7 @@ func migrationSQLRenderingDecisionBodies(ctx context.Context) ([]string, error) 
 	if err != nil {
 		return nil, err
 	}
-	return migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, sqlite.NewMigrationSQLRenderer())
+	return migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, sqlite.NewMigrationSQLRenderer())
 }
 
 func migrationSQLRenderingOutput(statements []string) string {
@@ -891,11 +892,11 @@ func migrationSQLRenderingDeterminism(ctx context.Context, contract protocol.Con
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	first, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, sqlite.NewMigrationSQLRenderer())
+	first, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, sqlite.NewMigrationSQLRenderer())
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	repeat, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, sqlite.NewMigrationSQLRenderer())
+	repeat, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, sqlite.NewMigrationSQLRenderer())
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -911,6 +912,7 @@ func migrationSQLRenderingDeterminism(ctx context.Context, contract protocol.Con
 				ctx,
 				fixture.loaded,
 				fixture.target,
+				migrations.DirectionForward,
 				sqlite.NewMigrationSQLRenderer(),
 			)
 			parallel[index] = statements
@@ -946,7 +948,7 @@ func migrationSQLRenderingDeterminism(ctx context.Context, contract protocol.Con
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	empty, err := migrations.RenderMigrationSQL(ctx, emptyLoaded, emptyTarget, sqlite.NewMigrationSQLRenderer())
+	empty, err := migrations.RenderMigrationSQL(ctx, emptyLoaded, emptyTarget, migrations.DirectionForward, sqlite.NewMigrationSQLRenderer())
 	if err != nil || empty == nil || len(empty) != 0 {
 		return protocol.Observation{}, fmt.Errorf("empty migration SQL = %#v, %v", empty, err)
 	}
@@ -1655,9 +1657,9 @@ func migrationSQLRenderingDatabaseState(includeRecorder bool) protocol.Value {
 
 type migrationSQLRenderingTypedNilRenderer struct{ calls int }
 
-func (renderer *migrationSQLRenderingTypedNilRenderer) RenderForwardMigrationSQL(
+func (renderer *migrationSQLRenderingTypedNilRenderer) RenderMigrationSQL(
 	context.Context,
-	migrationbackend.ForwardMigrationSQLRequest,
+	migrationbackend.MigrationSQLRequest,
 ) ([][]string, error) {
 	renderer.calls++
 	return nil, errors.New("typed-nil renderer was called")
@@ -1680,8 +1682,8 @@ func migrationSQLRenderingFailures(ctx context.Context, contract protocol.Contra
 	}
 	var typedNil *migrationSQLRenderingTypedNilRenderer
 	unsupportedBuiltin := sqlite.NewMigrationSQLRenderer()
-	for _, kind := range []migrationbackend.MigrationOperationKind{migrationbackend.MigrationDeleteModel, migrationbackend.MigrationOperationKind(255)} {
-		statements, renderErr := unsupportedBuiltin.RenderForwardMigrationSQL(ctx, migrationbackend.ForwardMigrationSQLRequest{
+	for _, kind := range []migrationbackend.MigrationOperationKind{0, migrationbackend.MigrationOperationKind(255)} {
+		statements, renderErr := unsupportedBuiltin.RenderMigrationSQL(ctx, migrationbackend.MigrationSQLRequest{
 			App: "blog", Name: "0002_unsupported",
 			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{OperationIndex: 0, Kind: kind}}},
 		})
@@ -1712,7 +1714,7 @@ func migrationSQLRenderingFailures(ctx context.Context, contract protocol.Contra
 	values := make([]protocol.Value, len(cases))
 	totalCalls := 0
 	for index, candidate := range cases {
-		statements, renderErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, candidate.renderer)
+		statements, renderErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, candidate.renderer)
 		var sqlError *migrations.MigrationSQLError
 		if statements != nil || !errors.As(renderErr, &sqlError) || sqlError == nil ||
 			sqlError.Category != candidate.wantCategory || sqlError.Code != candidate.wantCode {
@@ -2293,7 +2295,7 @@ func migrationSQLRenderingExternalConfig(ctx context.Context, contract protocol.
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	bodies, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, sqlite.NewMigrationSQLRenderer())
+	bodies, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, migrations.DirectionForward, sqlite.NewMigrationSQLRenderer())
 	if err != nil {
 		return protocol.Observation{}, err
 	}

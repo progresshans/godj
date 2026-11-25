@@ -38,9 +38,16 @@ func TestEmptyAppsRetainSnapshotIdentityWithoutFabricatedMigrations(t *testing.T
 			t.Fatal("model-free peer creates permanent drift")
 		}
 		request.ProjectSpec.Apps[0].Schema = testSchema("site")
-		_, err := BuildSnapshot(request)
-		assertSnapshotError(t, err, CategoryPlanning, CodeUnsupportedChange)
+		retired := mustBuildSnapshot(t, request).Candidates()
+		if len(retired) != 1 || retired[0].App() != "site" || retired[0].Name() != "0002_delete_entry" {
+			t.Fatal("expected a deletion only for the owned model", retired)
+		}
+		request.FilesystemSources = append(request.FilesystemSources, definition.Source{SourceID: "migrations/site_0002_delete_entry.godj.json", Document: retired[0].Document()})
+		if repeated := mustBuildSnapshot(t, request); len(repeated.Candidates()) != 0 {
+			t.Fatal("last-model deletion did not reach a stable empty app")
+		}
 		if external {
+			request.FilesystemSources = request.FilesystemSources[:1]
 			request.ProjectSpec.Apps[0].Schema = testSchema("site", testModel("entry", testChar("title", false)))
 			request.ProjectSpec.Apps[1].Schema = testSchema("library", testModel("author", testChar("name", false)))
 			_, err := BuildSnapshot(request)
@@ -55,20 +62,20 @@ func TestFinalStateEmptyAppRuleDoesNotHideUnexpectedOrLostHistory(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyFinalState(empty, declared, empty, []string{"site"}); err != nil {
+	if err := verifyFinalState(empty, declared, empty, []string{"site"}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyFinalState(empty, empty, declared, nil); err == nil {
+	if err := verifyFinalState(empty, empty, declared, nil, nil); err == nil {
 		t.Fatal("unexpected app state was ignored")
 	}
-	if err := verifyFinalState(declared, declared, empty, []string{"site"}); err == nil {
+	if err := verifyFinalState(declared, declared, empty, []string{"site"}, nil); err == nil {
 		t.Fatal("existing state identity disappeared")
 	}
 	nonempty, err := migrations.NewProjectState(testSchema("site", testModel("entry", testChar("title", false))))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyFinalState(nonempty, declared, empty, []string{"site"}); err == nil {
+	if err := verifyFinalState(nonempty, declared, empty, []string{"site"}, nil); err == nil {
 		t.Fatal("stored model history was ignored")
 	}
 }

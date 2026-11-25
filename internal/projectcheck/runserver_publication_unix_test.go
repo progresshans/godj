@@ -5,7 +5,11 @@ package projectcheck
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +57,109 @@ func requirePublicationPeer(t *testing.T, peer <-chan error) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("publication peer did not finish")
+	}
+}
+
+// Pause the supervisor between sending Retire and reading its reply until
+// the child has exited and the production process waiter has joined it.
+type readAfterRunserverExit struct {
+	net.Conn
+	done <-chan struct{}
+	ctx  context.Context
+}
+
+func (conn readAfterRunserverExit) Read(p []byte) (int, error) {
+	select {
+	case <-conn.done:
+		return conn.Conn.Read(p)
+	case <-conn.ctx.Done():
+		return 0, conn.ctx.Err()
+	}
+}
+
+func TestRunserverPublicationReadsRetirementReplyAfterChildExit(t *testing.T) {
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "runtime")
+	// The fixture uses the same inherited control socket as a project server.
+	// It exits immediately after writing the chosen response.
+	const app = `#!/bin/sh
+IFS= read -r request <&4 || exit 41
+[ "$request" = "$GODJ_TEST_RETIRE" ] || exit 42
+printf '%s' "$GODJ_TEST_REPLY" >&4
+`
+	if err := os.WriteFile(binary, []byte(app), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	prepared := preparedProjectRuntime{
+		binary:  binary,
+		command: &projectCommand[RunServerFailure]{selected: retainedProject{rootPath: dir}},
+	}
+	for _, tc := range []struct {
+		name    string
+		reply   string
+		wantErr error
+	}{
+		{"acknowledged", runservercontrol.Retired, nil},
+		{"missing", "", io.EOF},
+		{"truncated", strings.TrimSuffix(runservercontrol.Retired, "\n"), io.EOF},
+		{"wrong-message", runservercontrol.Active, runservercontrol.ErrProtocol},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			input := RunServerInvocation{
+				Environment: []string{
+					"GODJ_TEST_RETIRE=" + strings.TrimSuffix(runservercontrol.Retire, "\n"),
+					"GODJ_TEST_REPLY=" + tc.reply,
+				},
+				Stdout:  io.Discard,
+				Stderr:  io.Discard,
+				runtime: runserverRuntimeHooks{grace: time.Second},
+			}
+			process, err := newManagedRunserver(ctx, input, prepared, listener)
+			if err != nil {
+				t.Fatal(err)
+			}
+			active := &runserverCandidate{process: process}
+			process.control = readAfterRunserverExit{Conn: process.control, done: process.done, ctx: ctx}
+			t.Cleanup(func() {
+				result := process.stop(active.retired)
+				if result.ExitCode != 0 || result.DirectReaps != 1 || result.WaitError != nil || result.Forced || result.CleanupFailed {
+					t.Errorf("retiring child did not exit cleanly: %+v", result)
+				}
+				if err := process.control.SetDeadline(time.Time{}); !errors.Is(err, net.ErrClosed) {
+					t.Errorf("control socket after stop: %v", err)
+				}
+			})
+			candidate, next := publicationTestCandidate(t)
+			peer := publicationTestReply(t, next, runservercontrol.Activate, runservercontrol.Active, nil)
+			err = publishRunserverCandidate(ctx, active, candidate)
+			wantPublished := 0
+			if tc.wantErr == nil {
+				wantPublished = 1
+			}
+			if !errors.Is(err, tc.wantErr) || active.retired != (wantPublished == 1) || candidate.report.ReloadPublished != wantPublished {
+				t.Fatalf("retirement reply after child exit: err=%v, retired=%t, published=%d", err, active.retired, candidate.report.ReloadPublished)
+			}
+			if wantPublished == 1 {
+				requirePublicationPeer(t, peer)
+				return
+			}
+			_ = candidate.process.control.Close()
+			select {
+			case err := <-peer:
+				if !errors.Is(err, io.EOF) {
+					t.Fatalf("successor received activation after rejected retirement: %v", err)
+				}
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			}
+		})
 	}
 }
 

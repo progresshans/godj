@@ -100,7 +100,7 @@ func TestPostgresExplicitManyToManyPreservesRowsCatalogSequenceAndReopens(t *tes
 						}
 						before := postgresManyStorage(t, database, namespace, models)
 						for _, index := range []int{1, 2, 3, 2, 1, 0, 1, 2} {
-							bodies, err := migrations.RenderMigrationSQL(ctx, loaded, history[index].Key(), NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
+							bodies, err := migrations.RenderMigrationSQL(ctx, loaded, history[index].Key(), migrations.DirectionForward, NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
 							if index != 0 && (err != nil || len(bodies) != 0) {
 								t.Fatal("explicit through emitted DDL", bodies, err)
 							}

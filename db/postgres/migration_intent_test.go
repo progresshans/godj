@@ -71,10 +71,10 @@ func TestPostgresMigrationIntentRejectsForgedStructureAsIntegrity(t *testing.T) 
 			}}},
 		},
 		{
-			name:       "wrong transition operation",
+			name:       "delete carries a successor model",
 			transition: postgresMigrationTestTransition(),
 			intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
-				OperationIndex: 0, Kind: migrationbackend.MigrationDeleteModel, Before: model.Clone(), Targets: []migrationbackend.MigrationTarget{},
+				OperationIndex: 0, Kind: migrationbackend.MigrationDeleteModel, Before: model.Clone(), After: model.Clone(), Targets: []migrationbackend.MigrationTarget{},
 			}}},
 		},
 		{

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/migrations"
-	mb "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema"
@@ -128,6 +128,9 @@ func historicalTickets(t *testing.T, f Fixture) []ticketRow {
 }
 
 func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, constraint func(error) string) {
+	t.Run("rename_model_and_incoming_relations", func(t *testing.T) { checkModelRename(t, database(t), false, constraint) })
+	t.Run("rename_model_with_fixed_table", func(t *testing.T) { checkModelRename(t, database(t), true, constraint) })
+	t.Run("delete_model_and_restore_empty_storage", func(t *testing.T) { checkModelDeletion(t, database(t), constraint) })
 	t.Run("renamed_keys_indexes_and_fixed_columns", func(t *testing.T) { checkFieldRename(t, database(t), constraint) })
 	t.Run("mixed_transaction_and_scope", func(t *testing.T) { checkHistoricalTransaction(t, database(t)) })
 	t.Run("backfill_restart_and_reverse", func(t *testing.T) {
@@ -275,11 +278,10 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		if err != nil || len(steps) != 3 || len(calls) != 0 || !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
 			t.Fatal("plan side effects or wrong number of steps", steps, err)
 		}
-		statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, changes[2].Key(), f.Renderer)
-		if err != nil || strings.Count(strings.Join(statements, "\n"), mb.RunDataSQLComment) != 2 || len(calls) != 0 {
-			t.Fatal("SQL projection of two callbacks", statements, err)
+		oracle.plan(t, "forward_plan", steps, loaded, changes[2], migrations.DirectionForward, f.Renderer)
+		if len(calls) != 0 || !reflect.DeepEqual(rowsBefore, dataState(t, f)) {
+			t.Fatal("forward SQL changed data or invoked a callback")
 		}
-		oracle.plan(t, "forward_plan", steps, changes[2].Name, strings.Count(strings.Join(statements, "\n"), mb.RunDataSQLComment))
 		revision := func() int64 {
 			t.Helper()
 			var value int64
@@ -365,7 +367,10 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 		if err != nil {
 			t.Fatal(err)
 		}
-		oracle.plan(t, "reverse_plan", steps, "", 0)
+		oracle.plan(t, "reverse_plan", steps, loaded, changes[2], migrations.DirectionBackward, f.Renderer)
+		if len(calls) != 0 || !reflect.DeepEqual(state, dataState(t, f)) {
+			t.Fatal("reverse SQL changed data or invoked a callback")
+		}
 		apply(1)
 		oracle.check(t, "reverse_calls", events)
 		oracle.check(t, "reversed", nativeHistoricalSnapshot(t, f))
@@ -389,7 +394,10 @@ func RunHistoricalData(t *testing.T, database func(*testing.T) func() Fixture, c
 			len(calls) != 0 || !reflect.DeepEqual(beforePlan, dataState(t, f)) {
 			t.Fatal("reverse plan", steps, err)
 		}
-		oracle.plan(t, "barrier_plan", steps, "", 0)
+		oracle.plan(t, "barrier_plan", steps, loaded, changes[4], migrations.DirectionBackward, f.Renderer)
+		if len(calls) != 0 || !reflect.DeepEqual(beforePlan, dataState(t, f)) {
+			t.Fatal("irreversible SQL changed data or invoked a callback")
+		}
 		checkError(run(1), migrations.CodeIrreversibleData, 4, 0)
 		if !slices.Equal(calls, []string{"note/23/"}) {
 			t.Fatal("irreversible migration partly executed", calls)
@@ -437,6 +445,10 @@ func checkHistoricalTransaction(t *testing.T, open func() Fixture) {
 	operation := dataOp("expanded", migrations.DataCall, migrations.DataCall)
 	changes[1].Operations = append(changes[1].Operations, operation)
 	loaded := loadChanges(t, changes...)
+	bodies, err := migrations.RenderMigrationSQL(t.Context(), loaded, changes[1].Key(), migrations.DirectionBackward, f.Renderer)
+	if err != nil || len(bodies) != 2 || bodies[0] != backend.RunDataSQLComment || !strings.Contains(bodies[1], ` DROP COLUMN "external_id"`) {
+		t.Fatalf("mixed reverse SQL order %q, %v", bodies, err)
+	}
 	var retained migrations.HistoricalModels
 	var called, reverse int
 	sentinel := errors.New("requested rollback")

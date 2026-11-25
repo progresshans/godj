@@ -241,7 +241,7 @@ func Run(t *testing.T, open func(*testing.T) Fixture) {
 				insert(t, f, "default_fixture_child", query.NewAssignment(query.NewFieldRef("parent", "parent_id", query.FieldInteger, false), query.Integer(id)))
 			}
 			links := snapshot(t, f, "default_fixture_child")
-			if statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, latest, f.Renderer); err != nil || len(statements) == 0 {
+			if statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, latest, migrations.DirectionForward, f.Renderer); err != nil || len(statements) == 0 {
 				t.Fatal("missing SQL projection", err)
 			}
 			matched, defaults := 0, 0

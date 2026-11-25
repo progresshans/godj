@@ -139,21 +139,21 @@ type observedRenderer struct {
 	delegate backend.MigrationSQLRenderer
 }
 
-func (renderer observedRenderer) RenderForwardMigrationSQL(
+func (renderer observedRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	request backend.ForwardMigrationSQLRequest,
+	request backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	if err := appendMarker(os.Getenv(rendererMarkerEnvironment), "render"); err != nil {
 		return nil, err
 	}
-	return renderer.delegate.RenderForwardMigrationSQL(ctx, request)
+	return renderer.delegate.RenderMigrationSQL(ctx, request)
 }
 
 type failingRenderer struct{}
 
-func (failingRenderer) RenderForwardMigrationSQL(
+func (failingRenderer) RenderMigrationSQL(
 	context.Context,
-	backend.ForwardMigrationSQLRequest,
+	backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	if err := appendMarker(os.Getenv(rendererMarkerEnvironment), "render"); err != nil {
 		return nil, err
@@ -164,9 +164,9 @@ func (failingRenderer) RenderForwardMigrationSQL(
 
 type waitCancellationRenderer struct{}
 
-func (waitCancellationRenderer) RenderForwardMigrationSQL(
+func (waitCancellationRenderer) RenderMigrationSQL(
 	ctx context.Context,
-	_ backend.ForwardMigrationSQLRequest,
+	_ backend.MigrationSQLRequest,
 ) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("wait cancellation renderer context is nil")

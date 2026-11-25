@@ -118,7 +118,7 @@ func Run(t *testing.T, ctx context.Context, open func() Binding) {
 		return state
 	}
 	for index, key := range keys {
-		statements, err := migrations.RenderMigrationSQL(ctx, loaded, key, binding.Renderer)
+		statements, err := migrations.RenderMigrationSQL(ctx, loaded, key, migrations.DirectionForward, binding.Renderer)
 		want := []int{3, 2, 1, 0}[index]
 		if err != nil || len(statements) != want {
 			t.Fatalf("SQL projection %s: %d statements, want %d: %v", key.Name, len(statements), want, err)

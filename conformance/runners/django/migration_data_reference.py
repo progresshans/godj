@@ -21,6 +21,8 @@ from django.db.migrations.exceptions import IrreversibleError
 
 from .migration_data_fixture import callbacks
 from .migration_data_fixture.field_contract import observe_blank_tightening
+from .migration_data_fixture.model_deletion import observe_model_deletion
+from .migration_data_fixture.model_rename import observe_model_rename
 
 APP = "migration_data_fixture"
 MIGRATIONS = ["0001_initial", "0002_expand", "0003_backfill", "0004_contract", "0005_freeze", "0006_tail"]
@@ -35,6 +37,7 @@ SOURCE_SHA256 = {
     "db/migrations/loader.py": "cdc323bdf802553cd668a6df85f5032b5d37922226234a625dac60380b632f91",
     "db/migrations/migration.py": "3eeecc565bca680b83f27ba889df329050432c47e0511ee42f3f92a1dacdf81d",
     "db/migrations/operations/fields.py": "76c0f9945ad2f0c3e1df559e5b6a8bfa1c00c2049f6448342792ad2ea505ac73",
+    "db/migrations/operations/models.py": "abfa523998a4bf50a88f93c72579ac24266208726f98b6e93bbc0e4a94fd8494",
     "db/migrations/operations/special.py": "42f2bf60d9919f2e792738aff7685baf4d07b59329ba0c939f95a41ba0a76229",
     "db/migrations/recorder.py": "37a0b5648c6fb0020f5f88ea37b5ce328064bd66948ba6a169c5aa29d10b7af4",
     "db/migrations/state.py": "ae5a45dc89edb7947a32ddfc6245d4dff92ab25f4adb3478fb533911e3dc0dab",
@@ -239,7 +242,8 @@ def observe():
             return {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                     "database_version": version, "django_commit": UPSTREAM, "upstream_sha256": SOURCE_SHA256,
                     "input_sha256": sources, "observations": observations, "command_output": commands,
-                    "blank_tightening": observe_blank_tightening()}
+                    "blank_tightening": observe_blank_tightening(), "model_deletion": observe_model_deletion(),
+                    "model_rename": observe_model_rename()}
         finally:
             connections.close_all()
 

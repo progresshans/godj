@@ -140,7 +140,23 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 	case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 		return appendCanonicalManyOperation(output, operation)
 	case migrations.CreateModel:
-		return appendCanonicalCreateModel(output, value)
+		return appendCanonicalModelOperation(output, "create_model", value.AppLabel, value.Model, "")
+	case migrations.RenameModel:
+		output, err := appendCanonicalModel(append(output, `{"after":`...), value.After)
+		if err != nil {
+			return nil, err
+		}
+		output, err = appendCanonicalString(append(output, `,"app_label":`...), value.AppLabel)
+		if err != nil {
+			return nil, err
+		}
+		output, err = appendCanonicalModel(append(output, `,"before":`...), value.Before)
+		if err != nil {
+			return nil, err
+		}
+		return append(output, `,"kind":"rename_model"}`...), nil
+	case migrations.DeleteModel:
+		return appendCanonicalModelOperation(output, "delete_model", value.AppLabel, value.Model, value.BeforeModel)
 	case migrations.AddField:
 		return appendCanonicalFieldOperation(output, "add_field", value.AppLabel, value.ModelName, value.Field, value.BeforeField)
 	case migrations.RemoveField:
@@ -158,15 +174,27 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 	}
 }
 
-func appendCanonicalCreateModel(output []byte, operation migrations.CreateModel) ([]byte, error) {
+func appendCanonicalModelOperation(output []byte, kind, app string, model ir.Model, before string) ([]byte, error) {
 	output = append(output, `{"app_label":`...)
 	var err error
-	output, err = appendCanonicalString(output, operation.AppLabel)
+	output, err = appendCanonicalString(output, app)
 	if err != nil {
 		return nil, err
 	}
-	output = append(output, `,"kind":"create_model","model":`...)
-	output, err = appendCanonicalModel(output, operation.Model)
+	if before != "" {
+		output = append(output, `,"before_model":`...)
+		output, err = appendCanonicalString(output, before)
+		if err != nil {
+			return nil, err
+		}
+	}
+	output = append(output, `,"kind":`...)
+	output, err = appendCanonicalString(output, kind)
+	if err != nil {
+		return nil, err
+	}
+	output = append(output, `,"model":`...)
+	output, err = appendCanonicalModel(output, model)
 	if err != nil {
 		return nil, err
 	}

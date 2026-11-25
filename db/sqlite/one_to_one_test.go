@@ -36,7 +36,7 @@ func TestSQLiteOneToOneAlterFailureRetryReverseAndReopen(t *testing.T) {
 			}
 			sqliteUniqueExec(t, backend, `INSERT INTO otohistory_owner (id) VALUES (1)`)
 			sqliteUniqueExec(t, backend, `INSERT INTO otohistory_child (owner_id) VALUES (1)`)
-			sql, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), NewMigrationSQLRenderer())
+			sql, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 			wantSQL := 1
 			if unique {
 				wantSQL = 0
