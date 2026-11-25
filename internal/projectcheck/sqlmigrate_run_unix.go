@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 )
 
-// RunSQLMigrate executes one project-linked exact forward SQL projection. It
+// RunSQLMigrate projects SQL for one exact project-linked migration. It
 // owns pre-I/O argv validation, selection, private build/child lifetime,
 // response validation, cleanup and one final public publication. It never
 // retries a build, child or terminal write.

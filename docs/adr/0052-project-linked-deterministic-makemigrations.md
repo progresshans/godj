@@ -84,9 +84,11 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    거부합니다. Host가 소유한 FK는 외부 app의 이력을 의존하되 외부 app의 migration을 생성하지 않습니다.
 3. 현재 delta domain은 다음과 같습니다.
    - history가 없는 managed app/model의 `CreateModel`
+   - 설치된 managed app에서 사라진 모델의 `DeleteModel`. 남아 있는 참조를 먼저 해제하고 대상 모델의 전체 선언과 다음 모델 이름을 기록한다.
    - existing model의 nullable/no-default scalar·지원하는 명시적 상수 default scalar와 ForeignKey `AddField`
    - non-PK scalar/FK/OneToOne의 `RemoveField`; 전체 이전 선언과 실제 다음 field anchor를 definition에 보존
    - 기존 field 순서를 유지하는 중간 삽입과 choices-only·Decimal precision-only·uniqueness-only `AlterField`
+   - 같은 물리 열의 NULL 허용 변경. 같은 선언에서 고유성과 상수 기본값도 바뀌면 한 `AlterField`에 이전·이후 필드를 기록한다.
    - named unique constraint의 `AddConstraint`/`RemoveConstraint`; 이름·member·member 순서 변경은 remove/add이며 constraint 목록 재정렬은 no-op
    - new model의 current scalar/ForeignKey field shape
    - self/later target·순환 관계의 same-app operation 순서와 cross-app migration dependency
@@ -94,10 +96,11 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    부분 게시 뒤 남은 required FK를 재개하는 경로에도 적용합니다. Detector는 DB를 열지 않으며 populated row를 추측한 key나
    default로 채우지 않습니다. 명시한 상수 scalar default는 native transaction에서 한 번 기존 행에 채우고 DB default를 제거합니다.
    Default 없는 required scalar의 populated backfill, PK/FK default·callable default와 일반 data migration은 별도 범위입니다.
-   각 AlterField는 하나의 facet만 변경하며 공통 IR 분류를 따른다. 고유성 선언·계획과 실제 backend 제약 지원은 구분한다.
+   공통 IR이 변경 종류를 판정한다. NULL 허용 변경은 열 이름·타입·FK 대상·삭제 정책을 보존한다.
+   실행기는 NULL 허용 변경과 고유성 변경에 필요한 backend capability를 각각 검사한다.
    현재 실행 가능 범위는 [Backend Matrix](../BACKEND_MATRIX.md)가 소유한다.
-4. Existing model order는 desired state의 exact prefix이고, 유지하는 field의 상대 순서와 metadata는 같아야 합니다(지원되는 단일 facet
-   변경 제외). App/model/primary-key removal, retained reorder, rename, 일반 alter, missing relation target, multiple same-app leaves와 operation/resource limit 초과는 structured
+4. 남아 있는 모델과 필드는 상대 순서를 유지한다. 새 모델은 기존 모델 뒤에 추가한다. 같은 앱에서 기존 모델의 제거와 새 모델의 추가가 함께 있으면 자동 계획을 중단한다.
+   App/primary-key removal, retained reorder, 모호한 이름 변경, 일반 alter, missing relation target, multiple same-app leaves와 operation/resource limit 초과는 structured
    unsupported/invalid result이며 candidate publication은 0입니다. Desired와 historical state가 같은 clean no-op은 successor name이
    필요하지 않으므로 noncanonical single leaf를 이유로 실패하지 않습니다. 실제 delta가 있어 successor를 만들어야 할 때만
    noncanonical leaf numbering을 structured unsupported result로 닫습니다.
@@ -236,7 +239,7 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 
 - 지원 가능한 current schema 변경은 수작업 JSON 없이 strict current definition으로 연결됩니다.
 - Loader/reconstructor/lifecycle는 지원 operation의 전체 이전·이후 의미를 공유하며 생성 model ABI와 구분합니다.
-- 일반 model 삭제·rename/custom operation은 여전히 미지원이며 non-PK field 삭제 지원과 구분합니다.
+- 모델 삭제를 적용하면 소유한 테이블의 행이 사라지고, 역적용하면 당시의 빈 구조가 복원된다. 모델 이름 변경은 프로젝트가 이전·이후 선언을 담은 `RenameModel`로 작성한다. 작성기는 이 이력을 재구성해 현재 선언과 비교한다. [양 DB 동작](../BACKEND_MATRIX.md#모델-삭제와-역적용)
 - Exactly-one filesystem root 제약은 multi-root read configuration을 없애지 않으며 writer invocation만 fail-closed합니다.
 - Flat app-prefixed file roster는 current discovery에 맞지만 Django app-local directory layout과 다릅니다. App-to-root mapping은 실제
   second project 요구가 생길 때 별도 current-format reset/ADR로 결정합니다.
@@ -251,10 +254,9 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 
 ## 의도적으로 결정하지 않은 것
 
-- 일반 model Delete/Alter/Rename operation과 interactive rename/default/backfill 질문
-- self/circular relation을 위한 migration splitting
+- 임의 모델 속성 변경과 모델 이름 변경·default·backfill에 대한 대화형 질문
 - merge/squash/optimizer, multiple leaves, `--empty`, `--name`, `--update`, app filter
-- RunSQL/Go data migration, custom operation serialization과 historical model API
+- RunSQL과 일반 custom operation의 자동 작성. Go 데이터 작업과 역사 모델 접근은 [실행 계획](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)에서 추적한다.
 - DB adoption/introspection, applied-history consistency와 multi-DB router
 - multiple writable roots 또는 app-to-root mapping
 - distributed filesystem/non-cooperative writer 일반 지원

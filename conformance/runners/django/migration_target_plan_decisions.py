@@ -572,7 +572,7 @@ def project_protocol_and_ownership(contract_id: str) -> dict[str, Any]:
         phase="environment",
         result={
             "cases": ownership_cases,
-            "current_private_protocol_version": 2,
+            "current_private_protocol_version": 3,
             "identity_normalization": "none",
             "legacy_private_reader": False,
             "load_before_backend_open": True,
@@ -583,7 +583,7 @@ def project_protocol_and_ownership(contract_id: str) -> dict[str, Any]:
                 "mixed_direction": "rejected",
                 "row_order": "preserved",
             },
-            "private_argument": "__godj_project_migrate_runner_v2",
+            "private_argument": "__godj_project_migrate_runner_v3",
             "raw_causes_published": False,
             "redaction": {
                 "published_raw_causes": 0,

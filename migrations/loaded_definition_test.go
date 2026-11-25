@@ -122,9 +122,10 @@ func testLoadedDefinitionSet(t *testing.T, definitions []Migration) LoadedDefini
 	sources := make([]DefinitionSourceInfo, len(definitions))
 	for index := range definitions {
 		sources[index] = DefinitionSourceInfo{
-			SourceID:  fmt.Sprintf("test-definition-%04d", index),
-			Producer:  DefinitionProducer{Name: "migrations-test", Version: "1"},
-			Migration: definitions[index].Key(),
+			SourceID:      fmt.Sprintf("test-definition-%04d", index),
+			Producer:      DefinitionProducer{Name: "migrations-test", Version: "1"},
+			Migration:     definitions[index].Key(),
+			HistoryDigest: fmt.Sprintf("sha256:%064x", index+1),
 		}
 	}
 	publication := loadeddefinition.New(

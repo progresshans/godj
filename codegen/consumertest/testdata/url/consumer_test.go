@@ -169,7 +169,7 @@ func runURLStorage(t *testing.T, document []byte, open func(context.Context) (ur
 		sqlite.NewMigrationSQLRenderer(),
 		postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"}),
 	} {
-		statements, err := migrations.RenderMigrationSQL(ctx, loaded, change.Key(), renderer)
+		statements, err := migrations.RenderMigrationSQL(ctx, loaded, change.Key(), migrations.DirectionForward, renderer)
 		if err != nil || len(statements) != 0 {
 			t.Fatal("url metadata transition attempted physical DDL", statements, err)
 		}

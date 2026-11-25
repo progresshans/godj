@@ -43,7 +43,7 @@ func TestSQLiteCascadePolicyMigrationPreservesRowsConstraintsSequenceAndReopens(
 				sqliteUniqueExec(t, backend, `INSERT INTO cascadehistory_child(id,owner_id,code) VALUES (1,1,'kept'),(100,1,'removed')`)
 				sqliteUniqueExec(t, backend, `DELETE FROM cascadehistory_child WHERE id=100`)
 				assertSQLiteCascadeTiming(t, backend, false)
-				projected, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), NewMigrationSQLRenderer())
+				projected, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 				if err != nil || len(projected) < 8 || !strings.Contains(strings.Join(projected, "\n"), "DEFERRABLE INITIALLY DEFERRED") {
 					t.Fatal("policy change was not projected as a physical remake", projected, err)
 				}
@@ -172,7 +172,7 @@ func TestSQLiteCascadeSQLProjectionPreservesSequencePresenceAndHighWater(t *test
 			if sequence == "high" {
 				sqliteUniqueExec(t, backend, `INSERT INTO cascadehistory_child(id,owner_id,code) VALUES (1,1,'kept')`)
 			}
-			bodies, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), NewMigrationSQLRenderer())
+			bodies, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -260,7 +260,7 @@ func TestSQLiteCascadeCreateModelAndConstraintTimingDrift(t *testing.T) {
 	assertSQLiteCascadeTiming(t, backend, true)
 	manual := migrations.Migration{App: initial.App, Name: "0002_manual", Dependencies: []migrations.MigrationKey{initial.Key()},
 		Operations: []migrations.Operation{migrations.AlterField{AppLabel: initial.App, ModelName: after.Name, Before: after.Fields[1], After: before.Fields[1]}}}
-	bodies, err := migrations.RenderMigrationSQL(ctx, sqliteUniqueHistory(t, initial, manual), manual.Key(), NewMigrationSQLRenderer())
+	bodies, err := migrations.RenderMigrationSQL(ctx, sqliteUniqueHistory(t, initial, manual), manual.Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 	if err != nil || len(bodies) < 8 {
 		t.Fatal("manual timing change had no physical projection", err)
 	}

@@ -4,19 +4,19 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
-	"github.com/progresshans/godj/auth"
 )
 
 type migrationBackend struct{}
 
 type migrationSQLRenderer struct{}
 
-func (migrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+func (migrationSQLRenderer) RenderMigrationSQL(context.Context, backend.MigrationSQLRequest) ([][]string, error) {
 	return [][]string{{"SELECT 1"}}, nil
 }
 
@@ -62,7 +62,7 @@ func checkProjectRuntime() error {
 				return (*sqlite.Backend)(nil), nil
 			},
 			InitialSuperuser: auth.Principal{},
-			PasswordHasher: (auth.PasswordHasher)(nil),
+			PasswordHasher:   (auth.PasswordHasher)(nil),
 		},
 		[]string{"__godj_project_runner_v1"},
 		bytes.NewBufferString(`{"protocol_version":1,"command":"migrations.check"}`),

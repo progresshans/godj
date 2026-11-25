@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/identifiers"
+	"github.com/progresshans/godj/internal/migrationgraph"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -50,13 +51,25 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 	}
 	for index, operation := range snapshot.Operations {
 		switch value := operation.(type) {
+		case migrations.RunData:
+			doc, err := dataOperationDocument(value)
+			if err != nil {
+				return nil, err
+			}
+			document.Migration.Operations[index] = doc
 		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany, migrations.AlterManyToMany:
 			document.Migration.Operations[index] = manyOperationDocument(operation)
 		case migrations.CreateModel:
-			document.Migration.Operations[index] = createModelDocument{
+			document.Migration.Operations[index] = modelOperationDocument{
 				Kind:     "create_model",
 				AppLabel: value.AppLabel,
 				Model:    encodeModel(value.Model),
+			}
+		case migrations.RenameModel:
+			document.Migration.Operations[index] = renameModelDocument{Kind: "rename_model", AppLabel: value.AppLabel, Before: encodeModel(value.Before), After: encodeModel(value.After)}
+		case migrations.DeleteModel:
+			document.Migration.Operations[index] = modelOperationDocument{
+				Kind: "delete_model", AppLabel: value.AppLabel, Model: encodeModel(value.Model), BeforeModel: value.BeforeModel,
 			}
 		case migrations.AddField:
 			document.Migration.Operations[index] = addFieldDocument{
@@ -78,6 +91,8 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 			document.Migration.Operations[index] = constraintDocument{Kind: "add_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
 		case migrations.RemoveConstraint:
 			document.Migration.Operations[index] = constraintDocument{Kind: "remove_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
+		case migrations.RenameField:
+			document.Migration.Operations[index] = alterFieldDocument{Kind: "rename_field", AppLabel: value.AppLabel, ModelName: value.ModelName, Before: encodeField(value.Before), After: encodeField(value.After)}
 		case migrations.AlterField:
 			document.Migration.Operations[index] = alterFieldDocument{
 				Kind: "alter_field", AppLabel: value.AppLabel, ModelName: value.ModelName,
@@ -167,17 +182,30 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			if doc.AppLabel != migration.App || !validManyOperation(doc) {
 				return encodeFailure(path, "ManyToMany requires exact normalized declarations and an unchanged rename binding")
 			}
+		case migrations.RunData:
+			if _, err := value.Normalized(); err != nil || value.App() != migration.App {
+				return encodeFailure(path, "invalid data operation or app identity")
+			}
 		case migrations.CreateModel:
-			if value.AppLabel != migration.App {
-				return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", value.AppLabel, migration.App)
+			if err := validateModelOperation(path, "model", migration.App, value.AppLabel, value.Model); err != nil {
+				return err
 			}
-			if !fullyNormalizedCreateModel(value.AppLabel, value.Model) {
-				return encodeFailure(path+".model", "model is not exact current normalized IR")
+		case migrations.RenameModel:
+			if err := validateModelOperation(path, "before", migration.App, value.AppLabel, value.Before); err != nil {
+				return err
 			}
-			for fieldIndex, field := range value.Model.Fields {
-				if err := validateFieldWireRange(field, fmt.Sprintf("%s.model.fields[%d]", path, fieldIndex)); err != nil {
-					return err
-				}
+			if err := validateModelOperation(path, "after", migration.App, value.AppLabel, value.After); err != nil {
+				return err
+			}
+			if _, err := migrationgraph.NewModelRename(value.AppLabel, value.Before, value.After); err != nil {
+				return encodeFailure(path, "invalid model rename: %v", err)
+			}
+		case migrations.DeleteModel:
+			if value.BeforeModel != "" && (!identifiers.SQL(value.BeforeModel) || value.BeforeModel == value.Model.Name) {
+				return encodeFailure(path+".before_model", "invalid model insertion anchor %q", value.BeforeModel)
+			}
+			if err := validateModelOperation(path, "model", migration.App, value.AppLabel, value.Model); err != nil {
+				return err
 			}
 		case migrations.AddField:
 			if value.AppLabel != migration.App {
@@ -219,6 +247,16 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			if value.AppLabel != migration.App || !validConstraintDefinition(value.ModelName, value.Constraint) {
 				return encodeFailure(path, "RemoveConstraint requires the complete historical unique constraint")
 			}
+		case migrations.RenameField:
+			if value.AppLabel != migration.App || !identifiers.SQL(value.ModelName) || ir.ValidateFieldRename(value.Before, value.After) != nil {
+				return encodeFailure(path, "RenameField requires the same normalized field under a new identity")
+			}
+			if err := validateFieldWireRange(value.Before, path+".before"); err != nil {
+				return err
+			}
+			if err := validateFieldWireRange(value.After, path+".after"); err != nil {
+				return err
+			}
 		case migrations.AlterField:
 			if value.AppLabel != migration.App || !validAlterFieldDefinition(value) {
 				return encodeFailure(path, "AlterField requires exact normalized fields with a supported single-facet change")
@@ -231,6 +269,21 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			}
 		default:
 			return encodeFailure(path, "unsupported operation type %T", operation)
+		}
+	}
+	return nil
+}
+
+func validateModelOperation(path, member, app, label string, model ir.Model) error {
+	if label != app {
+		return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", label, app)
+	}
+	if !fullyNormalizedCreateModel(label, model) {
+		return encodeFailure(path+"."+member, "model is not exact current normalized IR")
+	}
+	for fieldIndex, field := range model.Fields {
+		if err := validateFieldWireRange(field, fmt.Sprintf("%s.%s.fields[%d]", path, member, fieldIndex)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -270,10 +323,18 @@ type dependencyDocument struct {
 	Name string `json:"name"`
 }
 
-type createModelDocument struct {
+type renameModelDocument struct {
 	Kind     string        `json:"kind"`
 	AppLabel string        `json:"app_label"`
-	Model    modelDocument `json:"model"`
+	Before   modelDocument `json:"before"`
+	After    modelDocument `json:"after"`
+}
+
+type modelOperationDocument struct {
+	Kind        string        `json:"kind"`
+	AppLabel    string        `json:"app_label"`
+	Model       modelDocument `json:"model"`
+	BeforeModel string        `json:"before_model,omitempty"`
 }
 
 type addFieldDocument struct {

@@ -51,7 +51,7 @@ func TestSQLiteExplicitManyToManyPreservesRowsCatalogSequenceAndReopens(t *testi
 						}
 						before := sqliteUniqueReadSnapshot(t, database, models...)
 						for _, index := range []int{1, 2, 3, 2, 1, 0, 1, 2} {
-							bodies, err := migrations.RenderMigrationSQL(ctx, loaded, history[index].Key(), NewMigrationSQLRenderer())
+							bodies, err := migrations.RenderMigrationSQL(ctx, loaded, history[index].Key(), migrations.DirectionForward, NewMigrationSQLRenderer())
 							if index != 0 && (err != nil || len(bodies) != 0) {
 								t.Fatal("explicit through emitted DDL", bodies, err)
 							}

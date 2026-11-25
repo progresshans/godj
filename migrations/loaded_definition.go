@@ -19,6 +19,9 @@ type DefinitionSourceInfo struct {
 	SourceID  string
 	Producer  DefinitionProducer
 	Migration MigrationKey
+	// HistoryDigest identifies this definition and its transitive dependencies.
+	// Later migrations, unrelated branches and producer provenance do not change it.
+	HistoryDigest string
 }
 
 type loadedDefinitionPublication = loadeddefinition.Set[

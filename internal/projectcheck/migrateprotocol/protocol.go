@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	Version         uint64 = 2
-	PrivateArgument        = "__godj_project_migrate_runner_v2"
+	Version         uint64 = 3
+	PrivateArgument        = "__godj_project_migrate_runner_v3"
 
 	MaxRequestBytes           = 16 << 20
 	MaxResponseBytes          = 101 << 20
@@ -26,18 +26,20 @@ const (
 	MaxIdentityAggregateBytes = 16 << 20
 
 	maxJSONDepth       = 16
-	maxWireValues      = MaxPlanRows*4 + 64
+	maxWireValues      = MaxPlanRows*5 + 64
 	maxWireArrayValues = MaxPlanRows
 
 	// A valid identity byte can require at most six JSON bytes (for example,
-	// U+0000 becomes \u0000). The private plan framing is at most 44 bytes per
-	// row plus 70 bytes outside non-empty row arrays. The public framing is
+	// U+0000 becomes \u0000). Each plan row may include a zero-based
+	// irreversible operation index. Its maximum value is MaxCount-1.
+	// A private plan uses 70 bytes outside non-empty row arrays. Public framing is
 	// smaller. Keep the derivation executable in tests instead of relying on a
 	// sample payload that cannot exercise the worst-case escaping expansion.
 	maxEscapedPlanIdentityBytes = 6 * MaxIdentityAggregateBytes
-	maxPrivatePlanFramingBytes  = 70 + 44*MaxPlanRows
+	maxPlanRowFramingBytes      = 44 + len(`,"irreversible_operation":2047`)
+	maxPrivatePlanFramingBytes  = 70 + maxPlanRowFramingBytes*MaxPlanRows
 	maxPrivatePlanDocumentBytes = maxEscapedPlanIdentityBytes + maxPrivatePlanFramingBytes
-	maxPublicPlanFramingBytes   = 11 + 44*MaxPlanRows // includes the terminal LF
+	maxPublicPlanFramingBytes   = 11 + maxPlanRowFramingBytes*MaxPlanRows // includes the terminal LF
 	maxPublicPlanDocumentBytes  = maxEscapedPlanIdentityBytes + maxPublicPlanFramingBytes
 
 	EmptySetDigest = "sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494"
@@ -102,7 +104,7 @@ const (
 	ModePlan    Mode = "plan"
 )
 
-// TargetKind is the closed target representation carried by protocol v2.
+// TargetKind is the closed target representation carried by the migration protocol.
 type TargetKind string
 
 const (
@@ -142,7 +144,7 @@ type ExecuteResult struct {
 	DefinitionSetDigest string
 }
 
-// Direction is the closed plan-step direction carried by protocol v2.
+// Direction is the closed plan-step direction carried by the migration protocol.
 type Direction string
 
 const (
@@ -152,9 +154,11 @@ const (
 
 // PlanRow is one detached migration identity in linked-core plan order.
 type PlanRow struct {
-	App       string
-	Name      string
-	Direction Direction
+	App                   string
+	Name                  string
+	Direction             Direction
+	Irreversible          bool
+	IrreversibleOperation int
 }
 
 // Result is a strict success union. Execute mode requires Execute and a nil
@@ -173,20 +177,20 @@ type Response struct {
 	Failure Failure
 }
 
-// RequestDocument returns a fresh canonical v2 execute/latest default for
+// RequestDocument returns a fresh canonical execute/latest default for
 // existing execute/latest probes. Callers selecting a mode or target use
 // EncodeRequest.
 func RequestDocument() []byte {
-	return []byte(`{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)
+	return []byte(`{"protocol_version":3,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)
 }
 
-// EncodeRequest returns the canonical, bounded v2 request document.
+// EncodeRequest returns the canonical, bounded request document.
 func EncodeRequest(request Request) ([]byte, error) {
 	if !validRequest(request) {
 		return nil, errors.New("project migration protocol: invalid request")
 	}
 	document := make([]byte, 0, 256)
-	document = append(document, `{"protocol_version":2,"command":"migrations.migrate","mode":`...)
+	document = append(document, `{"protocol_version":3,"command":"migrations.migrate","mode":`...)
 	document = appendJSONString(document, string(request.Mode))
 	document = append(document, `,"target":{"kind":`...)
 	document = appendJSONString(document, string(request.Target.Kind))
@@ -326,7 +330,8 @@ func parsePlanResponse(resultObject map[string]any) (Response, Failure, bool) {
 	rows := make([]PlanRow, len(wireRows))
 	for index, value := range wireRows {
 		rowObject, ok := value.(map[string]any)
-		if !ok || !wirejson.HasKeys(rowObject, "app", "name", "direction") {
+		_, irreversible := rowObject["irreversible_operation"]
+		if !ok || !wirejson.HasKeys(rowObject, "app", "name", "direction") && !wirejson.HasKeys(rowObject, "app", "name", "direction", "irreversible_operation") {
 			return invalidResponse()
 		}
 		app, appOK := rowObject["app"].(string)
@@ -336,6 +341,13 @@ func parsePlanResponse(resultObject map[string]any) (Response, Failure, bool) {
 			return invalidResponse()
 		}
 		rows[index] = PlanRow{App: app, Name: name, Direction: Direction(direction)}
+		if irreversible {
+			value, valid := wirejson.Uint(rowObject["irreversible_operation"], MaxCount-1)
+			if !valid {
+				return invalidResponse()
+			}
+			rows[index].Irreversible, rows[index].IrreversibleOperation = true, int(value)
+		}
 	}
 	if !validPlanRows(rows) {
 		return invalidResponse()
@@ -352,7 +364,7 @@ func EncodeResponse(response Response) ([]byte, error) {
 		}
 		switch response.Result.Mode {
 		case ModeExecute:
-			document = append(document, `{"protocol_version":2,"status":"ok","result":{"mode":"execute","execute":{"source_count":`...)
+			document = append(document, `{"protocol_version":3,"status":"ok","result":{"mode":"execute","execute":{"source_count":`...)
 			document = strconv.AppendInt(document, int64(response.Result.Execute.SourceCount), 10)
 			document = append(document, `,"definition_count":`...)
 			document = strconv.AppendInt(document, int64(response.Result.Execute.DefinitionCount), 10)
@@ -361,7 +373,7 @@ func EncodeResponse(response Response) ([]byte, error) {
 			document = append(document, '}', '}', '}')
 		case ModePlan:
 			document = make([]byte, 0, encodedPrivatePlanLength(response.Result.Plan))
-			document = append(document, `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":`...)
+			document = append(document, `{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":`...)
 			document = appendPlanRows(document, response.Result.Plan)
 			document = append(document, '}', '}')
 		}
@@ -369,7 +381,7 @@ func EncodeResponse(response Response) ([]byte, error) {
 		if !zeroResult(response.Result) || !IsLinkedFailure(response.Failure) {
 			return nil, errors.New("project migration protocol: invalid error response")
 		}
-		document = append(document, `{"protocol_version":2,"status":"error","error":{"category":`...)
+		document = append(document, `{"protocol_version":3,"status":"error","error":{"category":`...)
 		document = appendJSONString(document, response.Failure.Category)
 		document = append(document, `,"code":`...)
 		document = appendJSONString(document, response.Failure.Code)
@@ -440,7 +452,7 @@ func ExitCode(failure Failure) (int, bool) {
 	case CategoryGraph:
 		return failurecode.Graph(failure.Code)
 	case CategoryState:
-		return failurecode.Exact(failure.Code, 1, "invalid_state")
+		return failurecode.Exact(failure.Code, 1, "invalid_state", "missing_data_callback")
 	case CategoryCapability:
 		return failurecode.Exact(failure.Code, 1,
 			"unsupported_operation", "revision_fence_unsupported", "revision_fence_adoption_required",
@@ -456,11 +468,11 @@ func ExitCode(failure Failure) (int, bool) {
 		)
 	case CategoryPlan:
 		return failurecode.Exact(failure.Code, 1,
-			"invalid_target", "target_not_found", "invalid_execution_plan", "mixed_directions",
+			"invalid_target", "target_not_found", "invalid_execution_plan", "mixed_directions", "irreversible_data_operation",
 		)
 	case CategoryHistory:
 		return failurecode.Exact(failure.Code, 1,
-			"invalid_applied_state", "duplicate_applied", "inconsistent_applied_history", "history_revision_integrity",
+			"invalid_applied_state", "duplicate_applied", "inconsistent_applied_history", "history_revision_integrity", "definition_history_mismatch",
 		)
 	case CategoryConflict:
 		return failurecode.Exact(failure.Code, 3, "stale_history_revision")
@@ -634,6 +646,10 @@ func validPlanRows(rows []PlanRow) bool {
 		if row.Direction != DirectionForward && row.Direction != DirectionBackward {
 			return false
 		}
+		if row.Irreversible && (row.Direction != DirectionBackward || row.IrreversibleOperation < 0 || row.IrreversibleOperation >= MaxCount) ||
+			!row.Irreversible && row.IrreversibleOperation != 0 {
+			return false
+		}
 		if direction == "" {
 			direction = row.Direction
 		} else if row.Direction != direction {
@@ -676,13 +692,17 @@ func appendPlanRows(document []byte, rows []PlanRow) []byte {
 		document = appendJSONString(document, row.Name)
 		document = append(document, `,"direction":`...)
 		document = appendJSONString(document, string(row.Direction))
+		if row.Irreversible {
+			document = append(document, `,"irreversible_operation":`...)
+			document = strconv.AppendInt(document, int64(row.IrreversibleOperation), 10)
+		}
 		document = append(document, '}')
 	}
 	return append(document, ']')
 }
 
 func encodedPrivatePlanLength(rows []PlanRow) int {
-	return len(`{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[]}}`) - 2 + encodedPlanRowsLength(rows)
+	return len(`{"protocol_version":3,"status":"ok","result":{"mode":"plan","plan":[]}}`) - 2 + encodedPlanRowsLength(rows)
 }
 
 func encodedPublicPlanLength(rows []PlanRow) int {
@@ -699,6 +719,9 @@ func encodedPlanRowsLength(rows []PlanRow) int {
 		length += encodedJSONStringLength(row.App)
 		length += encodedJSONStringLength(row.Name)
 		length += encodedJSONStringLength(string(row.Direction))
+		if row.Irreversible {
+			length += len(`,"irreversible_operation":`) + len(strconv.Itoa(row.IrreversibleOperation))
+		}
 	}
 	return length
 }

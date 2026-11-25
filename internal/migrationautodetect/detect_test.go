@@ -74,6 +74,24 @@ func TestDetectInitializedEmptyProjectIsNoOp(t *testing.T) {
 	}
 }
 
+func TestDetectReplaysAuthoredFieldRenameWithoutDroppingData(t *testing.T) {
+	t.Parallel()
+	previous := mustProjectState(t, testSchema("content", testModel("article", testChar("legacy", false, nil))))
+	desired := mustProjectState(t, testSchema("content", testModel("article", testChar("label", false, nil))))
+	initial := mustDetect(t, Request{Definitions: mustLoadDefinitions(t), Desired: previous, ManagedApps: previous.Apps()}).Migrations()[0]
+	request := Request{Definitions: mustLoadDefinitions(t, initial), Desired: desired, ManagedApps: desired.Apps()}
+	detectError(t, request, CodeUnsupportedChange)
+	oldModel, _ := previous.Model("content", "article")
+	newModel, _ := desired.Model("content", "article")
+	rename := migrations.Migration{App: "content", Name: "0002_label", Dependencies: []migrations.MigrationKey{initial.Key()},
+		Operations: []migrations.Operation{migrations.RenameField{AppLabel: "content", ModelName: "article", Before: oldModel.Fields[1], After: newModel.Fields[1]}}}
+	request.Definitions = mustLoadDefinitions(t, initial, rename)
+	plan := mustDetect(t, request)
+	if !plan.Empty() || !plan.BaseState().Equal(desired) {
+		t.Fatal("writer emitted another schema change after authored rename", plan.Migrations())
+	}
+}
+
 func TestDetectAdditiveNullableCharField(t *testing.T) {
 	t.Parallel()
 
@@ -426,8 +444,8 @@ func TestDetectRejectsRemovalReorderAndAlter(t *testing.T) {
 		desired migrations.ProjectState
 	}{
 		{name: "app removal", desired: migrations.EmptyProjectState()},
-		{name: "model removal", desired: mustProjectState(t, testSchema("content",
-			testModel("article", testChar("title", false, nil), testChar("body", false, nil)),
+		{name: "ambiguous model replacement", desired: mustProjectState(t, testSchema("content",
+			testModel("article", testChar("title", false, nil), testChar("body", false, nil)), testModel("reply", testChar("text", false, nil)),
 		))},
 		{name: "model reorder", desired: mustProjectState(t, testSchema("content",
 			testModel("comment", testChar("text", false, nil)),

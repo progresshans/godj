@@ -25,5 +25,18 @@ func TestDetectEmptyInstalledAppsHaveNoTableHistoryUntilFirstModel(t *testing.T)
 		t.Fatal("empty peer app created repeated drift")
 	}
 	request.Desired = empty
-	detectError(t, request, CodeUnsupportedChange) // Empty cannot erase stored models.
+	retired := mustDetect(t, request).Migrations()
+	if len(retired) != 1 || retired[0].App != "notes" || len(retired[0].Operations) != 1 {
+		t.Fatal("expected only the declared note model to be retired", retired)
+	}
+	if drop, ok := retired[0].Operations[0].(migrations.DeleteModel); !ok || drop.Model.Name != "note" || drop.BeforeModel != "" {
+		t.Fatal("wrong final model deletion", retired)
+	}
+	request.Definitions = mustLoadDefinitions(t, generated[0], retired[0])
+	if repeated := mustDetect(t, request); !repeated.Empty() {
+		t.Fatal("empty installed app fabricated another migration after its last model was removed")
+	}
+	request.Definitions = mustLoadDefinitions(t, generated...)
+	request.Desired = mustProjectState(t, testSchema("site"))
+	detectError(t, request, CodeUnsupportedChange)
 }

@@ -41,7 +41,7 @@ func TestPostgresCascadePolicyMigrationPreservesRowsConstraintsAndReopens(t *tes
 					}
 				}
 				assertPostgresCascadeTiming(t, backend, namespace, parent, before, false)
-				projected, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
+				projected, err := migrations.RenderMigrationSQL(ctx, loaded, changes[1].Key(), migrations.DirectionForward, NewMigrationSQLRenderer(MigrationSQLConfig{Schema: namespace}))
 				want := 1
 				if one {
 					want++

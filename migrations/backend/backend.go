@@ -21,6 +21,16 @@ type SchemaEditor interface {
 	RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error
 }
 
+// FieldRenameEditor renames one field on the active revision-fenced connection.
+type FieldRenameEditor interface {
+	RenameField(context.Context, ir.Model, ir.Field, ir.Field) error
+}
+
+// ModelRenameEditor changes model and owned table identities on the sealed transaction.
+type ModelRenameEditor interface {
+	RenameModel(context.Context, ir.Model, ir.Model) error
+}
+
 // Recorder maintains the durable app/name key for applied migrations.
 type Recorder interface {
 	RecordApplied(context.Context, string, string) error

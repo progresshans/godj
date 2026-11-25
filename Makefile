@@ -60,7 +60,7 @@ generate-check:
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:
-	go mod download all
+	python3 scripts/ci/download_go_modules.py
 
 api-client-dependencies:
 	@set -euo pipefail; \
@@ -84,9 +84,7 @@ go-test-core:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py core normal
 
 go-test-products: project-command-dependencies
-	@set -euo pipefail; \
-	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
-	go test -timeout=15m -count=1 -p=1 $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py products normal
 
 go-test-operator: project-command-dependencies
 	go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
@@ -100,9 +98,7 @@ go-race-core:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py core race
 
 go-race-products: project-command-dependencies
-	@set -euo pipefail; \
-	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
-	go test -timeout=15m -count=1 -p=1 -race $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py products race
 
 go-race-operator: project-command-dependencies
 	go test -timeout=25m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
@@ -121,10 +117,7 @@ cgo-zero-build-conformance:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py conformance cgo0
 
 cgo-zero-build-products: project-command-dependencies
-	@set -euo pipefail; \
-	export CGO_ENABLED=0; \
-	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
-	go test -timeout=15m -count=1 -p=1 $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py products cgo0
 
 cgo-zero-build-operator: project-command-dependencies
 	CGO_ENABLED=0 go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct

@@ -95,7 +95,8 @@ func startManagedRunserverProcess(input RunServerInvocation, command Command, co
 	process := &managedRunserver{control: control, cancel: cancel, grace: input.runtime.grace, done: make(chan struct{})}
 	go func() {
 		process.result = executeStreamingProcessWithFiles(lifetime, nil, command, nil, input.Stdout, input.Stderr, input.runtime.grace, extraFiles)
-		_ = control.Close()
+		// A child can exit with its final Retired frame still unread. The
+		// supervisor closes this end in stop after the exchange is resolved.
 		close(process.done)
 	}()
 	return process

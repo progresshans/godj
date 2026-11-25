@@ -328,12 +328,7 @@ func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
 	t.Parallel()
 
 	definitions := lifecycleLoadedRelationCreateDefinitions()
-	allCapabilities := backend.MigrationCapabilities{
-		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKey:                  true,
-	}
+	allCapabilities := lifecycleAllRelationCapabilities()
 	tests := []struct {
 		name                      string
 		records                   []backend.AppliedMigration
@@ -507,12 +502,7 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 	t.Parallel()
 
 	definitions := lifecycleLoadedCompleteIntentDefinitions()
-	allCapabilities := backend.MigrationCapabilities{
-		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKey:                  true,
-	}
+	allCapabilities := lifecycleAllRelationCapabilities()
 
 	t.Run("forward", func(t *testing.T) {
 		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(2))
@@ -812,6 +802,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 	t.Run("zero capabilities follow exact history and reject before unified Begin", func(t *testing.T) {
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
+		fake.capabilities = backend.MigrationCapabilities{}
 		_, err := (Executor{Backend: fake}).Migrate(
 			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
@@ -2192,6 +2183,7 @@ func lifecycleLoadedOversizedRelationIntentDefinitions() []Migration {
 
 func lifecycleAllRelationCapabilities() backend.MigrationCapabilities {
 	return backend.MigrationCapabilities{
+		DefinitionHistory:                 true,
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
@@ -2246,8 +2238,13 @@ func lifecycleRecords(keys ...MigrationKey) []backend.AppliedMigration {
 }
 
 func lifecycleTransition(key MigrationKey, kind backend.HistoryTransitionKind) backend.HistoryTransition {
+	var binding string
+	if key == lifecycleAlpha2 && kind == backend.HistoryTransitionApply {
+		// The second fixture migration backfills the published column.
+		binding = fmt.Sprintf("sha256:%064x", 2)
+	}
 	return backend.HistoryTransition{
-		Migration: backend.AppliedMigration{App: key.App, Name: key.Name},
+		Migration: backend.AppliedMigration{App: key.App, Name: key.Name, HistoryDigest: binding},
 		Kind:      kind,
 	}
 }
@@ -2288,7 +2285,7 @@ var _ backend.AtomicBackend = (*lifecycleTestBackend)(nil)
 var _ backend.RevisionFencedBackend = (*lifecycleTestBackend)(nil)
 
 func newLifecycleTestBackend(session backend.RevisionFencedSession) *lifecycleTestBackend {
-	return &lifecycleTestBackend{session: session}
+	return &lifecycleTestBackend{session: session, capabilities: backend.MigrationCapabilities{DefinitionHistory: true}}
 }
 
 func (b *lifecycleTestBackend) BeginMigration(context.Context) (backend.Transaction, error) {

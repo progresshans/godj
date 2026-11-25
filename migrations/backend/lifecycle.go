@@ -16,7 +16,9 @@ const (
 )
 
 // HistoryTransition binds a migration identity to the recorder mutation that
-// a fenced transaction must perform exactly once before it can commit.
+// a fenced transaction must perform exactly once before it can commit. An
+// unapply must carry the exact digest returned by the fenced history read,
+// including the empty value for an unbound row.
 type HistoryTransition struct {
 	Migration AppliedMigration
 	Kind      HistoryTransitionKind

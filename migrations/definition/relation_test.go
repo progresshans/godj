@@ -303,7 +303,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 	fullHistory := []backend.AppliedMigration{
 		{App: "authors", Name: "0001_author"},
 		{App: "blog", Name: "0001_article"},
-		{App: "blog", Name: "0002_article_title"},
+		{App: "blog", Name: "0002_article_title", HistoryDigest: definitionSQLiteTitleBinding},
 	}
 	branchHistory := []backend.AppliedMigration{{App: "authors", Name: "0001_author"}}
 	seededHistory := append(append([]backend.AppliedMigration(nil), fullHistory...), backend.AppliedMigration{
@@ -325,7 +325,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		insertDefinitionSQLiteRestartRows(t, database, true)
 		assertDefinitionSQLiteRestartForeignKeyEnforcement(t, database)
 		snapshot := readDefinitionSQLiteRestartSnapshot(t, path)
-		assertDefinitionSQLiteRestartToken(t, snapshot, 3, "e2dfbdf7719c41466f78cef67396a2961a71745c85d2673a47dc3cbdfaa83507", fullHistory)
+		assertDefinitionSQLiteRestartToken(t, snapshot, 3, "1ba60fe99ce93ded833dda882cbf1ee97085f629398f21a32303897b10fa6dbd", fullHistory)
 		assertDefinitionSQLiteRestartForeignKeys(t, snapshot)
 		return snapshot, loaded.Digest()
 	}()
@@ -401,7 +401,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		insertDefinitionSQLiteRestartRows(t, database, false)
 		assertDefinitionSQLiteRestartForeignKeyEnforcement(t, database)
 		reappliedSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
-		assertDefinitionSQLiteRestartToken(t, reappliedSnapshot, 7, "e2dfbdf7719c41466f78cef67396a2961a71745c85d2673a47dc3cbdfaa83507", fullHistory)
+		assertDefinitionSQLiteRestartToken(t, reappliedSnapshot, 7, "1ba60fe99ce93ded833dda882cbf1ee97085f629398f21a32303897b10fa6dbd", fullHistory)
 		assertDefinitionSQLiteRestartForeignKeys(t, reappliedSnapshot)
 		if reappliedSnapshot.Epoch != initialSnapshot.Epoch ||
 			reappliedSnapshot.Revision <= initialSnapshot.Revision ||
@@ -456,7 +456,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 			Kind:      backend.HistoryTransitionApply,
 		})
 		seededSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
-		assertDefinitionSQLiteRestartToken(t, seededSnapshot, 8, "e9b4004ca1d944d26393a59e4745c56308a281660341b3514e66b7461148049e", seededHistory)
+		assertDefinitionSQLiteRestartToken(t, seededSnapshot, 8, "1ceb579c6858417e9ce028193365be4837f04f700163bbe565a5300351cbf2be", seededHistory)
 		if seededSnapshot.Epoch != beforeAdd.Epoch || seededSnapshot.Revision != beforeAdd.Revision+1 ||
 			!reflect.DeepEqual(seededSnapshot.Schema, beforeAdd.Schema) ||
 			!reflect.DeepEqual(seededSnapshot.Rows, beforeAdd.Rows) ||
@@ -497,7 +497,7 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 	baseHistory := []backend.AppliedMigration{
 		{App: "authors", Name: "0001_author"},
 		{App: "blog", Name: "0001_article"},
-		{App: "blog", Name: "0002_article_title"},
+		{App: "blog", Name: "0002_article_title", HistoryDigest: definitionSQLiteTitleBinding},
 	}
 	addHistory := append(append([]backend.AppliedMigration(nil), baseHistory...), backend.AppliedMigration{
 		App: "blog", Name: "0003_article_reviewer",
@@ -664,7 +664,7 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 	baseHistory := []backend.AppliedMigration{
 		{App: "authors", Name: "0001_author"},
 		{App: "blog", Name: "0001_article"},
-		{App: "blog", Name: "0002_article_title"},
+		{App: "blog", Name: "0002_article_title", HistoryDigest: definitionSQLiteTitleBinding},
 	}
 	addHistory := append(append([]backend.AppliedMigration(nil), baseHistory...), backend.AppliedMigration{
 		App: "blog", Name: "0003_article_reviewer",
@@ -782,6 +782,9 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 		t.Fatalf("rejected required reapply changed remade state:\nremoved=%+v\nafter=%+v", afterRemove, afterRejectedReapply)
 	}
 }
+
+// Independently calculated from the three authored fixture documents and their dependencies.
+const definitionSQLiteTitleBinding = "sha256:630e820de068dddadb30a7be4b332a02051a465e782aeb2c489dafa475518066"
 
 const definitionSQLiteRestartEpochSize = 16
 
@@ -1040,7 +1043,7 @@ func readDefinitionSQLiteRestartSnapshot(t *testing.T, path string) definitionSQ
 	).Scan(&formatVersion, &epoch, &snapshot.Revision, &fingerprint); err != nil {
 		t.Fatalf("read restart revision token: %v", err)
 	}
-	if formatVersion != 1 || len(epoch) != definitionSQLiteRestartEpochSize || len(fingerprint) != sha256.Size {
+	if formatVersion != 2 || len(epoch) != definitionSQLiteRestartEpochSize || len(fingerprint) != sha256.Size {
 		t.Fatalf("restart revision token shape = format:%d epoch:%d fingerprint:%d", formatVersion, len(epoch), len(fingerprint))
 	}
 	copy(snapshot.Epoch[:], epoch)
@@ -1048,16 +1051,25 @@ func readDefinitionSQLiteRestartSnapshot(t *testing.T, path string) definitionSQ
 
 	historyRows, err := tx.QueryContext(
 		ctx,
-		`SELECT "app", "name" FROM "godj_migrations" ORDER BY "app", "name"`,
+		`SELECT "app", "name", typeof("definition_digest"), "definition_digest" FROM "godj_migrations" ORDER BY "app", "name"`,
 	)
 	if err != nil {
 		t.Fatalf("read full restart history: %v", err)
 	}
 	for historyRows.Next() {
 		var migration backend.AppliedMigration
-		if err := historyRows.Scan(&migration.App, &migration.Name); err != nil {
+		var storage string
+		var raw []byte
+		if err := historyRows.Scan(&migration.App, &migration.Name, &storage, &raw); err != nil {
 			_ = historyRows.Close()
 			t.Fatalf("scan full restart history: %v", err)
+		}
+		switch {
+		case storage == "null" && raw == nil:
+		case storage == "blob" && len(raw) == sha256.Size:
+			migration.HistoryDigest = "sha256:" + hex.EncodeToString(raw)
+		default:
+			t.Fatalf("invalid restart definition receipt for %s.%s: storage=%s length=%d", migration.App, migration.Name, storage, len(raw))
 		}
 		snapshot.History = append(snapshot.History, migration)
 	}
@@ -1239,11 +1251,25 @@ func readDefinitionSQLiteRestartForeignKeys(
 
 func definitionSQLiteRestartHistoryFingerprint(records []backend.AppliedMigration) [sha256.Size]byte {
 	hash := sha256.New()
+	bound := false
+	for _, record := range records {
+		if record.HistoryDigest != "" {
+			bound = true
+			break
+		}
+	}
+	if bound {
+		hash.Write([]byte("godj:bound-migration-recorder:v2\x00"))
+	}
 	var length [8]byte
 	binary.BigEndian.PutUint64(length[:], uint64(len(records)))
 	_, _ = hash.Write(length[:])
 	for _, record := range records {
-		for _, value := range []string{record.App, record.Name} {
+		fields := []string{record.App, record.Name}
+		if bound {
+			fields = append(fields, record.HistoryDigest)
+		}
+		for _, value := range fields {
 			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
 			_, _ = hash.Write(length[:])
 			_, _ = hash.Write([]byte(value))

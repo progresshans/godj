@@ -53,10 +53,11 @@ type migrationPinnedConnection interface {
 var _ migrationPinnedConnection = (*sql.Conn)(nil)
 
 type migrationRevisionToken struct {
-	initialized bool
-	epoch       [migrationRevisionEpochSize]byte
-	revision    int64
-	fingerprint [sha256.Size]byte
+	initialized   bool
+	boundRecorder bool
+	epoch         [migrationRevisionEpochSize]byte
+	revision      int64
+	fingerprint   [sha256.Size]byte
 }
 
 type migrationRevisionSnapshot struct {
@@ -273,7 +274,7 @@ func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Co
 			`INSERT INTO "godj_migration_revision" (`+
 				`"singleton", "format_version", "epoch", "revision", "history_fingerprint") `+
 				`VALUES (1, ?, ?, ?, ?)`,
-			migrationRevisionFormatVersion,
+			migrationhistory.RecorderFormat(transaction.successorToken.boundRecorder),
 			transaction.successorToken.epoch[:],
 			transaction.successorToken.revision,
 			transaction.successorToken.fingerprint[:],
@@ -303,15 +304,21 @@ func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Co
 		)
 	}
 
+	if transaction.successorToken.boundRecorder && !transaction.expectedToken.boundRecorder {
+		if _, err := transaction.connection.ExecContext(ctx, addMigrationDigestColumnSQL); err != nil {
+			return classifyRevisionIntegrityIO("add migration history binding column", err)
+		}
+	}
 	result, err := transaction.connection.ExecContext(
 		ctx,
 		`UPDATE "godj_migration_revision" `+
-			`SET "revision" = ?, "history_fingerprint" = ? `+
+			`SET "revision" = ?, "history_fingerprint" = ?, "format_version" = ? `+
 			`WHERE "singleton" = 1 AND "format_version" = ? AND "epoch" = ? `+
 			`AND "revision" = ? AND "history_fingerprint" = ?`,
 		transaction.successorToken.revision,
 		transaction.successorToken.fingerprint[:],
-		migrationRevisionFormatVersion,
+		migrationhistory.RecorderFormat(transaction.successorToken.boundRecorder),
+		migrationhistory.RecorderFormat(transaction.expectedToken.boundRecorder),
 		transaction.expectedToken.epoch[:],
 		transaction.expectedToken.revision,
 		transaction.expectedToken.fingerprint[:],
@@ -401,16 +408,25 @@ func (transaction *sqliteRevisionFencedTransaction) record(
 		}
 		if kind == migrationbackend.HistoryTransitionApply {
 			if transaction.bootstrap {
-				if err := ensureMigrationRecorder(ctx, executor); err != nil {
+				if transaction.successorToken.boundRecorder {
+					if _, err := executor.ExecContext(ctx, boundMigrationRecorderTableSQL); err != nil {
+						return classifyRevisionIntegrityIO("create migration recorder with definition bindings", err)
+					}
+				} else if err := ensureMigrationRecorder(ctx, executor); err != nil {
 					return err
 				}
 			}
-			if _, err := executor.ExecContext(
-				ctx,
-				`INSERT INTO "godj_migrations" ("app", "name") VALUES (?, ?)`,
-				app,
-				name,
-			); err != nil {
+			statement := `INSERT INTO "godj_migrations" ("app", "name") VALUES (?, ?)`
+			args := []any{app, name}
+			if binding := transaction.transition.Migration.HistoryDigest; binding != "" {
+				raw, err := migrationbackend.ParseDefinitionHistoryDigest(binding)
+				if err != nil {
+					return newRevisionFenceError(migrationbackend.RevisionFenceFailureIntegrity, err)
+				}
+				statement = `INSERT INTO "godj_migrations" ("app", "name", "definition_digest") VALUES (?, ?, ?)`
+				args = append(args, raw)
+			}
+			if _, err := executor.ExecContext(ctx, statement, args...); err != nil {
 				return fmt.Errorf("record applied SQLite migration %s.%s: %w", app, name, err)
 			}
 		} else {
@@ -690,15 +706,15 @@ func inspectMigrationRevisionSnapshot(ctx context.Context, executor migrationSQL
 			errors.New("SQLite migration revision metadata exists without a recorder table"),
 		)
 	}
-	if err := validateMigrationRecorderTableShape(ctx, executor); err != nil {
-		return migrationRevisionSnapshot{}, err
-	}
-
-	records, err := readRevisionRecorderHistory(ctx, executor)
+	token, err := readMigrationRevisionToken(ctx, executor)
 	if err != nil {
 		return migrationRevisionSnapshot{}, err
 	}
-	token, err := readMigrationRevisionToken(ctx, executor)
+	if err := validateMigrationRecorderTableShape(ctx, executor, token.boundRecorder); err != nil {
+		return migrationRevisionSnapshot{}, err
+	}
+
+	records, err := readRevisionRecorderHistory(ctx, executor, token.boundRecorder)
 	if err != nil {
 		return migrationRevisionSnapshot{}, err
 	}
@@ -706,7 +722,7 @@ func inspectMigrationRevisionSnapshot(ctx context.Context, executor migrationSQL
 	if fingerprint != token.fingerprint {
 		return migrationRevisionSnapshot{}, newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureIntegrity,
-			errors.New("stored SQLite migration history fingerprint does not match recorder identities"),
+			errors.New("stored SQLite migration history fingerprint does not match recorder contents"),
 		)
 	}
 	return migrationRevisionSnapshot{
@@ -717,7 +733,7 @@ func inspectMigrationRevisionSnapshot(ctx context.Context, executor migrationSQL
 	}, nil
 }
 
-func validateMigrationRecorderTableShape(ctx context.Context, executor migrationSQLExecutor) (resultErr error) {
+func validateMigrationRecorderTableShape(ctx context.Context, executor migrationSQLExecutor, bound bool) (resultErr error) {
 	type expectedColumn struct {
 		name       string
 		declared   string
@@ -727,6 +743,11 @@ func validateMigrationRecorderTableShape(ctx context.Context, executor migration
 	expected := []expectedColumn{
 		{name: "app", declared: "VARCHAR(255)", notNull: 1, primaryKey: 1},
 		{name: "name", declared: "VARCHAR(255)", notNull: 1, primaryKey: 2},
+	}
+	wantDefinition := migrationRecorderTableDefinitionSQL
+	if bound {
+		expected = append(expected, expectedColumn{name: "definition_digest", declared: "BLOB"})
+		wantDefinition = boundMigrationRecorderTableSQL
 	}
 	rows, err := executor.QueryContext(ctx, `PRAGMA table_info("godj_migrations")`)
 	if err != nil {
@@ -796,7 +817,7 @@ func validateMigrationRecorderTableShape(ctx context.Context, executor migration
 	).Scan(&definition); err != nil {
 		return classifyRevisionIntegrityIO("read migration recorder definition", err)
 	}
-	if definition != migrationRecorderTableDefinitionSQL {
+	if definition != wantDefinition {
 		return newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureIntegrity,
 			errors.New("SQLite migration recorder definition does not match the revision-fenced format"),
@@ -912,8 +933,16 @@ func sqliteSchemaObjectType(ctx context.Context, executor migrationSQLExecutor, 
 	return objectType, true, nil
 }
 
-func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecutor) (records []migrationbackend.AppliedMigration, resultErr error) {
-	rows, err := executor.QueryContext(ctx, readAppliedMigrationsSQL)
+func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecutor, bound bool) (records []migrationbackend.AppliedMigration, resultErr error) {
+	statement := readAppliedMigrationsSQL
+	if bound {
+		// SQLite substr on a zero-length BLOB returns NULL. Preserve the
+		// distinction between an old NULL and every invalid stored value.
+		statement = `SELECT "app", "name", CASE WHEN "definition_digest" IS NULL THEN NULL ` +
+			`WHEN typeof("definition_digest") = 'blob' AND length("definition_digest") = 32 THEN "definition_digest" ELSE X'00' END ` +
+			`FROM "main"."godj_migrations" ORDER BY "app", "name"`
+	}
+	rows, err := executor.QueryContext(ctx, statement+" LIMIT ?", migrationRevisionHistoryLimit+1)
 	if err != nil {
 		return nil, classifyRevisionIntegrityIO("read revision-fenced migration recorder", err)
 	}
@@ -934,9 +963,15 @@ func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecu
 			)
 		}
 		var record migrationbackend.AppliedMigration
-		if err := rows.Scan(&record.App, &record.Name); err != nil {
+		var binding migrationhistory.StoredDigest
+		targets := []any{&record.App, &record.Name}
+		if bound {
+			targets = append(targets, &binding)
+		}
+		if err := rows.Scan(targets...); err != nil {
 			return nil, classifyRevisionIntegrityIO("scan revision-fenced migration recorder", err)
 		}
+		record.HistoryDigest = string(binding)
 		if record.App == "" || record.Name == "" {
 			return nil, newRevisionFenceError(
 				migrationbackend.RevisionFenceFailureIntegrity,
@@ -950,7 +985,7 @@ func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecu
 	}
 	migrationhistory.Sort(records)
 	for index := 1; index < len(records); index++ {
-		if records[index] == records[index-1] {
+		if migrationhistory.Compare(records[index], records[index-1]) == 0 {
 			return nil, newRevisionFenceError(
 				migrationbackend.RevisionFenceFailureIntegrity,
 				fmt.Errorf("SQLite migration recorder duplicates %s.%s", records[index].App, records[index].Name),
@@ -1006,7 +1041,7 @@ func readMigrationRevisionToken(ctx context.Context, executor migrationSQLExecut
 				fmt.Errorf("SQLite migration revision singleton has type=%q value=%d", singletonType, singleton),
 			)
 		}
-		if formatType != "integer" || formatVersion != migrationRevisionFormatVersion {
+		if formatType != "integer" || (formatVersion != migrationRevisionFormatVersion && formatVersion != migrationhistory.BoundRecorderFormat) {
 			return migrationRevisionToken{}, newRevisionFenceError(
 				migrationbackend.RevisionFenceFailureIntegrity,
 				fmt.Errorf("SQLite migration revision format has type=%q value=%d", formatType, formatVersion),
@@ -1031,6 +1066,7 @@ func readMigrationRevisionToken(ctx context.Context, executor migrationSQLExecut
 			)
 		}
 		token.initialized = true
+		token.boundRecorder = formatVersion == migrationhistory.BoundRecorderFormat
 		copy(token.epoch[:], epoch)
 		token.revision = revision
 		copy(token.fingerprint[:], fingerprint)
@@ -1051,12 +1087,17 @@ func migrationHistorySuccessor(
 	records []migrationbackend.AppliedMigration,
 	transition migrationbackend.HistoryTransition,
 ) ([]migrationbackend.AppliedMigration, error) {
+	if digest := transition.Migration.HistoryDigest; digest != "" {
+		if _, err := migrationbackend.ParseDefinitionHistoryDigest(digest); err != nil {
+			return nil, newRevisionFenceError(migrationbackend.RevisionFenceFailureIntegrity, err)
+		}
+	}
 	successor := migrationhistory.Clone(records)
 	index := sort.Search(len(successor), func(index int) bool {
 		return migrationhistory.Compare(successor[index], transition.Migration) >= 0
 	})
 	if transition.Kind == migrationbackend.HistoryTransitionApply {
-		if index < len(successor) && successor[index] == transition.Migration {
+		if index < len(successor) && migrationhistory.Compare(successor[index], transition.Migration) == 0 {
 			return nil, newRevisionFenceError(
 				migrationbackend.RevisionFenceFailureIntegrity,
 				fmt.Errorf("migration %s.%s is already applied", transition.Migration.App, transition.Migration.Name),
@@ -1067,17 +1108,21 @@ func migrationHistorySuccessor(
 		successor[index] = transition.Migration
 		return successor, nil
 	}
-	if index >= len(successor) || successor[index] != transition.Migration {
+	if index >= len(successor) || migrationhistory.Compare(successor[index], transition.Migration) != 0 {
 		return nil, newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureIntegrity,
 			fmt.Errorf("migration %s.%s is not applied", transition.Migration.App, transition.Migration.Name),
 		)
+	}
+	if successor[index].HistoryDigest != transition.Migration.HistoryDigest {
+		return nil, newRevisionFenceError(migrationbackend.RevisionFenceFailureIntegrity, errors.New("unapply does not match the recorded migration definition digest"))
 	}
 	return append(successor[:index:index], successor[index+1:]...), nil
 }
 
 func equalMigrationRevisionToken(left, right migrationRevisionToken) bool {
 	return left.initialized == right.initialized &&
+		left.boundRecorder == right.boundRecorder &&
 		left.epoch == right.epoch &&
 		left.revision == right.revision &&
 		left.fingerprint == right.fingerprint

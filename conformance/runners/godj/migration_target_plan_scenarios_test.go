@@ -421,9 +421,9 @@ func migrationTargetPlanAssertOwnership(t *testing.T, observation protocol.Obser
 	t.Helper()
 	result := *observation.Result
 	for field, want := range map[string]string{
-		"current_private_protocol_version": "2",
+		"current_private_protocol_version": "3",
 		"identity_normalization":           "none",
-		"private_argument":                 "__godj_project_migrate_runner_v2",
+		"private_argument":                 "__godj_project_migrate_runner_v3",
 	} {
 		if got := migrationTargetPlanTestText(t, result, field); got != want {
 			t.Fatalf("MIG-128 %s = %q, want %q", field, got, want)

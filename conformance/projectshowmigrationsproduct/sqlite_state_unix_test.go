@@ -105,7 +105,7 @@ func externalStatusInstallInconsistentHistory(t *testing.T, path string) {
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		t.Fatal(err)
 	}
-	fingerprint := dbstate.FingerprintHistory(history)
+	_, fingerprint := externalStatusRevisionFor(history)
 	update, err := transaction.ExecContext(ctx, `UPDATE "godj_migration_revision" SET "history_fingerprint" = ? WHERE "singleton" = 1`, fingerprint[:])
 	if err != nil {
 		t.Fatal(err)
@@ -125,16 +125,30 @@ func externalStatusInstallInconsistentHistory(t *testing.T, path string) {
 	dbstate.AssertNoSQLiteSidecars(t, path)
 }
 
+// The golden is SHA-256 over the independently encoded author, article and
+// defaulted publish definitions in fullCatalog, linked in dependency order.
+func externalStatusRevisionFor(history []dbstate.HistoryRow) (int64, [sha256.Size]byte) {
+	publish := dbstate.HistoryRow{App: "blog", Name: "0002_publish"}
+	for _, row := range history {
+		if row == publish {
+			return 2, dbstate.FingerprintBoundHistory(history, map[dbstate.HistoryRow]string{
+				publish: "sha256:3f76c6b5739b84e70232f26f7aa6238a22ae97421354e1436d474ce6f1491f3e",
+			})
+		}
+	}
+	return 1, dbstate.FingerprintHistory(history)
+}
+
 func externalStatusAssertExpectedHistory(t *testing.T, snapshot dbstate.Snapshot, want ...dbstate.HistoryRow) {
 	t.Helper()
 	if !reflect.DeepEqual(snapshot.History, want) {
 		t.Fatalf("SQLite migration history = %+v, want %+v", snapshot.History, want)
 	}
-	if !snapshot.Revision.Present || snapshot.Revision.Format != 1 || snapshot.Revision.Singleton != 1 ||
+	format, wantFingerprint := externalStatusRevisionFor(want)
+	if !snapshot.Revision.Present || snapshot.Revision.Format != format || snapshot.Revision.Singleton != 1 ||
 		len(snapshot.Revision.Epoch) != 32 || len(snapshot.Revision.Fingerprint) != sha256.Size*2 {
 		t.Fatalf("SQLite revision row is not current and bounded: %+v", snapshot.Revision)
 	}
-	wantFingerprint := dbstate.FingerprintHistory(want)
 	if snapshot.Revision.Fingerprint != hex.EncodeToString(wantFingerprint[:]) {
 		t.Fatalf("SQLite revision fingerprint = %q, want %x", snapshot.Revision.Fingerprint, wantFingerprint)
 	}

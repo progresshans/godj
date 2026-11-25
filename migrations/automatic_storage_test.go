@@ -7,6 +7,27 @@ import (
 	"testing"
 )
 
+func TestDeletingModelOrdersReadsOfItsAutomaticStorage(t *testing.T) {
+	history, models, field := manytomanytest.AutomaticHistory(t, false, false)
+	initial, link := history[0], history[1]
+	owner := models[0].Clone()
+	owner.ManyToMany = []ir.ManyToManyField{field}
+	deletion := migrations.Migration{App: "manyhistory", Name: "0003_drop", Dependencies: []migrations.MigrationKey{link.Key()}, Operations: []migrations.Operation{
+		migrations.DeleteModel{AppLabel: "manyhistory", Model: owner, BeforeModel: "label"},
+	}}
+	audit := migrations.Migration{App: "audit", Name: "0001_read", Dependencies: []migrations.MigrationKey{link.Key()}, Operations: []migrations.Operation{
+		migrations.RunData{Key: migrations.DataKey{App: "audit", Name: "read", Version: 1}, Forward: migrations.DataNoop, Reverse: migrations.DataNoop,
+			Models: []ir.ModelIdentity{{AppLabel: "manyhistory", ModelName: "owner_labels"}}},
+	}}
+	if _, err := migrations.NewStateReconstructor(initial, link, audit, deletion); err == nil {
+		t.Fatal("unordered read of an intermediary survived deletion of its owner")
+	}
+	deletion.Dependencies = append(deletion.Dependencies, audit.Key())
+	if _, err := migrations.NewStateReconstructor(initial, link, audit, deletion); err != nil {
+		t.Fatal("ordered read of the original intermediary", err)
+	}
+}
+
 func TestAutomaticManyToManyHistoricalAliasesAndRemovalAuthority(t *testing.T) {
 	for _, mode := range []string{"alias_removed", "alias_retained", "fk_retained", "future_storage", "no_ancestry", "recreated"} {
 		t.Run(mode, func(t *testing.T) {

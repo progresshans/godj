@@ -24,13 +24,13 @@ func TestPostgresMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 		{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: before},
 		{OperationIndex: 1, Kind: migrationbackend.MigrationAddField, Before: before, After: after},
 	}}
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0001_post", Intent: intent,
 	}
 	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"})
-	statements, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+	statements, err := renderer.RenderMigrationSQL(context.Background(), request)
 	if err != nil {
-		t.Fatalf("RenderForwardMigrationSQL() error = %v", err)
+		t.Fatalf("RenderMigrationSQL() error = %v", err)
 	}
 	create, err := compilePostgresMigrationCreateModel("product_schema", before, nil)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestPostgresMigrationSQLRendererProjectsBackfillAndDefaultRemoval(t *testin
 	after.Fields = append(after.Fields, ir.Field{
 		Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: logicalDefault,
 	})
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_featured",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
@@ -91,7 +91,7 @@ func TestPostgresMigrationSQLRendererProjectsBackfillAndDefaultRemoval(t *testin
 			After:          after,
 		}}},
 	}
-	statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(context.Background(), request)
+	statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderMigrationSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestPostgresMigrationSQLRendererPreservesLoaderIdentityAuthority(t *testing
 		Kind:           migrationbackend.MigrationCreateModel,
 		After:          model,
 	}}}
-	requests := []migrationbackend.ForwardMigrationSQLRequest{
+	requests := []migrationbackend.MigrationSQLRequest{
 		{App: strings.Repeat("a", postgresMigrationRecorderMaxChars+1), Name: "0001_author", Intent: intent},
 		{App: "authors", Name: strings.Repeat("n", postgresMigrationRecorderMaxChars+1), Intent: intent},
 		{App: "authors", Name: strings.Repeat("😀", postgresMigrationRecorderMaxChars+1), Intent: intent},
@@ -121,7 +121,7 @@ func TestPostgresMigrationSQLRendererPreservesLoaderIdentityAuthority(t *testing
 	}
 	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"})
 	for index, request := range requests {
-		statements, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+		statements, err := renderer.RenderMigrationSQL(context.Background(), request)
 		if err != nil || len(statements) != 1 {
 			t.Fatalf("case %d loader-valid identity render = %#v, %v; want one statement", index, statements, err)
 		}
@@ -140,9 +140,9 @@ func TestPostgresMigrationSQLRendererInvalidConfigIsClosedAndRedacted(t *testing
 
 	raw := "Bad Schema secret-value"
 	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: raw})
-	_, err := renderer.RenderForwardMigrationSQL(
+	_, err := renderer.RenderMigrationSQL(
 		context.Background(),
-		migrationbackend.ForwardMigrationSQLRequest{
+		migrationbackend.MigrationSQLRequest{
 			App: "blog", Name: "0001_noop",
 			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}},
 		},
@@ -161,16 +161,16 @@ func TestPostgresMigrationSQLRendererRejectsUnsupportedOperation(t *testing.T) {
 		kind      migrationbackend.MigrationOperationKind
 		integrity bool
 	}{
-		{name: "delete model", kind: migrationbackend.MigrationDeleteModel},
+		{name: "missing kind", kind: 0},
 		{name: "remove field without after shape", kind: migrationbackend.MigrationRemoveField, integrity: true},
 		{name: "unknown", kind: migrationbackend.MigrationOperationKind(255)},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(
+			statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderMigrationSQL(
 				context.Background(),
-				migrationbackend.ForwardMigrationSQLRequest{
+				migrationbackend.MigrationSQLRequest{
 					App: "authors", Name: "0002_unsupported",
 					Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 						OperationIndex: 0,
@@ -194,7 +194,7 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 	after := postgresMigrationTestPostModel(true)
 	field := after.Fields[len(after.Fields)-1]
 	target := postgresMigrationTestTarget(field, author)
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_author",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
@@ -205,7 +205,7 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 		}}},
 	}
 	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"})
-	want, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+	want, err := renderer.RenderMigrationSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			got, renderErr := renderer.RenderForwardMigrationSQL(context.Background(), request)
+			got, renderErr := renderer.RenderMigrationSQL(context.Background(), request)
 			results <- got
 			errors <- renderErr
 		}()
@@ -245,7 +245,7 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 		}
 	}
 	want[0][0] = "mutated"
-	again, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
+	again, err := renderer.RenderMigrationSQL(context.Background(), request)
 	if err != nil || again[0][0] == "mutated" {
 		t.Fatalf("repeat render retained returned-slice mutation: %#v, %v", again, err)
 	}
@@ -256,14 +256,14 @@ func TestPostgresMigrationSQLRendererRejectsOnlyLoaderInvalidIdentity(t *testing
 
 	renderer := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"})
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}}
-	tests := []migrationbackend.ForwardMigrationSQLRequest{
+	tests := []migrationbackend.MigrationSQLRequest{
 		{App: "", Name: "0001", Intent: intent},
 		{App: "Blog", Name: "0001", Intent: intent},
 		{App: "blog", Name: "", Intent: intent},
 		{App: "blog", Name: string([]byte{0xff}), Intent: intent},
 	}
 	for index, request := range tests {
-		if statements, err := renderer.RenderForwardMigrationSQL(context.Background(), request); err == nil || statements != nil {
+		if statements, err := renderer.RenderMigrationSQL(context.Background(), request); err == nil || statements != nil {
 			t.Fatalf("invalid identity case %d = %#v, %v; want nil/error", index, statements, err)
 		}
 	}
@@ -277,7 +277,7 @@ func TestPostgresMigrationSQLRendererChecksCancellationAtBoundedCheckpoints(t *t
 	withSummary.Fields = append(withSummary.Fields, ir.Field{
 		Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, MaxLength: 120, Nullable: true,
 	})
-	request := migrationbackend.ForwardMigrationSQLRequest{
+	request := migrationbackend.MigrationSQLRequest{
 		App: "blog", Name: "0002_summary",
 		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 			{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: base},
@@ -298,7 +298,7 @@ func TestPostgresMigrationSQLRendererChecksCancellationAtBoundedCheckpoints(t *t
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := newPostgresMigrationSQLCheckpointContext(test.cancelAt)
-			statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(ctx, request)
+			statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderMigrationSQL(ctx, request)
 			if statements != nil || !errors.Is(err, context.Canceled) {
 				t.Fatalf("render = %#v, %v; want nil/context.Canceled", statements, err)
 			}

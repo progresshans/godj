@@ -13,11 +13,11 @@ func TestUniqueFieldChangesRemainAnExactIndependentFacet(t *testing.T) {
 		}
 	}
 	for name, mutate := range map[string]func(*Field){
-		"choices":  func(f *Field) { f.Choices[0].Label = "Other" },
-		"nullable": func(f *Field) { f.Nullable = false },
-		"default":  func(f *Field) { f.Default.String = "other" },
-		"column":   func(f *Field) { f.Column = "renamed" },
-		"kind":     func(f *Field) { f.Kind = FieldText; f.MaxLength = 0 },
+		"choices": func(f *Field) { f.Choices[0].Label = "Other" },
+		"index":   func(f *Field) { f.DBIndex = true },
+		"default": func(f *Field) { f.Default.String = "other" },
+		"column":  func(f *Field) { f.Column = "renamed" },
+		"kind":    func(f *Field) { f.Kind = FieldText; f.MaxLength = 0 },
 	} {
 		t.Run(name, func(t *testing.T) {
 			mixed := after.Clone()

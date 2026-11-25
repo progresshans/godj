@@ -61,7 +61,7 @@ surface로 만들면 distributed authorization과 retention 정책까지 이번 
 7. Named applied target은 target과 direct cross-app branch를 유지하고 same-app descendants 및 그 descendants에 의존하는
    applied cross-app dependents를 dependency-safe reverse order로 처리합니다. App-zero는 해당 app roots와 applied
    dependents를 되돌립니다.
-8. Private migrate wire는 current-only v2와 `__godj_project_migrate_runner_v2`로 교체합니다. v1 reader/argument를 남기지 않습니다.
+8. M1에서 private migrate wire와 runner 인자를 v3로 갱신했다. 비가역 역계획 행에 `irreversible_operation`을 담고 프로젝트와 전역 CLI가 같은 버전을 사용한다. [데이터 작업 의미](../BACKEND_MATRIX.md#적용-당시-모델의-데이터-변환)
 9. Execute response의 existing summary shape와 public JSON은 보존하고, plan response는 bounded exact `{plan:[...]}` JSON입니다.
 10. Reverse step마다 기존 fenced transaction/recorder transition을 사용합니다. Middle failure는 committed prefix만 남기며
     commit outcome unknown은 자동 retry하지 않습니다.

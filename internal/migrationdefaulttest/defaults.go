@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
@@ -50,7 +51,7 @@ type scalarCase struct {
 	value query.Value
 }
 
-//go:embed testdata/defaults-django61-*.json
+//go:embed testdata/defaults-django61-*.json testdata/blank-tightening-django61.json
 var references embed.FS
 
 func assertReference(t *testing.T, fixture Fixture, name string, actual map[string]any) {
@@ -148,8 +149,13 @@ func definitions(t *testing.T, field schema.Field) (migrations.LoadedDefinitionS
 		migrations.CreateModel{AppLabel: normalized.AppLabel, Model: parent}, migrations.CreateModel{AppLabel: normalized.AppLabel, Model: child},
 	}}
 	addition := migrations.Migration{App: normalized.AppLabel, Name: "0002_default", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{migrations.AddField{AppLabel: normalized.AppLabel, ModelName: "parent", Field: added}}}
+	return loadChanges(t, initial, addition), initial.Key(), addition.Key()
+}
+
+func loadChanges(t *testing.T, changes ...migrations.Migration) migrations.LoadedDefinitionSet {
+	t.Helper()
 	sources := []definition.Source{}
-	for _, migration := range []migrations.Migration{initial, addition} {
+	for _, migration := range changes {
 		encoded, err := definition.Encode(definition.Producer{Name: "default-fixture", Version: "1"}, migration)
 		if err != nil {
 			t.Fatal(err)
@@ -160,7 +166,7 @@ func definitions(t *testing.T, field schema.Field) (migrations.LoadedDefinitionS
 	if err != nil {
 		t.Fatal(err)
 	}
-	return loaded, initial.Key(), addition.Key()
+	return loaded
 }
 
 func insert(t *testing.T, f Fixture, table string, assignments ...query.Assignment) int64 {
@@ -172,12 +178,24 @@ func insert(t *testing.T, f Fixture, table string, assignments ...query.Assignme
 	return id
 }
 
-func snapshot(t *testing.T, f Fixture, table string) []string {
+// A schema observation must describe all current columns even when the same
+// connection has already read this table before a migration changed its shape.
+func (f Fixture) tableRows(t *testing.T, table, orderBy string) *sql.Rows {
 	t.Helper()
-	rows, err := f.SQL.QueryContext(t.Context(), "SELECT * FROM "+f.table(table)+" ORDER BY 1")
+	var options []any
+	if !f.SQLite {
+		options = []any{pgx.QueryExecModeDescribeExec}
+	}
+	rows, err := f.SQL.QueryContext(t.Context(), "SELECT * FROM "+f.table(table)+" ORDER BY "+orderBy, options...)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return rows
+}
+
+func snapshot(t *testing.T, f Fixture, table string) []string {
+	t.Helper()
+	rows := f.tableRows(t, table, "1")
 	defer rows.Close()
 	columns, err := rows.Columns()
 	if err != nil {
@@ -223,7 +241,7 @@ func Run(t *testing.T, open func(*testing.T) Fixture) {
 				insert(t, f, "default_fixture_child", query.NewAssignment(query.NewFieldRef("parent", "parent_id", query.FieldInteger, false), query.Integer(id)))
 			}
 			links := snapshot(t, f, "default_fixture_child")
-			if statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, latest, f.Renderer); err != nil || len(statements) == 0 {
+			if statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, latest, migrations.DirectionForward, f.Renderer); err != nil || len(statements) == 0 {
 				t.Fatal("missing SQL projection", err)
 			}
 			matched, defaults := 0, 0

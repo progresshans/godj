@@ -24,6 +24,11 @@ const migrationRecorderTableDefinitionSQL = `CREATE TABLE "godj_migrations" (` +
 	`"name" VARCHAR(255) NOT NULL, ` +
 	`PRIMARY KEY ("app", "name"))`
 
+const addMigrationDigestColumnSQL = `ALTER TABLE "main"."godj_migrations" ADD COLUMN "definition_digest" BLOB`
+
+const boundMigrationRecorderTableSQL = `CREATE TABLE "godj_migrations" (` +
+	`"app" VARCHAR(255) NOT NULL, "name" VARCHAR(255) NOT NULL, "definition_digest" BLOB, PRIMARY KEY ("app", "name"))`
+
 var _ migrationbackend.AtomicBackend = (*Backend)(nil)
 var _ migrationbackend.Transaction = (*migrationTransaction)(nil)
 

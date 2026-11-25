@@ -18,6 +18,10 @@ func cloneField(field ir.Field) ir.Field {
 // snapshots contain only recognized value forms.
 func operationValue(operation migrations.Operation) migrations.Operation {
 	switch value := operation.(type) {
+	case *migrations.RunData:
+		if value != nil {
+			return *value
+		}
 	case *migrations.AddManyToMany:
 		if value != nil {
 			return *value
@@ -31,6 +35,14 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 			return *value
 		}
 	case *migrations.AlterManyToMany:
+		if value != nil {
+			return *value
+		}
+	case *migrations.RenameModel:
+		if value != nil {
+			return *value
+		}
+	case *migrations.DeleteModel:
 		if value != nil {
 			return *value
 		}
@@ -54,6 +66,10 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 		if value != nil {
 			return *value
 		}
+	case *migrations.RenameField:
+		if value != nil {
+			return *value
+		}
 	case *migrations.AlterField:
 		if value != nil {
 			return *value
@@ -64,6 +80,9 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 
 func cloneOperation(operation migrations.Operation) migrations.Operation {
 	switch value := operationValue(operation).(type) {
+	case migrations.RunData:
+		value.Models = append([]ir.ModelIdentity(nil), value.Models...)
+		return value
 	case migrations.AddManyToMany:
 		value.Field = value.Field.Clone()
 		return value
@@ -75,6 +94,12 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		return value
 	case migrations.AlterManyToMany:
 		value.Before, value.After = value.Before.Clone(), value.After.Clone()
+		return value
+	case migrations.RenameModel:
+		value.Before, value.After = value.Before.Clone(), value.After.Clone()
+		return value
+	case migrations.DeleteModel:
+		value.Model = value.Model.Clone()
 		return value
 	case migrations.CreateModel:
 		value.Model = value.Model.Clone()
@@ -90,6 +115,9 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		return value
 	case migrations.RemoveConstraint:
 		value.Constraint = value.Constraint.Clone()
+		return value
+	case migrations.RenameField:
+		value.Before, value.After = value.Before.Clone(), value.After.Clone()
 		return value
 	case migrations.AlterField:
 		value.Before, value.After = value.Before.Clone(), value.After.Clone()

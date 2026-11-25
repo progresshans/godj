@@ -293,7 +293,7 @@ func TestNamedConstraintSQLCannotBeEmptyOrLoseOperationIdentity(t *testing.T) {
 	for _, migration := range history[1:] {
 		for _, group := range [][]string{{"physical constraint statement"}, nil, {""}} {
 			renderer := &migrationSQLRendererSpy{groups: [][]string{group}}
-			statements, err := RenderMigrationSQL(t.Context(), loaded, migration.Key(), renderer)
+			statements, err := RenderMigrationSQL(t.Context(), loaded, migration.Key(), DirectionForward, renderer)
 			if renderer.calls != 1 || len(renderer.request.Intent.Operations) != 1 {
 				t.Fatal("renderer missed constraint operation", err)
 			}

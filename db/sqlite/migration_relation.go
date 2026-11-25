@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/internal/migrationgraph"
 	"math"
 	"reflect"
 	"sort"
@@ -47,6 +48,12 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldChoices:                 true,
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
+		AlterFieldNullability:             true,
+		DefinitionHistory:                 true,
+		HistoricalData:                    true,
+		RenameField:                       true,
+		DeleteModel:                       true,
+		RenameModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
@@ -165,6 +172,9 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	if err != nil {
 		return nil, err
 	}
+	if err := migrationbackend.ValidateRequiredHistory(seal.intent, transition); err != nil {
+		return nil, relationIntentIntegrity("invalid required operation history: %v", err)
+	}
 
 	session.mu.Lock()
 	defer session.mu.Unlock()
@@ -185,6 +195,7 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	}
 	successorToken := session.token
 	successorToken.initialized = true
+	successorToken.boundRecorder = session.token.boundRecorder || transition.Migration.HistoryDigest != ""
 	successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 	if session.token.initialized {
 		if session.token.revision == math.MaxInt64 {
@@ -634,26 +645,22 @@ func validateSQLiteRelationIntent(
 	graphPlan migrationbackend.MigrationGraphPlan,
 ) error {
 	// SQLite folds identifier spelling. The shared historical graph keeps
-	// semantic app/model identities exact; this backend additionally rejects
-	// physical table/column aliases and reverse-name collisions.
-	tableOwners := make(map[string]ir.ModelIdentity)
+	// reverse field names bound to their owner at each operation boundary.
+	// This backend additionally checks physical table, column and index names.
+	initial := graphPlan.InitialModels()
+	if err := validateSQLiteTableOwnership(transition.Migration.App, initial, graphPlan.StorageChanges()); err != nil {
+		return err
+	}
+	tableNames := make(map[string]struct{})
 	indexOwners := make(map[string]sqliteIndexOwner)
 	modelNames := make(map[struct{ app, name string }]ir.ModelIdentity)
-	reverseOwners := make(map[ir.ModelIdentity]map[string]struct {
-		source ir.ModelIdentity
-		field  string
-	})
 	checkModel := func(snapshot migrationbackend.MigrationModel) error {
 		identity := snapshot.Identity()
 		model := snapshot.Model
 		if relationReservedTable(model.DBTable) {
 			return relationIntentIntegrity("relation model %s.%s uses a reserved SQLite table", identity.AppLabel, identity.ModelName)
 		}
-		tableKey := sqliteRelationIdentifierKey(model.DBTable)
-		if owner, exists := tableOwners[tableKey]; exists && owner != identity {
-			return relationIntentIntegrity("different relation models share SQLite table %q", model.DBTable)
-		}
-		tableOwners[tableKey] = identity
+		tableNames[sqliteRelationIdentifierKey(model.DBTable)] = struct{}{}
 		modelKey := struct{ app, name string }{identity.AppLabel, sqliteRelationIdentifierKey(identity.ModelName)}
 		if owner, exists := modelNames[modelKey]; exists && owner != identity {
 			return relationIntentIntegrity("relation model names collide under SQLite identifier folding")
@@ -677,39 +684,16 @@ func validateSQLiteRelationIntent(
 				return relationIntentIntegrity("relation model %q repeats SQLite column %q", model.Name, field.Column)
 			}
 			columns[column] = true
-			if field.Relation == nil || field.Relation.Reverse.Name == "" {
-				continue
-			}
-			owners := reverseOwners[field.Relation.Target]
-			if owners == nil {
-				owners = make(map[string]struct {
-					source ir.ModelIdentity
-					field  string
-				})
-				reverseOwners[field.Relation.Target] = owners
-			}
-			name := sqliteRelationIdentifierKey(field.Relation.Reverse.Name)
-			owner := struct {
-				source ir.ModelIdentity
-				field  string
-			}{identity, field.Name}
-			if previous, exists := owners[name]; exists && previous != owner {
-				return relationIntentIntegrity("relation reverse name %q has multiple owners", field.Relation.Reverse.Name)
-			}
-			owners[name] = owner
 		}
 		return nil
 	}
 	for position, operation := range intent.Operations {
-		// Field additions and removals can occur in either recorder direction:
-		// a reversed RemoveField adds its historical column back. Exact field
-		// deltas and operation ordering remain checked below and in the seal.
-		if transition.Kind == migrationbackend.HistoryTransitionApply && operation.Kind == migrationbackend.MigrationDeleteModel ||
-			transition.Kind == migrationbackend.HistoryTransitionUnapply && operation.Kind == migrationbackend.MigrationCreateModel {
-			return relationIntentIntegrity("relation operation %d kind does not match history transition", operation.OperationIndex)
-		}
+		// Both model and field removals restore storage on unapply. Check
+		// the physical delta in the order authorized by the sealed intent.
 		before, after := operation.Before, operation.After
 		switch operation.Kind {
+		case migrationbackend.MigrationRunData:
+			// ResolveMigrationGraphPlan validated the full row-access scope.
 		case migrationbackend.MigrationCreateModel:
 			if !reflect.DeepEqual(before, ir.Model{}) {
 				return relationIntentIntegrity("CreateModel has a non-zero Before model")
@@ -746,6 +730,30 @@ func validateSQLiteRelationIntent(
 			if _, err := operation.ChangedConstraint(); err != nil {
 				return relationIntentIntegrity("invalid named constraint delta: %v", err)
 			}
+		case migrationbackend.MigrationRenameModel:
+			if err := validateExactNormalizedRelationModel(before); err != nil {
+				return err
+			}
+			if err := validateExactNormalizedRelationModel(after); err != nil {
+				return err
+			}
+			if _, err := migrationgraph.NewModelRename(transition.Migration.App, before, after); err != nil {
+				return relationIntentIntegrity("invalid model rename: %v", err)
+			}
+		case migrationbackend.MigrationRenameField:
+			if err := validateExactNormalizedRelationModel(before); err != nil {
+				return err
+			}
+			if err := validateExactNormalizedRelationModel(after); err != nil {
+				return err
+			}
+			old, next, err := operation.RenamedField(transition.Migration.App)
+			if err != nil {
+				return relationIntentIntegrity("invalid RenameField delta: %v", err)
+			}
+			if _, err := compileSQLiteFieldRename(before, old, next); err != nil {
+				return relationIntentUnsupported("cannot compile field rename: %v", err)
+			}
 		case migrationbackend.MigrationAlterField:
 			if err := validateSQLiteFieldDelta(before, after); err != nil {
 				return relationIntentIntegrity("AlterField operation %d has an invalid field delta: %v", operation.OperationIndex, err)
@@ -766,20 +774,48 @@ func validateSQLiteRelationIntent(
 			return err
 		}
 	}
-	for _, snapshot := range append(graphPlan.InitialModels(), graphPlan.FinalModels()...) {
+	for _, snapshot := range append(initial, graphPlan.FinalModels()...) {
 		if err := checkModel(snapshot); err != nil {
 			return err
 		}
-		owners := reverseOwners[snapshot.Identity()]
-		for _, field := range snapshot.Model.Fields {
-			if _, exists := owners[sqliteRelationIdentifierKey(field.Name)]; exists {
-				return relationIntentIntegrity("field %s.%s.%s collides with a relation reverse name", snapshot.AppLabel, snapshot.Model.Name, field.Name)
-			}
-		}
 	}
 	for name := range indexOwners {
-		if _, exists := tableOwners[name]; exists {
+		if _, exists := tableNames[name]; exists {
 			return relationIntentIntegrity("unique index name collides with a declared SQLite table")
+		}
+	}
+	return nil
+}
+
+// A fixed table can acquire a new logical owner in a sealed RenameModel.
+// Check each storage change in execution order so transient owners count too.
+func validateSQLiteTableOwnership(app string, initial []migrationbackend.MigrationModel, changes []migrationgraph.ModelChange) error {
+	owners := make(map[string]ir.ModelIdentity, len(initial))
+	claim := func(id ir.ModelIdentity, table string) error {
+		key := sqliteRelationIdentifierKey(table)
+		if _, exists := owners[key]; exists {
+			return relationIntentIntegrity("different relation models share SQLite table %q", table)
+		}
+		owners[key] = id
+		return nil
+	}
+	for _, model := range initial {
+		if err := claim(model.Identity(), model.Model.DBTable); err != nil {
+			return err
+		}
+	}
+	for _, change := range changes {
+		if before := change.Before; before.Name != "" {
+			key := sqliteRelationIdentifierKey(before.DBTable)
+			if owners[key] != (ir.ModelIdentity{AppLabel: app, ModelName: before.Name}) {
+				return relationIntentIntegrity("relation model %s.%s does not own SQLite table %q", app, before.Name, before.DBTable)
+			}
+			delete(owners, key)
+		}
+		if after := change.After; after.Name != "" {
+			if err := claim(ir.ModelIdentity{AppLabel: app, ModelName: after.Name}, after.DBTable); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -800,7 +836,7 @@ func validateSQLiteRelationStaticOperation(
 		if _, err := compileSQLiteNamedUniqueAlter(before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint); err != nil {
 			return relationIntentUnsupported("named constraint cannot compile safely: %v", err)
 		}
-	case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany:
+	case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany, migrationbackend.MigrationRenameModel:
 		if _, err := compileSQLiteStorageOperation(app, operation); err != nil {
 			return relationIntentUnsupported("owned storage operation %d cannot compile safely: %v", operation.OperationIndex, err)
 		}
@@ -1499,6 +1535,13 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 	}
 	for index := range seal.intent.Operations {
 		operation := seal.intent.Operations[index]
+		if operation.Kind == migrationbackend.MigrationRunData {
+			for _, scoped := range operation.RelatedModels {
+				key := sqliteRelationIdentifierKey(scoped.Model.DBTable)
+				touched[key], relevant[key], mutationHazards[key] = struct{}{}, struct{}{}, struct{}{}
+			}
+			continue
+		}
 		model := operation.After
 		if reflect.DeepEqual(model, ir.Model{}) {
 			model = operation.Before
@@ -1506,7 +1549,9 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 		key := sqliteRelationIdentifierKey(model.DBTable)
 		touched[key] = struct{}{}
 		relevant[key] = struct{}{}
-		mutationHazards[key] = struct{}{}
+		if operation.Kind != migrationbackend.MigrationRenameModel || operation.Before.DBTable != operation.After.DBTable {
+			mutationHazards[key] = struct{}{}
+		}
 	}
 	for _, change := range seal.graphPlan.StorageChanges() {
 		for _, model := range []ir.Model{change.Before, change.After} {
@@ -1514,7 +1559,10 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 				continue
 			}
 			key := sqliteRelationIdentifierKey(model.DBTable)
-			touched[key], relevant[key], mutationHazards[key] = struct{}{}, struct{}{}, struct{}{}
+			touched[key], relevant[key] = struct{}{}, struct{}{}
+			if change.Before.Name == change.After.Name || change.Before.DBTable != change.After.DBTable {
+				mutationHazards[key] = struct{}{}
+			}
 		}
 	}
 	for _, snapshot := range append(seal.graphPlan.InitialModels(), seal.graphPlan.FinalModels()...) {
@@ -1543,11 +1591,11 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 			if object.kind != "table" || !canonicalControl {
 				return relationPhysicalDrift("SQLite main %s %q aliases a migration control identifier", object.kind, object.name)
 			}
-			wantSQL := createMigrationRevisionTableSQL
+			validSQL := object.sql == createMigrationRevisionTableSQL
 			if object.name == migrationRecorderTable {
-				wantSQL = migrationRecorderTableDefinitionSQL
+				validSQL = object.sql == migrationRecorderTableDefinitionSQL || object.sql == boundMigrationRecorderTableSQL
 			}
-			if object.sql != wantSQL {
+			if !validSQL {
 				return relationPhysicalDrift("SQLite migration control table %q differs from its canonical schema", object.name)
 			}
 		}
@@ -1625,10 +1673,12 @@ func preflightSQLiteRelationModels(
 	emptyTables := make(map[string]bool)
 	checkedEmpty := make(map[string]bool)
 	removeTables := make(map[string]struct{})
+	inputTables := seal.graphPlan.InputTables()
 	for operationIndex := range seal.intent.Operations {
 		operation := seal.intent.Operations[operationIndex]
-		if operation.Kind == migrationbackend.MigrationRemoveField {
-			removeTables[sqliteRelationIdentifierKey(operation.Before.DBTable)] = struct{}{}
+		origin := inputTables[operationIndex]
+		if operation.Kind == migrationbackend.MigrationRemoveField && origin.CreatedAt < 0 {
+			removeTables[sqliteRelationIdentifierKey(origin.Name)] = struct{}{}
 		}
 	}
 	removeDependencies, err := buildSQLiteRelationRemoveDependencyIndex(ctx, executor, catalog, physicalGraph, removeTables)
@@ -1646,12 +1696,13 @@ func preflightSQLiteRelationModels(
 			if sqliteRelationOperationNeedsRemake(operation) || field.Default == nil && field.Nullable {
 				continue
 			}
-			tableKey := sqliteRelationIdentifierKey(operation.Before.DBTable)
+			origin := inputTables[operationIndex]
+			tableKey := sqliteRelationIdentifierKey(origin.Name)
 			empty := true
-			if initialState := initial[tableKey]; initialState.present {
+			if origin.CreatedAt < 0 {
 				if !checkedEmpty[tableKey] {
 					var err error
-					emptyTables[tableKey], err = sqliteTableEmpty(ctx, executor, operation.Before.DBTable)
+					emptyTables[tableKey], err = sqliteTableEmpty(ctx, executor, origin.Name)
 					if err != nil {
 						return err
 					}
@@ -1682,7 +1733,8 @@ func preflightSQLiteRelationModels(
 			if err != nil {
 				return relationIntentIntegrity("invalid sealed RemoveField delta: %v", err)
 			}
-			if owner, referenced := removeDependencies.owner(operation.Before.DBTable, field.Column); referenced {
+			origin := inputTables[operationIndex]
+			if owner, referenced := removeDependencies.owner(origin.Name, field.Column); origin.CreatedAt < 0 && referenced {
 				return migrationbackend.NewCapabilityError(
 					"sqlite_drop_column",
 					fmt.Sprintf("column %s.%s is referenced by foreign key on table %s", operation.Before.DBTable, field.Column, owner),
@@ -1946,6 +1998,18 @@ func validateSQLiteRelationPhysicalGraph(
 		}
 		source := sqliteRelationIdentifierKey(model.DBTable)
 		switch operation.Kind {
+		case migrationbackend.MigrationRenameModel:
+			resolved, ok := seal.graphPlan.Operation(index)
+			if !ok {
+				return relationIntentIntegrity("missing model rename graph")
+			}
+			tables, err := operation.RenamedTables(resolved.Root().AppLabel, resolved)
+			if err != nil {
+				return relationIntentIntegrity("invalid model rename: %v", err)
+			}
+			if err := graph.renameTables(tables); err != nil {
+				return err
+			}
 		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany:
 			resolved, ok := seal.graphPlan.Operation(index)
 			if !ok {

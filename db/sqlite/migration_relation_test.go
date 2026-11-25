@@ -29,6 +29,12 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AlterFieldChoices:                 true,
 		AlterFieldStringSemantics:         true,
 		AlterFieldBlank:                   true,
+		AlterFieldNullability:             true,
+		DefinitionHistory:                 true,
+		HistoricalData:                    true,
+		RenameField:                       true,
+		DeleteModel:                       true,
+		RenameModel:                       true,
 		AlterFieldInputPolicy:             true,
 		AlterFieldDecimalPrecision:        true,
 		AlterFieldRelation:                true,
@@ -2339,14 +2345,20 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		}
 	})
 
-	t.Run("wrong_direction_is_integrity_before_session", func(t *testing.T) {
+	t.Run("recreating_an_authored_deletion_requires_bound_history", func(t *testing.T) {
 		single := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{valid.Operations[1]}}
 		single.Operations[0].OperationIndex = 0
-		wrongDirection := transition
-		wrongDirection.Kind = migrationbackend.HistoryTransitionUnapply
-		_, err := validateAndSealSQLiteRelationIntent(wrongDirection, single)
-		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "does not match history transition") {
-			t.Fatalf("wrong-direction validation error = %v", err)
+		reverse := transition
+		reverse.Kind = migrationbackend.HistoryTransitionUnapply
+		if err := migrationbackend.ValidateRequiredHistory(single, reverse); err == nil {
+			t.Fatal("recreated an unbound deletion")
+		}
+		reverse.Migration.HistoryDigest = "sha256:" + strings.Repeat("ab", 32)
+		if err := migrationbackend.ValidateRequiredHistory(single, reverse); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAndSealSQLiteRelationIntent(reverse, single); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -2582,6 +2594,39 @@ func TestSQLiteRelationInitialReverseCollisionCannotBeRemovedBeforeDelete(t *tes
 	}
 	if err := session.Close(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSQLiteFixedTableOwnershipFollowsModelLifetimes(t *testing.T) {
+	old, _, _ := sqliteRelationTestModels()
+	next := old.Clone()
+	next.Name, next.GoName = "writer", "Writer"
+	for _, backwards := range []bool{false, true} {
+		before, after := old, next
+		createIndex, deleteIndex := 0, 1
+		if backwards {
+			before, after = next, old
+			createIndex, deleteIndex = 1, 0
+		}
+		request := migrationbackend.MigrationSQLRequest{App: "news", Name: "0002_transfer", Backwards: backwards}
+		request.Intent.Operations = []migrationbackend.MigrationOperation{
+			{Kind: migrationbackend.MigrationRenameModel, Before: before, After: after},
+		}
+		groups, err := NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), request)
+		if err != nil || len(groups) != 1 || len(groups[0]) != 0 {
+			t.Fatalf("fixed-table rename backwards=%t: groups %v, error %v", backwards, groups, err)
+		}
+
+		// Both end states contain just one model. Creating the new owner before
+		// releasing the old one still collides in the middle of the migration.
+		request.Intent.Operations = []migrationbackend.MigrationOperation{
+			{OperationIndex: createIndex, Kind: migrationbackend.MigrationCreateModel, After: after},
+			{OperationIndex: deleteIndex, Kind: migrationbackend.MigrationDeleteModel, Before: before},
+		}
+		groups, err = NewMigrationSQLRenderer().RenderMigrationSQL(t.Context(), request)
+		if err == nil || !strings.Contains(err.Error(), "share SQLite table") || groups != nil {
+			t.Fatalf("overlapping owners backwards=%t: groups %v, error %v", backwards, groups, err)
+		}
 	}
 }
 

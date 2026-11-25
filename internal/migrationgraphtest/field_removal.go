@@ -84,7 +84,7 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 				}
 			}
 			for _, key := range keys {
-				statements, err := migrations.RenderMigrationSQL(ctx, loaded, key, binding.Renderer)
+				statements, err := migrations.RenderMigrationSQL(ctx, loaded, key, migrations.DirectionForward, binding.Renderer)
 				if err != nil || len(statements) == 0 {
 					t.Fatal("field-removal SQL projection missing", err)
 				}
