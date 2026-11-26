@@ -17,17 +17,22 @@ from project_artifacts import producers, validated_producers
 class NativeObligationsTests(unittest.TestCase):
     def test_all_new_artifact_owners_use_the_same_pinned_upload_with_an_adjacent_receipt(self):
         import re
-        workflow=(Path(__file__).resolve().parents[2]/'.github/workflows/ci.yml').read_text()
-        uploads=re.findall(r'uses: actions/upload-artifact@([0-9a-f]+)',workflow)
-        self.assertEqual(len(set(uploads)),1)
+
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
+        uploads = re.findall(r'uses: actions/upload-artifact@([0-9a-f]+)', workflow)
+        self.assertEqual(len(set(uploads)), 1)
         self.assertRegex(uploads[0], r'^[0-9a-f]{40}$')
-        blocks=workflow.split('      - name: Publish platform obligation evidence')[1:]
-        self.assertEqual(len(blocks),3)
+        blocks = workflow.split('      - name: Publish platform obligation evidence')[1:]
+        self.assertEqual(len(blocks), 3)
         for block in blocks:
-            step,following=block.split('      - name: ',1)
-            self.assertIn('        id: platform_upload',step)
-            self.assertIn('actions/upload-artifact@'+uploads[0],step)
-            self.assertTrue(following.startswith('Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}'))
+            step, following = block.split('      - name: ', 1)
+            self.assertIn('        id: platform_upload', step)
+            self.assertIn('actions/upload-artifact@' + uploads[0], step)
+            self.assertTrue(
+                following.startswith(
+                    'Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}'
+                )
+            )
 
     def test_actual_manifest_has_one_owner_per_selected_child(self):
         for profile, count in [('pr', 2), ('native', 3), ('full', 6)]:
@@ -188,6 +193,33 @@ class NativeObligationsTests(unittest.TestCase):
         data = {'source': source, 'profile': 'pr', 'repository_id': 1, 'producers': {}}
         with self.assertRaises(ValueError):
             validated_producers(data, source, 1, 'pr', expected_jobs('pr'))
+
+    def test_main_package_requires_its_linked_test_entry_even_with_the_original_module_path(self):
+        package = 'm/cmd/cli'
+        expected = {package: 'main-test'}
+        item = dict(
+            path=package,
+            sha256='b' * 64,
+            goos='darwin',
+            goarch='amd64',
+            cgo='0',
+            race=False,
+            cpu=ARCHES['amd64'],
+            test_main={'source': '_testmain.go', 'calls': 'testing.MainStart'},
+        )
+
+        def check(record):
+            verify_target({'inventory': expected, 'linked': {package: record}}, 'amd64', expected)
+
+        check(item)
+        check({**item, 'path': package + '.test'})
+        for wrong in (
+            {k: v for k, v in item.items() if k != 'test_main'},
+            {**item, 'path': 'other/cli'},
+            {**item, 'test_main': {'source': 'main.go', 'calls': 'testing.MainStart'}},
+        ):
+            with self.assertRaises(ValueError):
+                check(wrong)
 
     def test_cross_compile_requires_target_specific_packages_and_real_link_output(self):
         expected = {'a/p': 'test', 'b/p': 'test', 'lib': 'build'}
