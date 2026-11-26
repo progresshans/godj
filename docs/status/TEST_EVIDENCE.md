@@ -11,6 +11,8 @@
 
 로컬 Apple Silicon의 SQLite에서 계정 fixture 3개의 기존 실행과 바이너리 재사용 실행을 대조했다. 이전 `go test` 호출 11회는 준비 3회와 별개의 자식 PID 11개로 바뀌었다. 분기별 원본에서 같은 388개 root·child 통과 이벤트를 확인했다. 동일 호스트에서 캐시를 채운 뒤 같은 세 root를 다시 실행했다. 이전 자식 시작 전 준비 합은 33.06초, 새 바이너리 세 개의 준비 합은 19.90초였다. 세 root의 총 실행 시간은 118.79초에서 117.10초였다. 두 DB·다른 아키텍처의 결과는 해당 후보의 원격 실행에서 확인한다.
 
+중간 후보 `32080168`에서 Linux의 Darwin 두 아키텍처 교차 컴파일과 Intel의 일반·CGO=0 호환성 작업이 통과했다. 같은 후보의 Linux runtime은 이전 Intel 전수 행렬을 요구한 Go 검증에서 실패했다. 이 실패를 로컬 CGO=0에서 재현한 뒤, 각 Linux 좌표의 runtime·생성 분할과 Apple Silicon·Intel 각 작업의 실행 책임을 따로 확인하도록 수정했다. [교차 컴파일](https://github.com/progresshans/godj/actions/runs/45773363688/job/139751411331) · [Intel 일반](https://github.com/progresshans/godj/actions/runs/45773363688/job/139751411400) · [Intel CGO=0](https://github.com/progresshans/godj/actions/runs/45773363688/job/139751411382) · [Linux CGO=0 실패 기록](https://github.com/progresshans/godj/actions/runs/45773363688/job/139751412721)
+
 ## 통합 CI에서 확인한 Mac 실행 제한
 
 `f79ab659`의 #1 전체 계획은 Linux 124개·macOS 53개다. Linux의 두 아키텍처와 세 모드에서 생성 소비자 42개 러너의 원본을 제출 소스와 대조했다. 각 조합이 상위 테스트 131개와 필수 항목 429개를 실행했다. PostgreSQL 계정 러너 15개의 원본에서도 모드마다 13개 묶음·상위 테스트 19개·필수 항목 189개의 실행과 통과를 확인했다. [워크플로 실행](https://github.com/progresshans/godj/actions/runs/45581362600)

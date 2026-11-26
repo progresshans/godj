@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,11 +12,7 @@ import (
 func TestWriteMigrationArtifactsHaveExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate protocol test source")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", ".."))
+	root := conformanceRepositoryRoot(t)
 	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -178,11 +173,7 @@ func TestWriteMigrationArtifactsHaveExplicitNotImplementedBaseline(t *testing.T)
 func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 	t.Parallel()
 
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate protocol test source")
-	}
-	oracleDirectory := filepath.Join(filepath.Dir(source), "..", "..", "oracles", "django-6.1-sqlite-darwin-arm64")
+	oracleDirectory := filepath.Join(conformanceRepositoryRoot(t), "conformance", "oracles", "django-6.1-sqlite-darwin-arm64")
 	checksumBytes, err := os.ReadFile(filepath.Join(oracleDirectory, "SHA256SUMS"))
 	if err != nil {
 		t.Fatal(err)

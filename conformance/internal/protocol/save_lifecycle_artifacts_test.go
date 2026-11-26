@@ -254,6 +254,15 @@ func conformanceRepositoryRoot(t *testing.T) string {
 	if !ok {
 		t.Fatal("cannot locate protocol test source")
 	}
+	if !filepath.IsAbs(source) {
+		// With -trimpath, Go leaves an import path in the binary. Go test
+		// runs this package from its directory in the checkout.
+		root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
 	return filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", ".."))
 }
 

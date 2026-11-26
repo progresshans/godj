@@ -200,8 +200,10 @@ func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
 				OS     string `json:"expected_goos"`
 				Arch   string `json:"expected_goarch"`
 			} `json:"platform"`
-			Mode  string `json:"mode"`
-			Shard string `json:"shard"`
+			Mode   string `json:"mode"`
+			Shard  string `json:"shard"`
+			Scope  string `json:"scope"`
+			Worker string `json:"worker"`
 		} `json:"include"`
 	}
 	if err := json.Unmarshal([]byte(ciPlan(t)[key]), &matrix); err != nil {
@@ -212,7 +214,10 @@ func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
 	}
 	var rows []map[string]string
 	for _, entry := range matrix.Include {
-		rows = append(rows, map[string]string{"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch, "mode": entry.Mode, "shard": entry.Shard})
+		rows = append(rows, map[string]string{
+			"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch,
+			"mode": entry.Mode, "shard": entry.Shard, "scope": entry.Scope, "worker": entry.Worker,
+		})
 	}
 	return rows
 }
@@ -259,32 +264,79 @@ func TestWorkflowRequiredJobsReachAggregate(t *testing.T) {
 	ciRequire(t, "plan", ciJob(t, jobs, "validation-plan"), "scripts/ci/workflow.py plan")
 }
 
+func ciCheckFullPlatformRows(t *testing.T, jobName string, rows []map[string]string, want map[string]int) {
+	t.Helper()
+	runners := map[string]string{"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm", "darwin/arm64": "macos-26"}
+	counts := make(map[string]int)
+	workers := make(map[string]bool)
+	for _, row := range rows {
+		platform := row["expected_goos"] + "/" + row["expected_goarch"]
+		runner, supported := runners[platform]
+		if !supported || row["runs_on"] != runner {
+			t.Fatalf("%s schedules %s on unexpected runner %q", jobName, platform, row["runs_on"])
+		}
+		coordinate := platform + "/" + row["mode"]
+		if jobName == "relation-product-matrix" {
+			worker := row["worker"]
+			workerKey := coordinate + "/" + worker
+			if workers[workerKey] {
+				t.Fatalf("%s repeats worker %s", jobName, workerKey)
+			}
+			workers[workerKey] = true
+			role := worker
+			if strings.HasPrefix(worker, "parts-") {
+				role = "consumer"
+			}
+			coordinate += "/" + row["scope"] + "/" + role
+		}
+		counts[coordinate]++
+	}
+	if !reflect.DeepEqual(counts, want) {
+		t.Fatalf("full %s obligations = %v, want %v", jobName, counts, want)
+	}
+}
+
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
-	coordinates := []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
+	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v2" {
+		t.Fatalf("unexpected full CI contract %q", contract)
+	}
+	product := make(map[string]int)
+	relation := map[string]int{"darwin/arm64/normal/darwin-runtime/runtime": 1}
+	for _, mode := range []string{"normal", "race", "cgo0"} {
+		for _, linux := range []string{"linux/amd64/", "linux/arm64/"} {
+			product[linux+mode] = 1
+			relation[linux+mode+"/complete-relation/runtime"] = 1
+			relation[linux+mode+"/complete-relation/consumer"] = 7
+		}
+		product["darwin/arm64/"+mode] = 1
+		relation["darwin/arm64/"+mode+"/darwin-generated-native/darwin-generated-native"] = 1
+	}
 	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "product-reload-matrix", "command-product-matrix"} {
 		job := ciJob(t, jobs, name)
-		key := "product_matrix"
 		if name == "relation-product-matrix" {
-			key = "relation_matrix"
-			ciRequire(t, name, job, "matrix.parts[0]", "matrix.shards", "bash scripts/ci/relation-product.sh prepare", "bash scripts/ci/relation-product.sh run")
+			ciCheckFullPlatformRows(t, name, ciPlannedMatrix(t, job, "relation_matrix"), relation)
+			ciRequire(t, name, job, "matrix.parts[0]", "matrix.shards", "matrix.scope", "bash scripts/ci/relation-product.sh prepare", "bash scripts/ci/relation-product.sh run")
 			job += "\n" + ciRead(t, "scripts/ci/relation-product.sh")
-			ciRequire(t, name, job, "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh")
+			ciRequire(t, name, job, "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh", "scripts/ci/native_evidence.py")
+		} else {
+			ciCheckFullPlatformRows(t, name, ciPlannedMatrix(t, job, "product_matrix"), product)
 		}
-		seen := make(map[string]bool)
-		for _, row := range ciPlannedMatrix(t, job, key) {
-			seen[row["expected_goos"]+"/"+row["expected_goarch"]+"/"+row["mode"]] = true
-		}
-		for _, coordinate := range coordinates {
-			for _, mode := range []string{"normal", "race", "cgo0"} {
-				if !seen[coordinate+"/"+mode] {
-					t.Fatalf("full %s misses %s/%s", name, coordinate, mode)
-				}
-			}
-		}
-		ciRequire(t, name, job, "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
+		ciRequire(t, name, job, "runs-on: ${{ matrix.platform.runs_on }}", "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
 			"matrix.mode", "-race", "CGO_ENABLED=0", "go test")
 	}
+	intel := ciJob(t, jobs, "intel-compatibility")
+	ciRequire(t, "Intel compatibility", intel, "runs-on: macos-15-intel", "scripts/ci/native_evidence.py intel-compatibility", "native-compat-darwin-amd64-${{ matrix.mode }}")
+	intelModes := make(map[string]int)
+	for _, row := range ciPlannedMatrix(t, intel, "intel_matrix") {
+		intelModes[row["mode"]]++
+	}
+	if !reflect.DeepEqual(intelModes, map[string]int{"normal": 1, "cgo0": 1}) {
+		t.Fatalf("unexpected full Intel compatibility modes %v", intelModes)
+	}
+	ciRequire(t, "Darwin cross-compile", ciJob(t, jobs, "darwin-compile-only"), "runs-on: ubuntu-24.04", "scripts/ci/darwin_compile.py")
+	ciRequire(t, "exact Darwin reference", ciJob(t, jobs, "exact-darwin-validation"), "runs-on: macos-15")
+	ciRequire(t, "platform evidence", ciJob(t, jobs, "required-ci"), "scripts/ci/native_receipts.py resolve", "scripts/ci/native_receipts.py verify")
 	commands := ciJob(t, jobs, "command-product-matrix")
 	for _, product := range []string{"operator", "targeted"} {
 		step := ciStep(t, commands, product)
