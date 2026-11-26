@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/testschema"
@@ -28,6 +29,7 @@ func TestGeneratedMutualAndSelfRelationProjectHasZeroAppImportEdges(t *testing.T
 func validateGeneratedRelationProject(t *testing.T, authorsSchema, blogSchema ir.Schema, wantForward, wantReverse int) {
 	t.Helper()
 
+	started := time.Now()
 	bridge, err := codegen.GenerateProjectBridge("binding", []codegen.BridgePackage{
 		{Alias: "blog", ImportPath: "example.com/godj-relation-project/blog"},
 		{Alias: "authors", ImportPath: "example.com/godj-relation-project/authors"},
@@ -91,10 +93,10 @@ func TestGeneratedProjectBinding(t *testing.T) {
 }
 `, wantForward, wantReverse)))
 
+	nativeFixturePrepared(t, started)
 	validateGeneratedImportGraph(t, directory)
 
-	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
-	output, err := command.CombinedOutput()
+	output, err := generatedModuleTests(t, directory, "cross-app", false)
 	if err != nil {
 		t.Fatalf("generated external project did not compile and bind: %v\n%s", err, output)
 	}

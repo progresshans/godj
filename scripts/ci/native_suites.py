@@ -63,6 +63,38 @@ CHILDREN = {
 }
 
 
+# These generated modules also compile sibling packages that contain no tests.
+# Go emits a package-level "[no test files]" record for each of those siblings.
+MODULE_CHILDREN = {
+    'cross-app': (
+        'example.com/godj-relation-project',
+        'binding',
+        ['TestGeneratedProjectBinding'],
+        ['authors', 'blog'],
+    ),
+    'mixed-app': (
+        'example.com/godj-project-bundle',
+        'consumer',
+        ['TestInstalledAppsAndBinding'],
+        ['authors', 'blog', 'notifications', 'project'],
+    ),
+    'startup': (
+        'example.com/godj-project-bundle',
+        'consumer',
+        [
+            'TestInstalledAppsOwnLiveResourcesAndPreserveData',
+            'TestProjectServerOwnsGeneratedAppsThroughRequestDrain',
+            'TestGeneratedCommandCommitSurvivesEveryLoggerFailure',
+            *[
+                'TestGeneratedCommandCommitSurvivesEveryLoggerFailure/' + x
+                for x in ('error', 'panic', 'goexit')
+            ],
+        ],
+        ['notes', 'project', 'storage'],
+    ),
+}
+
+
 def selected(root, children):
     return [root, *(root + '/' + child for child in children)]
 

@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/internal/testenv"
 )
@@ -154,4 +155,27 @@ func retainNativeChild(name string, raw []byte) error {
 	}
 	_, err = file.Write(raw)
 	return errors.Join(err, file.Close())
+}
+
+// Preserve the complete external module invocation. Native jobs retain the
+// original JSON; the generator tests keep their existing live child assertions.
+func generatedModuleTests(t *testing.T, directory, name string, verbose bool) ([]byte, error) {
+	t.Helper()
+	args := []string{"test", "-mod=mod"}
+	if os.Getenv("GODJ_NATIVE_EVIDENCE_DIR") == "" {
+		if verbose {
+			args = append(args, "-v")
+		}
+		return generatedGoCommand(t.Context(), directory, append(args, "./...")...).CombinedOutput()
+	}
+	cmd := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "-json", "./...")
+	raw := runStrictGeneratedCommandWithCapture(t, cmd, func(output []byte) error { return retainNativeChild(name, output) })
+	return raw, nil
+}
+
+func nativeFixturePrepared(t *testing.T, started time.Time) {
+	t.Helper()
+	if os.Getenv("GODJ_NATIVE_EVIDENCE_DIR") != "" {
+		t.Logf("GODJ_NATIVE_PREPARE seconds=%.6f", time.Since(started).Seconds())
+	}
 }

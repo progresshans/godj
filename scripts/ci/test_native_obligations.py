@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from darwin_compile import ARCHES, verify_target
-from native_evidence import build_coordinate, outputs, strict_events, verify
+from native_evidence import build_coordinate, outputs, strict_events, verify, verify_module
 from native_receipts import contracts, expected_jobs
 from native_suites import CONSUMER, CUSTOM, GENERATED, manifest
 from platform_policy import CONTRACT
@@ -99,6 +99,40 @@ class NativeObligationsTests(unittest.TestCase):
                 )
             )
             self.assertEqual(outputs(log, 'TestSDK'), ['receipt {"a":"two words"}', 'next line'])
+
+    def test_generated_module_allows_only_named_packages_with_no_test_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'events'
+
+            def event(action, p, **extra):
+                return dict(Action=action, Package='m/' + p, **extra)
+
+            test = [
+                event('start', 'p'),
+                event('run', 'p', Test='TestA'),
+                event('pass', 'p', Test='TestA'),
+                event('pass', 'p'),
+            ]
+            empty = [
+                event('start', 'lib'),
+                event('output', 'lib', Output='?   m/lib [no test files]\n'),
+                event('skip', 'lib'),
+            ]
+
+            def check(seq):
+                path.write_text(''.join(json.dumps(e) + '\n' for e in seq))
+                verify_module(path, 'm', 'p', ['TestA'], ['lib'])
+
+            check(test + empty)
+            for invalid in (
+                test,
+                test + empty[:-1],
+                test + empty + [empty[-1]],
+                test + [empty[0], event('output', 'lib', Output='skipped'), empty[2]],
+                [test[0], test[1], event('skip', 'p', Test='TestA'), test[3]] + empty,
+            ):
+                with self.assertRaises(ValueError):
+                    check(invalid)
 
     def test_actual_binary_metadata_and_native_source_are_required(self):
         good = {

@@ -247,7 +247,11 @@ func clientCommand(t *testing.T, root, stage string, race bool, input []byte, na
 	command.Stdin = bytes.NewReader(input)
 	var stdout, stderr clientCapture
 	command.Stdout, command.Stderr = &stdout, &stderr
+	started := time.Now()
 	err := command.Run()
+	if os.Getenv("GODJ_MODEL_RESOURCE_CLIENT_EVIDENCE") != "" {
+		t.Logf("GODJ_SDK_PHASE name=%s seconds=%.6f", stage, time.Since(started).Seconds())
+	}
 	if stdout.truncated || stderr.truncated {
 		t.Fatal("generated client command output truncated", stage)
 	}

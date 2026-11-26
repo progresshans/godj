@@ -148,7 +148,9 @@ func main() {
 
 func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 	t.Helper()
+	started := time.Now()
 	root := writeFirstAccountParentModule(t, custom)
+	nativeFixturePrepared(t, started)
 	for _, test := range []struct {
 		name, mode, status, code string
 		exit                     int

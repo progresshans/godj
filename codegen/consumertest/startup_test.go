@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/schema/ir"
@@ -19,8 +20,10 @@ var startupServerConsumerSource []byte
 var startupCommandConsumerSource []byte
 
 func TestGeneratedAppsOwnOrderedStartupAndCleanup(t *testing.T) {
+	started := time.Now()
 	root := writeStartupConsumerModule(t)
-	output, err := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-v", "./...").CombinedOutput()
+	nativeFixturePrepared(t, started)
+	output, err := generatedModuleTests(t, root, "startup", true)
 	if err != nil || !bytes.Contains(output, []byte("--- PASS: TestInstalledAppsOwnLiveResourcesAndPreserveData")) ||
 		!bytes.Contains(output, []byte("--- PASS: TestProjectServerOwnsGeneratedAppsThroughRequestDrain")) ||
 		!bytes.Contains(output, []byte("--- PASS: TestGeneratedCommandCommitSurvivesEveryLoggerFailure")) {

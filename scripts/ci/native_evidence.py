@@ -1,7 +1,7 @@
 """Execute and independently verify Darwin's explicitly selected native tests."""
 
 import argparse
-from collections import Counter
+from collections import Counter, defaultdict
 import json
 import os
 from pathlib import Path
@@ -11,7 +11,7 @@ import tempfile
 import time
 
 from go_test_events import events
-from native_suites import CHILDREN, INTEL_PHASES, MODULE, ROOT, SERVER, manifest
+from native_suites import CHILDREN, INTEL_PHASES, MODULE, MODULE_CHILDREN, ROOT, SERVER, manifest
 from platform_policy import CONTRACT
 from project_reference import digest, document, require, same, source_identity
 
@@ -21,11 +21,15 @@ def write(path, value):
 
 
 def strict_events(path, package, tests):
+    strict_stream(events(path), package, tests)
+
+
+def strict_stream(records, package, tests):
     expected = Counter(tests)
     require(all(n == 1 for n in expected.values()) and expected, 'invalid expected native test set')
     started, passed, active = Counter(), Counter(), set()
     phase = 'before'
-    for event in events(path):
+    for event in records:
         action, name = event['Action'], event.get('Test')
         require(event.get('Package') == package, 'wrong native package')
         if action == 'start':
@@ -51,6 +55,25 @@ def strict_events(path, package, tests):
     require(
         phase == 'finished' and started == passed == expected, 'missing, duplicate or truncated native test'
     )
+
+
+def verify_module(path, module, tested, tests, build_only):
+    by_package = defaultdict(list)
+    for event in events(path):
+        by_package[event.get('Package')].append(event)
+    require(
+        set(by_package) == {module + '/' + name for name in [tested, *build_only]},
+        'generated module package inventory differs',
+    )
+    package = module + '/' + tested
+    strict_stream(by_package.pop(package), package, tests)
+    for package, records in by_package.items():
+        require(
+            [e['Action'] for e in records] == ['start', 'output', 'skip']
+            and all(not e.get('Test') for e in records)
+            and re.fullmatch(r'\?\s+' + re.escape(package) + r'\s+\[no test files\]\s*', records[1]['Output']),
+            'skipped generated test or invalid build-only package',
+        )
 
 
 def outputs(path, name):
@@ -124,18 +147,25 @@ def verify_sdk(directory, mode):
     require(len(observed) == 1 and same(observed[0], receipt), 'SDK receipt differs from actual child log')
 
 
-def verify(directory, suite, mode, source):
-    planned = manifest(suite, mode)
-    arch = 'amd64' if suite == 'intel-compatibility' else 'arm64'
-    identity = {
+def suite_identity(suite, mode, source):
+    evidence = {
         'validation_contract': CONTRACT,
         'source': source,
         'suite': suite,
         'goos': 'darwin',
-        'goarch': arch,
+        'goarch': 'amd64' if suite == 'intel-compatibility' else 'arm64',
         'mode': mode,
-        'manifest': planned,
+        'manifest': manifest(suite, mode),
     }
+    if suite == 'darwin-generated-native':
+        evidence['child_tests'] = CHILDREN
+        evidence['module_tests'] = MODULE_CHILDREN
+    return evidence
+
+
+def verify(directory, suite, mode, source):
+    identity = suite_identity(suite, mode, source)
+    planned, arch = identity['manifest'], identity['goarch']
     require(
         same(document(directory / 'native.json'), identity), 'native source, coordinate or manifest differs'
     )
@@ -166,6 +196,8 @@ def verify(directory, suite, mode, source):
                 sum(line.endswith(label + ' ' + coordinate) for line in logs) == 1,
                 'wrong or absent actual ' + name + ' executable',
             )
+        for name, spec in MODULE_CHILDREN.items():
+            verify_module(directory / (name + '-child.json'), *spec)
         verify_sdk(directory, mode)
     else:
         index = next(i for i, row in enumerate(planned) if row['package'] == SERVER)
@@ -214,18 +246,7 @@ def run(directory, suite, mode):
     )
     directory.mkdir(parents=True)
     source = source_identity()
-    write(
-        directory / 'native.json',
-        {
-            'validation_contract': CONTRACT,
-            'source': source,
-            'suite': suite,
-            'goos': 'darwin',
-            'goarch': arch,
-            'mode': mode,
-            'manifest': planned,
-        },
-    )
+    write(directory / 'native.json', suite_identity(suite, mode, source))
     if suite == 'darwin-generated-native':
         env.update(
             GODJ_GENERATED_CONSUMER_CAPTURE_DIR=str(directory / 'commands'),

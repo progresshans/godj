@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 )
@@ -12,12 +13,15 @@ import (
 // checks and negative compilation on Linux. This owner runs the actual baseline
 // SDK generator, independent client and durable HTTP/database comparisons.
 func TestNativeGeneratedModelResourceClient(t *testing.T) {
+	started := time.Now()
 	root := prepareModelResourceModule(t, "baseline", false)
+	nativeFixturePrepared(t, started)
 	runNativeGeneratedChild(t, root, "sdk", "^TestModelResourceAssembly$/^sqlite$/^generated_client_change$",
 		"TestModelResourceAssembly", "TestModelResourceAssembly/sqlite", "TestModelResourceAssembly/sqlite/generated_client_change")
 }
 
 func TestNativeGeneratedFilesystemLifecycle(t *testing.T) {
+	started := time.Now()
 	bundle, err := codegen.GenerateProject(fileConsumerProject(t, documentAndPhotoModels()))
 	if err != nil {
 		t.Fatal(err)
@@ -33,6 +37,7 @@ func TestNativeGeneratedFilesystemLifecycle(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, "consumer/"+name, content)
 	}
+	nativeFixturePrepared(t, started)
 	runNativeGeneratedChild(t, root, "filesystem", "^TestFilesystemLifecycle$",
 		"TestFilesystemLifecycle", "TestFilesystemLifecycle/publication_http",
 		"TestFilesystemLifecycle/publication_http/ranges_and_conditionals", "TestFilesystemLifecycle/image_rollback_reopen")

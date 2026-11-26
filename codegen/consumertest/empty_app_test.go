@@ -6,6 +6,7 @@ import (
 	"path"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/schema/ir"
@@ -14,6 +15,7 @@ import (
 func TestGeneratedProjectSupportsEmptyAppsAndLaterModels(t *testing.T) {
 	for _, scenario := range []string{"no_apps", "empty_only", "external_empty", "mixed_relations", "mixed_collections", "first_model"} {
 		t.Run(scenario, func(t *testing.T) {
+			started := time.Now()
 			spec := projectBundleTestSpec()
 			empty := codegen.AppSpec{
 				Alias:   "notifications",
@@ -112,7 +114,8 @@ func TestInstalledAppsAndBinding(t *testing.T) {
  %s
 }
 `, imports, want, modelCheck)))
-			output, err := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-v", "./...").CombinedOutput()
+			nativeFixturePrepared(t, started)
+			output, err := generatedModuleTests(t, root, "mixed-app", true)
 			if err != nil || !bytes.Contains(output, []byte("--- PASS: TestInstalledAppsAndBinding")) {
 				t.Fatalf("external inventory consumer did not execute successfully: %v\n%s", err, output)
 			}
