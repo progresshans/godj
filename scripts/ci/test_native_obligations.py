@@ -15,6 +15,20 @@ from project_artifacts import producers, validated_producers
 
 
 class NativeObligationsTests(unittest.TestCase):
+    def test_all_new_artifact_owners_use_the_same_pinned_upload_with_an_adjacent_receipt(self):
+        import re
+        workflow=(Path(__file__).resolve().parents[2]/'.github/workflows/ci.yml').read_text()
+        uploads=re.findall(r'uses: actions/upload-artifact@([0-9a-f]+)',workflow)
+        self.assertEqual(len(set(uploads)),1)
+        self.assertRegex(uploads[0], r'^[0-9a-f]{40}$')
+        blocks=workflow.split('      - name: Publish platform obligation evidence')[1:]
+        self.assertEqual(len(blocks),3)
+        for block in blocks:
+            step,following=block.split('      - name: ',1)
+            self.assertIn('        id: platform_upload',step)
+            self.assertIn('actions/upload-artifact@'+uploads[0],step)
+            self.assertTrue(following.startswith('Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}'))
+
     def test_actual_manifest_has_one_owner_per_selected_child(self):
         for profile, count in [('pr', 2), ('native', 3), ('full', 6)]:
             self.assertEqual(len(contracts(profile)), count)

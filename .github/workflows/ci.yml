@@ -582,7 +582,7 @@ jobs:
       - name: Publish platform obligation evidence
         if: always() && matrix.scope == 'darwin-generated-native'
         id: platform_upload
-        uses: actions/upload-artifact@ea165f8d65b6e75c540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: native-generated-darwin-arm64-${{ matrix.mode }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native
@@ -633,7 +633,7 @@ jobs:
       - name: Publish platform obligation evidence
         if: always()
         id: platform_upload
-        uses: actions/upload-artifact@ea165f8d65b6e75c540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: native-compat-darwin-amd64-${{ matrix.mode }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native
@@ -670,7 +670,7 @@ jobs:
       - name: Publish platform obligation evidence
         if: always()
         id: platform_upload
-        uses: actions/upload-artifact@ea165f8d65b6e75c540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: darwin-compile-only-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native
@@ -1741,7 +1741,7 @@ jobs:
         run: python3 scripts/ci/native_receipts.py verify "$RUNNER_TEMP/platform-selection.json" "$RUNNER_TEMP/platform-inputs"
 
       - name: Publish verified platform obligations
-        uses: actions/upload-artifact@ea165f8d65b6e75c540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verified-platform-obligations-${{ github.run_attempt }}
           path: ${{ runner.temp }}/verified-platform-obligations.json
