@@ -9,6 +9,8 @@
 
 새 계약은 Linux 여섯 제품 좌표와 전체 관계 분할을 유지한다. 시작 커밋의 Linux 관계 48개 행과 제품 6개 행에 대해 실행 순서·분할·환경·시간 제한을 대조했다. 로컬 Apple Silicon CGO=0에서 실제 생성 SDK·파일 수명·child 모드를 실행했다. Intel용 설치·HTTP·재시작·CGO=0 시나리오는 로컬 ARM64에서도 실행했다. 원격 Intel과 전체 계약의 증거는 해당 PR 커밋의 최종 집계 및 플랫폼 원본에 연결된다. [검증 기준](../TESTING.md#원격-ci-실행-범위) · [PR #1 검사](https://github.com/progresshans/godj/pull/1/checks)
 
+로컬 Apple Silicon의 SQLite에서 계정 fixture 3개의 기존 실행과 바이너리 재사용 실행을 대조했다. 이전 `go test` 호출 11회는 준비 3회와 별개의 자식 PID 11개로 바뀌었다. 분기별 원본에서 같은 388개 root·child 통과 이벤트를 확인했다. 두 DB·다른 아키텍처의 결과는 해당 후보의 원격 실행에서 확인한다.
+
 ## 통합 CI에서 확인한 Mac 실행 제한
 
 `f79ab659`의 #1 전체 계획은 Linux 124개·macOS 53개다. Linux의 두 아키텍처와 세 모드에서 생성 소비자 42개 러너의 원본을 제출 소스와 대조했다. 각 조합이 상위 테스트 131개와 필수 항목 429개를 실행했다. PostgreSQL 계정 러너 15개의 원본에서도 모드마다 13개 묶음·상위 테스트 19개·필수 항목 189개의 실행과 통과를 확인했다. [워크플로 실행](https://github.com/progresshans/godj/actions/runs/45581362600)

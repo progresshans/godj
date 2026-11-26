@@ -80,6 +80,8 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 build가 검증 대상이면 그 검사의 원래 조건을 유지한다. 소스·의존성·모델·module version·race/CGO 조건이 다른 결과는
 같은 cache로 간주하지 않는다. OpenAPI SDK는 실제 임시 module 빌드 뒤 원래 경로에서도 여섯 library가 재사용되는지 검사한다.
 
+계정 카탈로그 생성·전환과 공유 through 전환은 완성된 각 fixture의 테스트 바이너리를 한 번 준비한다. 공식 `go test -c`의 vet와 실제 바이너리의 Go 버전·OS·아키텍처·race·CGO를 확인한다. 매 분기에서 module 전체 파일의 지문을 다시 대조하고 consumer 디렉터리에서 새 프로세스를 실행한다. 10분 테스트 제한, backend별 임시 DB, 공식 test2json 원본, PID·종료 상태·필수 leaf를 확인한다. 소스가 바뀌면 기존 바이너리의 사용을 거부한다.
+
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
 Operator fixture의 module 준비·global build·generated project 검증은 compiler 비용을 포함하는 준비 예산을 사용한다.
 준비 단계별 시작/완료 시간과 timeout·일반 종료 실패·출력 한도를 구분한다. 실제 제품 명령/PTY와 취소·잠금/cleanup

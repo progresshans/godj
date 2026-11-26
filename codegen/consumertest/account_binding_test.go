@@ -428,20 +428,30 @@ func runAccountConsumerDatabasePlans(t *testing.T, root string, plans []accountC
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
 		vendors = append(vendors, "postgres")
 	}
+	var prepared *accountTestBinary
+	if len(plans) > 1 {
+		prepared = prepareAccountTestBinary(t, root)
+	}
 	for _, vendor := range vendors {
 		t.Run(vendor, func(t *testing.T) {
 			for _, plan := range plans {
 				run := func(t *testing.T) {
-					arguments := []string{"test", "-mod=mod", "-json", "-count=1"}
-					if plan.pattern != "" {
-						arguments = append(arguments, "-run", plan.pattern)
-					}
-					command := generatedGoCommand(t.Context(), root, append(arguments, "./consumer")...)
-					command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
-					output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
+					retain := func(output []byte) error {
 						t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
 						return nil
-					})
+					}
+					var output []byte
+					if prepared != nil {
+						output = prepared.run(t, vendor, plan, retain)
+					} else {
+						arguments := []string{"test", "-mod=mod", "-json", "-count=1"}
+						if plan.pattern != "" {
+							arguments = append(arguments, "-run", plan.pattern)
+						}
+						command := generatedGoCommand(t.Context(), root, append(arguments, "./consumer")...)
+						command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
+						output = runStrictGeneratedCommandWithCapture(t, command, retain)
+					}
 					assertGeneratedConsumerTests(t, output, plan.required...)
 				}
 				if plan.name == "" {

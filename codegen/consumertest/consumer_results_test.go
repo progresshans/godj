@@ -96,12 +96,17 @@ func runStrictGeneratedCommand(t *testing.T, command *exec.Cmd) []byte {
 // from the separately owned CI artifact. Truncation still fails validation.
 func runStrictGeneratedCommandWithCapture(t *testing.T, command *exec.Cmd, retain func([]byte) error) []byte {
 	t.Helper()
+	return collectGeneratedCommand(t, command, retain, command.Run)
+}
+
+func collectGeneratedCommand(t *testing.T, command *exec.Cmd, retain func([]byte) error, run func() error) []byte {
+	t.Helper()
 	var stdout generatedTestCapture
 	var stderr gobuild.Capture
 	stdoutFile, stderrFile, finishCapture := captureGeneratedCommand(t, command)
 	command.Stdout, command.Stderr = io.MultiWriter(&stdout, stdoutFile), io.MultiWriter(&stderr, stderrFile)
 	command.WaitDelay = 5 * time.Second
-	runErr := command.Run()
+	runErr := run()
 	finishCapture(runErr)
 	if retain != nil {
 		if err := retain(stdout.Bytes()); err != nil {
