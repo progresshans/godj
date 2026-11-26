@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/testenv"
+	"golang.org/x/term"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
@@ -148,6 +150,10 @@ func runFirstAccountTerminal(t *testing.T, globalBinary, repository, descriptor 
 		t.Fatalf("open createsuperuser PTY: %v", err)
 	}
 	defer func() { _ = master.Close() }()
+	originalTerminal, err := term.GetState(int(master.Fd()))
+	if err != nil {
+		t.Fatal("read initial PTY state", err)
+	}
 
 	command := exec.Command(globalBinary, "createsuperuser", "--project", descriptor)
 	command.Dir = repository
@@ -227,6 +233,10 @@ func runFirstAccountTerminal(t *testing.T, globalBinary, repository, descriptor 
 			}
 		} else if waitErr != nil {
 			t.Fatalf("createsuperuser exited unsuccessfully: %v", waitErr)
+		}
+		restored, err := term.GetState(int(master.Fd()))
+		if err != nil || !reflect.DeepEqual(originalTerminal, restored) {
+			t.Fatal("createsuperuser did not restore the PTY", err)
 		}
 		finished = true
 	case <-time.After(2 * time.Minute):

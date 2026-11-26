@@ -8,7 +8,7 @@ from project_artifacts import producers, resolve, validated_producers
 
 
 class ProjectArtifactTests(unittest.TestCase):
-    target = "project-check-darwin-amd64-race"
+    target = "project-check-darwin-arm64-race"
     source = {"repository": "example/project", "run_id": "19", "run_attempt": "2", "event_head": "1" * 40}
 
     def setUp(self):
@@ -42,7 +42,7 @@ class ProjectArtifactTests(unittest.TestCase):
     def test_newest_actual_job_authorizes_each_immutable_archive(self):
         selection = self.resolve()
         self.assertEqual(set(selection["producers"]), set(producers("full")))
-        self.assertEqual(len(selection["producers"]), 25)
+        self.assertEqual(len(selection["producers"]), 19)
         for stem, row in selection["producers"].items():
             self.assertEqual(row["producer_attempt"], 2 if stem == self.target else 1)
             self.assertEqual(row["job_id"] + 100, row["artifact_id"])

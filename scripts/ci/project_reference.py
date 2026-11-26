@@ -14,7 +14,7 @@ import re
 import subprocess
 
 from go_test_events import discover_roots, events, inspect
-from platform_policy import coordinates
+from platform_policy import CONTRACT, product_coordinates
 from project_artifacts import PYTHON, resolve, validated_producers
 from runserver_tests import PACKAGE, SPECIAL, plan, verify as verify_runserver
 
@@ -269,7 +269,7 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
         verify_reference(found[0], name, "3.14.3")
         observed[name] = found[0]
     outputs = []
-    for _, system, arch, mode in coordinates(profile):
+    for _, system, arch, mode in product_coordinates(profile):
         coordinate = (system, arch, mode)
         suffix = "-".join(coordinate)
         baseline, baseline_source = producer_input("project-check-" + suffix)
@@ -285,7 +285,7 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
         outputs.append({"coordinate": coordinate, "seals": seals,
                         "development": compare_development(observed["development"], consumers),
                         "events": compare_events(observed["event"], event_observation)})
-    return {"kind": "project-reference-comparison-v3", "source": expected_source, "repository_id": repository_id, "profile": profile,
+    return {"kind": "project-reference-comparison-v4", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,
             "producers": selected, "python_seal": python_seal,
             "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
 

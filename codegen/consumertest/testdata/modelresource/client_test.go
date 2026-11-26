@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"debug/buildinfo"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -78,6 +80,16 @@ func verifyGeneratedClient(t *testing.T, backend resourceBackend) {
 	}
 	executable := filepath.Join(t.TempDir(), "client")
 	clientCommand(t, root, "build", clientRace, nil, "go", "build", "-o", executable, ".")
+	build, err := buildinfo.ReadFile(executable)
+	check(t, err)
+	settings := map[string]string{}
+	for _, v := range build.Settings {
+		settings[v.Key] = v.Value
+	}
+	if settings["GOOS"] != runtime.GOOS || settings["GOARCH"] != runtime.GOARCH || (settings["-race"] == "true") != clientRace || (settings["CGO_ENABLED"] != "1" && settings["CGO_ENABLED"] != "0") || (os.Getenv("CGO_ENABLED") != "" && settings["CGO_ENABLED"] != os.Getenv("CGO_ENABLED")) {
+		t.Fatal("SDK executable build coordinate differs")
+	}
+	t.Logf("GODJ_SDK_MODE goos=%s goarch=%s cgo=%s race=%t", runtime.GOOS, runtime.GOARCH, settings["CGO_ENABLED"], clientRace)
 	for name, expected := range locks {
 		actual, err := os.ReadFile(filepath.Join(root, name))
 		check(t, err)

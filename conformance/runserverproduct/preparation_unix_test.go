@@ -109,7 +109,7 @@ func assertRunserverBuildCoordinate(t *testing.T, binary string) *debug.BuildInf
 	if expected := os.Getenv("CGO_ENABLED"); expected != "" && settings["CGO_ENABLED"] != expected {
 		t.Fatal("native executable lost the explicit CGO coordinate")
 	}
-	t.Logf("native executable coordinate: goos=%s goarch=%s cgo=%s race=%t", settings["GOOS"], settings["GOARCH"], settings["CGO_ENABLED"], race)
+	t.Logf("native executable coordinate: path=%s goos=%s goarch=%s cgo=%s race=%t", info.Path, settings["GOOS"], settings["GOARCH"], settings["CGO_ENABLED"], race)
 	return info
 }
 

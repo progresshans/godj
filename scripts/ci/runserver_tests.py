@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 
+from native_suites import INTEL_ROOTS
 from go_test_events import discover_roots, events, inspect
 
 PACKAGE = 'github.com/progresshans/godj/conformance/runserverproduct'
@@ -49,9 +50,14 @@ def plan(roots, required, postgres, owner='all'):
             postgres_roots.add(test.split('/')[0])
     if not postgres_roots or any(entry.split('|')[1].split('/')[0] in postgres_roots for entry in required):
         raise ValueError('PostgreSQL ownership is absent or overlaps mandatory non-DB execution')
+    delegated = set(roots) & set(INTEL_ROOTS.values())
+    if delegated and (delegated != set(INTEL_ROOTS.values()) or any(
+            entry.split('|')[1].split('/')[0] in delegated for entry in required)):
+        raise ValueError('incomplete or overlapping Intel compatibility ownership')
+    product_roots = [root for root in roots if root not in delegated]
     batches = {}
     for name in BATCHES:
-        chosen = sorted(root for root in roots if
+        chosen = sorted(root for root in product_roots if
                         (root not in SPECIAL.values() if name == 'runtime' else root == SPECIAL[name]))
         if not chosen:
             raise ValueError('empty server execution batch')
@@ -62,11 +68,12 @@ def plan(roots, required, postgres, owner='all'):
             'allowed_skips': sorted(set(chosen) & postgres_roots),
             'run': '^(' + '|'.join(re.escape(root) for root in chosen) + ')$',
         }
-    if Counter(root for batch in batches.values() for root in batch['roots']) != Counter(roots):
+    if Counter(root for batch in batches.values() for root in batch['roots']) != Counter(product_roots):
         raise ValueError('server roots do not have exactly one execution owner')
     if owner != 'all':
         batches = {name: batches[name] for name in OWNERS[owner]}
     return {'package': PACKAGE, 'owner': owner, 'discovered_roots': len(roots),
+            'delegated_native_roots': sorted(delegated),
             'owned_roots': sum(len(batch['roots']) for batch in batches.values()),
             'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots))+'\n').encode()).hexdigest(),
             'batches': batches}

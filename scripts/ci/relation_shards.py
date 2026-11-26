@@ -72,55 +72,18 @@ ARM64_RACE_SECONDS = {
     'TestGeneratedUpdateOrCreate': 135,
 }
 
-# The two catalog flows took up to 32 and 28 minutes on Apple Silicon
-# with a 35-minute package limit. Keep them in separate Go processes.
-DARWIN_CATALOG_ROOTS = ('TestGeneratedAccountCatalogCreation', 'TestGeneratedAccountCatalogTransition')
-
-# Relative weights for all Mac modes. Take the larger normal Mac duration
-# from run 43659728789 and round to 30s for roots that took at least 3m.
-# Other roots weigh 45s. The binary listing determines membership.
-DARWIN_NORMAL_SECONDS = {
-    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels': 720,
-    'TestGeneratedAccountCatalogThroughCreation': 390,
-    'TestGeneratedAccountCreationInputPolicy': 240,
-    'TestGeneratedAccountProfileCollections': 300,
-    'TestGeneratedAccountResetUsesSelectedModels': 810,
-    'TestGeneratedAccountRoleThroughCreation': 390,
-    'TestGeneratedAccountRootThroughCreation': 540,
-    'TestGeneratedAccountSharedThroughTransition': 330,
-    'TestGeneratedAccountThroughIdentityCreation': 210,
-    'TestGeneratedAccountTransition': 330,
-    'TestGeneratedAccountTransitionCatalogCycles': 240,
-    'TestGeneratedAccountTransitionCatalogFields': 390,
-    'TestGeneratedAccountTransitionTargetReferences': 540,
-    'TestGeneratedAccountTransitionThroughCreation': 360,
-    'TestGeneratedBulkUpdateReference': 180,
-    'TestGeneratedFirstAccountParentCustom': 330,
-    'TestGeneratedFirstAccountParentDefault': 360,
-    'TestGeneratedFirstAccountUsesRequiredProfiles': 840,
-    'TestGeneratedHistoricalAccountHandoff': 450,
-}
-
-# Keep both catalog roots alone. The remaining bins were replayed against
-# two complete six-coordinate Mac inventories with the same 35m/70m limits.
-DARWIN_CONSUMER_SHARDS = {
-    'amd64': {'normal': 13, 'race': 13, 'cgo0': 13},
-    'arm64': {'normal': 8, 'race': 9, 'cgo0': 8},
-}
-CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race', 'darwin-balanced')
+CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race')
 
 
 def consumer_weight(layout, shard):
     # Round multi-run Linux race timings to broad bands. Only placement on VMs
     # uses these estimates. Partitioning and package deadlines are independent.
-    if layout == 'darwin-balanced':
-        return 3 if shard <= len(DARWIN_CATALOG_ROOTS) else 2
     if shard > len(ISOLATED_ACCOUNT_ROOTS):
         return 4
     root = ISOLATED_ACCOUNT_ROOTS[shard - 1]
     if root == 'TestGeneratedFirstAccountUsesRequiredProfiles':
         return 4
-    if root in DARWIN_CATALOG_ROOTS or root in ('TestGeneratedAccountTransitionTargetReferences',
+    if root in ('TestGeneratedAccountCatalogCreation', 'TestGeneratedAccountCatalogTransition', 'TestGeneratedAccountTransitionTargetReferences',
                                                 'TestGeneratedAccountTransitionCatalogFields'):
         return 3
     if root in ('TestGeneratedFirstAccountParentDefault', 'TestGeneratedFirstAccountParentCustom'):
@@ -134,41 +97,35 @@ def matrix(profile='full'):
     rows = []
     for runner, goos, goarch in PLATFORMS:
         platform = {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch}
-        if goos == 'darwin' and profile != 'full':
+        if goos == 'darwin':
+            if goarch == 'amd64':
+                continue
+            def native(mode, scope, minutes):
+                rows.append({'platform': platform, 'mode': mode, 'scope': scope, 'worker': scope,
+                             'parts': [scope], 'step_minutes': minutes, 'job_timeout': minutes + 15})
             if profile == 'pr':
-                for mode in ('race', 'cgo0'):
-                    minutes = NATIVE_STEP_MINUTES[goarch]
-                    rows.append({'platform': platform, 'mode': mode, 'scope': 'darwin-native',
-                                 'worker': 'native', 'parts': ['native'],
-                                 'step_minutes': minutes, 'job_timeout': minutes + 10})
+                for mode in ('race','cgo0'):
+                    native(mode,'darwin-native',NATIVE_STEP_MINUTES[goarch])
+            if profile == 'full':
+                rows.append({'platform': platform, 'mode': 'normal', 'scope': 'darwin-runtime',
+                             'worker': 'runtime', 'parts':[0], 'test_timeout':'35m',
+                             'serial_runtime_packages':True, 'step_minutes':180, 'job_timeout':190})
+                for mode in ('normal','race','cgo0'):
+                    native(mode,'darwin-generated-native',100 if mode == 'race' else 75)
             continue
         for mode in ('normal', 'race', 'cgo0'):
-            darwin = goos == 'darwin'
-            darwin_race = darwin and mode == 'race'
-            if darwin:
-                layout = 'darwin-balanced'
-                count = DARWIN_CONSUMER_SHARDS[goarch][mode]
-            else:
-                layout = 'linux-arm64-race' if (goarch, mode) == ('arm64', 'race') else 'isolated-accounts'
-                count = len(ISOLATED_ACCOUNT_ROOTS) + (5 if mode == 'race' else 3)
-            common = {'platform': platform, 'mode': mode, 'scope': 'relation',
-                      'shards': count, 'consumer_layout': layout, 'test_timeout': '70m' if darwin_race else '35m'}
-            sqlite_timeout = '45m' if not darwin and mode == 'race' else ''
-            # Keep a dedicated VM for runtime, including the complete SQLite
-            # package. Cold Mac runtime has exceeded 100 minutes.
-            if darwin:
-                runtime_minutes = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
-                                   ('arm64', 'cgo0'): 135, ('amd64', 'race'): 135}.get((goarch, mode), 90)
-            else:
-                runtime_minutes = 70 if sqlite_timeout else 45
-            rows.append({**common, 'worker': 'runtime', 'parts': [0], 'sqlite_timeout': sqlite_timeout,
-                         'serial_runtime_packages': darwin and goarch == 'arm64',
-                         'step_minutes': runtime_minutes, 'job_timeout': runtime_minutes + 10})
-            minutes = 90 if darwin_race else 45
+            layout = 'linux-arm64-race' if (goarch, mode) == ('arm64', 'race') else 'isolated-accounts'
+            count = len(ISOLATED_ACCOUNT_ROOTS) + (5 if mode == 'race' else 3)
+            common = {'platform': platform, 'mode': mode, 'scope': 'complete-relation', 'shards': count,
+                      'consumer_layout': layout, 'test_timeout': '35m'}
+            sqlite_timeout = '45m' if mode == 'race' else ''
+            minutes = 70 if sqlite_timeout else 45
+            rows.append({**common, 'worker': 'runtime', 'parts':[0], 'sqlite_timeout':sqlite_timeout,
+                         'serial_runtime_packages':False, 'step_minutes':minutes, 'job_timeout':minutes+10})
             weights = {part: consumer_weight(layout, part) for part in range(1, count + 1)}
-            for parts in pack(weights, 2 if darwin_race else 3):
-                rows.append({**common, 'worker': 'parts-' + '-'.join(map(str, parts)), 'parts': parts,
-                             'sqlite_timeout': '', 'step_minutes': minutes, 'job_timeout': len(parts) * minutes + 15})
+            for parts in pack(weights, 3):
+                rows.append({**common, 'worker':'parts-'+'-'.join(map(str, parts)), 'parts':parts,
+                             'sqlite_timeout':'', 'step_minutes':45, 'job_timeout':len(parts)*45+15})
     # Submit the two Linux SQLite race owners, slow ARM race groups and Mac
     # runtime owners first within their respective runner pools.
     rows.sort(key=lambda r: (not r.get('sqlite_timeout'), r.get('consumer_layout') != 'linux-arm64-race',
@@ -185,8 +142,6 @@ def partition(roots, shard, count, layout='round-robin'):
     isolated = ()
     if layout in ('isolated-accounts', 'linux-arm64-race'):
         isolated = ISOLATED_ACCOUNT_ROOTS
-    elif layout == 'darwin-balanced':
-        isolated = DARWIN_CATALOG_ROOTS
     if isolated and (count <= len(isolated) or not set(isolated) <= set(roots)):
         raise ValueError('isolated account roots or ordinary owners are missing')
     if shard == 0:
@@ -201,7 +156,7 @@ def partition(roots, shard, count, layout='round-robin'):
     if layout in ('round-robin', 'isolated-accounts'):
         return sorted(ordered[slot::slots])
 
-    hints, default = (ARM64_RACE_SECONDS, 30) if layout == 'linux-arm64-race' else (DARWIN_NORMAL_SECONDS, 45)
+    hints, default = ARM64_RACE_SECONDS, 30
     weights = {root: hints.get(root, default) for root in ordered}
     groups = [[] for _ in range(slots)]
     seconds = [0] * slots
@@ -281,6 +236,29 @@ def verify(path, roots, shard, count, packages, layout='round-robin'):
     return {'consumer_roots_verified': len(expected), 'shard': shard, 'shards': count}
 
 
+def runtime_plan(packages, required):
+    if CONSUMER not in packages or len(packages) != len(set(packages)):
+        raise ValueError('invalid relation package discovery')
+    owned = [p for p in packages if p != CONSUMER]
+    chosen = []
+    for entry in required:
+        package, sep, test = entry.partition('|')
+        if not sep or not test or package not in packages:
+            raise ValueError('runtime sentinel has no source package: ' + entry)
+        if package != CONSUMER:
+            chosen.append(entry)
+    if not owned or not chosen or len(chosen) != len(set(chosen)):
+        raise ValueError('empty or duplicate runtime inventory')
+    return owned, chosen
+
+
+def verify_runtime(log, packages, required):
+    inventory = inspect(log)
+    errors = inventory.verify(required=[tuple(e.split('|',1)) for e in required], packages=packages, no_skips=True)
+    if inventory.packages != set(packages) or CONSUMER in inventory.packages or errors:
+        raise ValueError('Darwin runtime execution differs from its obligations: '+str(errors))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest='action', required=True)
@@ -296,8 +274,25 @@ def main():
             command.add_argument('--output-dir', required=True)
         else:
             command.add_argument('--log', required=True)
+    runtime = subparsers.add_parser('runtime')
+    runtime.add_argument('--packages', required=True)
+    runtime.add_argument('--required', required=True)
+    runtime.add_argument('--output-dir', required=True)
+    runtime.add_argument('--log')
     args = parser.parse_args()
     try:
+        if args.action == 'runtime':
+            packages, required = runtime_plan(read_lines(args.packages), read_lines(args.required))
+            out = Path(args.output_dir)
+            if args.log:
+                if read_lines(out/'packages.txt') != packages or read_lines(out/'required.txt') != required:
+                    raise ValueError('runtime plan changed after discovery')
+                verify_runtime(args.log, packages, required)
+            else:
+                out.mkdir(parents=True)
+                for name, values in (('packages', packages), ('required', required)):
+                    (out/(name+'.txt')).write_text('\n'.join(values)+'\n')
+            return
         roots = discover_roots(args.discovery, CONSUMER)
         if args.action == 'plan':
             result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards, args.layout)

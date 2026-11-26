@@ -14,18 +14,7 @@ import (
 )
 
 func TestGeneratedFileConsumer(t *testing.T) {
-	s, err := schema.Build(schema.Definition{AppLabel: "file_reference", Models: []schema.Model{
-		{Name: "document", GoName: "Document", Fields: []schema.Field{
-			schema.CharField("title", "Title", 40, schema.Unique()),
-			schema.FileField("file", "File", schema.MaxLength(40), schema.Blank(), schema.Default(""), schema.Unique()),
-			schema.FileField("optional", "Optional", schema.Nullable(), schema.Blank()),
-			schema.CharField("owner", "Owner", 40, schema.Default("alice")),
-		}},
-		{Name: "photograph", GoName: "Photograph", Fields: []schema.Field{
-			schema.CharField("title", "Title", 40, schema.Unique()),
-			schema.ImageField("photo", "Photo", schema.Nullable(), schema.Blank(), schema.ImageDimensions("width", "height")),
-			schema.IntegerField("width", "Width", schema.Nullable()), schema.IntegerField("height", "Height", schema.Nullable()),
-		}},
+	spec := fileConsumerProject(t, append(documentAndPhotoModels(), []schema.Model{
 		{Name: "raw_image", GoName: "RawImage", Fields: []schema.Field{schema.ImageField("image", "Image")}},
 		{Name: "strict_image", GoName: "StrictImage", Fields: []schema.Field{
 			schema.ImageField("photo", "Photo", schema.Blank(), schema.ImageDimensions("width", "height")),
@@ -43,12 +32,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		{Name: "photo_link", GoName: "PhotoLink", Fields: []schema.Field{schema.ForeignKey("photograph", "PhotographID", schema.Target("file_reference", "photograph"), schema.RelatedName("links"), schema.Protect)}},
 		{Name: "archive", GoName: "Archive", Fields: []schema.Field{schema.FileField("reference", "Reference")}},
 		{Name: "link", GoName: "Link", Fields: []schema.Field{schema.ForeignKey("document", "DocumentID", schema.Target("file_reference", "document"), schema.RelatedName("links"), schema.Protect)}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	const module = "example.com/godj-files"
-	spec := codegen.ProjectSpec{Project: codegen.PackageSpec{PackageName: "project", ImportPath: module + "/project", Directory: "project"}, Apps: []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "models", ImportPath: module + "/models", Directory: "models"}, Schema: s}}}
+	}...))
 	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +45,7 @@ func TestGeneratedFileConsumer(t *testing.T) {
 	if len(files) == 0 || len(files) != len(repeated) {
 		t.Fatal("incomplete generated file bundle")
 	}
-	root := newGeneratedModule(t, module)
+	root := newGeneratedModule(t, fileModule)
 	for i, file := range files {
 		if file.Path != repeated[i].Path || !bytes.Equal(file.Source(), repeated[i].Source()) {
 			t.Fatal("FileField output is not deterministic")
@@ -155,4 +139,31 @@ func TestGeneratedFileConsumer(t *testing.T) {
 		return errors.Join(writeErr, file.Close())
 	})
 	assertGeneratedConsumerTests(t, output, required...)
+}
+
+const fileModule = "example.com/godj-files"
+
+func documentAndPhotoModels() []schema.Model {
+	return []schema.Model{
+		{Name: "document", GoName: "Document", Fields: []schema.Field{
+			schema.CharField("title", "Title", 40, schema.Unique()),
+			schema.FileField("file", "File", schema.MaxLength(40), schema.Blank(), schema.Default(""), schema.Unique()),
+			schema.FileField("optional", "Optional", schema.Nullable(), schema.Blank()),
+			schema.CharField("owner", "Owner", 40, schema.Default("alice")),
+		}},
+		{Name: "photograph", GoName: "Photograph", Fields: []schema.Field{
+			schema.CharField("title", "Title", 40, schema.Unique()),
+			schema.ImageField("photo", "Photo", schema.Nullable(), schema.Blank(), schema.ImageDimensions("width", "height")),
+			schema.IntegerField("width", "Width", schema.Nullable()), schema.IntegerField("height", "Height", schema.Nullable()),
+		}},
+	}
+}
+
+func fileConsumerProject(t *testing.T, models []schema.Model) codegen.ProjectSpec {
+	t.Helper()
+	s, err := schema.Build(schema.Definition{AppLabel: "file_reference", Models: models})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return codegen.ProjectSpec{Project: codegen.PackageSpec{PackageName: "project", ImportPath: fileModule + "/project", Directory: "project"}, Apps: []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "models", ImportPath: fileModule + "/models", Directory: "models"}, Schema: s}}}
 }

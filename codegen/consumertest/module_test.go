@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"slices"
 	"testing"
 
@@ -102,15 +104,33 @@ func TestGeneratedConsumerActuallyUsesParentRaceMode(t *testing.T) {
 	directory := newGeneratedModule(t, "example.com/consumer-mode")
 	writeGeneratedTestFile(t, directory, "race.go", []byte("//go:build race\n\npackage consumer\nconst instrumented = true\n"))
 	writeGeneratedTestFile(t, directory, "norace.go", []byte("//go:build !race\n\npackage consumer\nconst instrumented = false\n"))
-	writeGeneratedTestFile(t, directory, "mode_test.go", []byte(fmt.Sprintf(`package consumer
-import "testing"
-func TestMode(t *testing.T) {
-    if instrumented != %t { t.Fatal("child race mode differs from parent") }
-}
-`, consumerRaceEnabled)))
-	if output, err := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", ".").CombinedOutput(); err != nil {
-		t.Fatalf("child mode: %v\n%s", err, output)
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		t.Fatal("parent build metadata unavailable")
 	}
+	cgo := ""
+	for _, setting := range info.Settings {
+		if setting.Key == "CGO_ENABLED" {
+			cgo = setting.Value
+		}
+	}
+	if cgo != "0" && cgo != "1" {
+		t.Fatal("parent CGO metadata unavailable")
+	}
+	writeGeneratedTestFile(t, directory, "mode_test.go", []byte(fmt.Sprintf(`package consumer
+import ("testing"; "runtime/debug")
+func TestMode(t *testing.T) {
+    info, ok := debug.ReadBuildInfo()
+    if !ok {t.Fatal("missing child build info")}
+    settings:=map[string]string{}
+    for _,v:=range info.Settings {settings[v.Key]=v.Value}
+    if settings["GOOS"]!=%q || settings["GOARCH"]!=%q || settings["CGO_ENABLED"]!=%q || (settings["-race"]=="true")!=%t || instrumented!=%t { t.Fatal("generated binary coordinate differs from parent") }
+    t.Logf("GODJ_CHILD_MODE goos=%%s goarch=%%s cgo=%%s race=%%t",settings["GOOS"],settings["GOARCH"],settings["CGO_ENABLED"],instrumented)
+}
+`, runtime.GOOS, runtime.GOARCH, cgo, consumerRaceEnabled, consumerRaceEnabled)))
+	cmd := generatedGoCommand(t.Context(), directory, "test", "-json", "-mod=mod", ".")
+	raw := runStrictGeneratedCommandWithCapture(t, cmd, func(raw []byte) error { return retainNativeChild("mode", raw) })
+	assertGeneratedConsumerTests(t, raw, "TestMode")
 }
 
 func TestGeneratedConsumerCommandStopsBeforeStartingWhenCanceled(t *testing.T) {
@@ -121,4 +141,17 @@ func TestGeneratedConsumerCommandStopsBeforeStartingWhenCanceled(t *testing.T) {
 	if err := command.Run(); !errors.Is(err, context.Canceled) || command.Process != nil {
 		t.Fatalf("canceled command = %v, process = %v; want cancellation without starting Go", err, command.Process)
 	}
+}
+
+func retainNativeChild(name string, raw []byte) error {
+	dir := os.Getenv("GODJ_NATIVE_EVIDENCE_DIR")
+	if dir == "" {
+		return nil
+	}
+	file, err := os.OpenFile(filepath.Join(dir, name+"-child.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(raw)
+	return errors.Join(err, file.Close())
 }

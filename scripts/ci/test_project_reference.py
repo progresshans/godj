@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from platform_policy import coordinates
+from platform_policy import product_coordinates
 from project_artifacts import PYTHON, producers
 from project_reference import (COMMAND_TEST, EVENT_TEST, PACKAGE, REFERENCES, ROOT, SPECIAL,
                                compare_development, compare_events, decode, digest, document, go_observation,
@@ -89,7 +89,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         roots = sorted({entry.split("|", 1)[1].split("/")[0] for entry in required + postgres if entry.startswith(PACKAGE + "|")})
         discovery = ([self.event("start")] + [self.event("output", Output=root + "\n") for root in roots] +
                      [self.event("output", Output="ok  \t" + PACKAGE + "\t0.1s\n"), self.event("pass")])
-        for _, *coordinate in coordinates(profile):
+        for _, *coordinate in product_coordinates(profile):
             for owner, prefix in (("baseline", "project-check-"), ("reload", "project-reload-")):
                 target = self.directory / (prefix + "-".join(coordinate) + "-2")
                 target.mkdir(parents=True)
@@ -143,7 +143,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
 
     def test_native_scaffold_requires_discovery_and_complete_execution(self):
         self.fixture()
-        target = self.directory / 'project-check-darwin-amd64-race-2'
+        target = self.directory / 'project-check-darwin-arm64-race-2'
         original = {path.name: path.read_bytes() for path in target.iterdir() if path.name != 'SHA256SUMS'}
         mutations = ('missing-discovery', 'wrong-discovery-package', 'missing-package-inventory',
                      'missing-execution', 'missing-root', 'skipped-child', 'duplicate-child',
@@ -183,17 +183,17 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         for path in target.iterdir(): path.unlink()
         for name, data in original.items(): (target / name).write_bytes(data)
         seal(target)
-        self.assertEqual(12, len(self.verify()['coordinates']))
+        self.assertEqual(9, len(self.verify()['coordinates']))
 
     def test_pr_comparison_requires_both_darwin_baselines_and_cannot_authorize_full(self):
         self.fixture("pr")
         self.selection.update(profile="pr", producers={s: self.selection["producers"][s] for s in producers("pr")})
         report = verify_all(self.directory, self.source, self.selection, 7, "pr")
-        self.assertEqual(("pr", 17, 8), (report["profile"], len(report["producers"]), len(report["coordinates"])))
+        self.assertEqual(("pr", 15, 7), (report["profile"], len(report["producers"]), len(report["coordinates"])))
         for profile in ("full", "unknown"):
             with self.assertRaises(ValueError):
                 verify_all(self.directory, self.source, self.selection, 7, profile)
-        del self.selection["producers"]["project-reload-darwin-amd64-normal"]
+        del self.selection["producers"]["project-reload-darwin-arm64-normal"]
         with self.assertRaises(ValueError):
             verify_all(self.directory, self.source, self.selection, 7, "pr")
 
@@ -201,7 +201,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         self.fixture("native")
         self.selection["profile"] = "native"
         report = verify_all(self.directory, self.source, self.selection, 7, "native")
-        self.assertEqual((12, 25), (len(report["coordinates"]), len(report["producers"])))
+        self.assertEqual((9, 19), (len(report["coordinates"]), len(report["producers"])))
         with self.assertRaises(ValueError):
             verify_all(self.directory, self.source, self.selection, 7, "full")
         del self.selection["producers"]["project-reload-darwin-arm64-race"]
@@ -211,7 +211,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
     def test_all_coordinates_bind_complete_consumers_and_independent_sources(self):
         self.fixture()
         report = self.verify()
-        self.assertEqual(len(report["coordinates"]), 12)
+        self.assertEqual(len(report["coordinates"]), 9)
         for coordinate in report["coordinates"]:
             self.assertEqual(len(coordinate["development"]["shared"]), 8)
             self.assertEqual(coordinate["development"]["native_differences"], ["source_failure"])
@@ -219,7 +219,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
 
     def test_partial_rerun_reuses_complete_prior_producers_and_rechecks_their_envelopes(self):
         self.fixture()
-        rerun = "project-check-darwin-amd64-race"
+        rerun = "project-check-darwin-arm64-race"
         for stem, row in self.selection["producers"].items():
             if stem == rerun:
                 continue
@@ -231,7 +231,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
             path.rename(self.directory / (stem + "-1"))
             row["producer_attempt"] = 1
         report = self.verify()
-        self.assertEqual(len(report["coordinates"]), 12)
+        self.assertEqual(len(report["coordinates"]), 9)
         self.assertEqual(report["producers"], self.selection["producers"])
         self.assertEqual([stem for stem, row in report["producers"].items() if row["producer_attempt"] == 2], [rerun])
         python = self.directory / (PYTHON + "-1")

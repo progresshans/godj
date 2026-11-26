@@ -40,54 +40,9 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	}
 	environment := runserverEnvironment(t, "unused-article.sqlite3", workspace)
 	environment = testenv.Without(environment, articleSQLiteDatabaseEnv, "GODJ_SQLITE_DATABASE", "GODJ_POSTGRES_URL", "GODJ_POSTGRES_SCHEMA")
-	runGo := func(directory string, env []string, args ...string) testprocess.CommandResult {
-		t.Helper()
-		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, env, "go", args...)
-		if result.ExitCode != 0 {
-			t.Fatalf("module fixture go %s: exit=%d stderr=%s", args[0], result.ExitCode, result.Stderr)
-		}
-		assertRunserverWorkspaceEmpty(t, workspace)
-		return result
-	}
-	hostCaches := runGo(repository, environment, "env", "-json", "GOMODCACHE", "GOCACHE")
-	var caches struct{ GOMODCACHE, GOCACHE string }
-	if json.Unmarshal([]byte(hostCaches.Stdout), &caches) != nil || !filepath.IsAbs(caches.GOMODCACHE) || !filepath.IsAbs(caches.GOCACHE) {
-		t.Fatal("module fixture requires explicit host cache paths")
-	}
-	proxy := filepath.Join(root, "proxy")
 	versions := []string{"v0.0.0-godj-compatibility-test.1", "v0.0.0-godj-compatibility-test.2"}
-	source := fixedModuleSources(t, repository, environment)
-	for _, release := range versions {
-		fixedModuleArchive(t, repository, proxy, release, source)
-	}
-	fixedModuleWrite(t, filepath.Join(proxy, filepath.FromSlash(version.Module), "@v/list"), []byte(strings.Join(versions, "\n")+"\n"))
-	fileURL := func(path string) string { return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String() }
-	// Match the linked CLI builds so dependencies in this fresh module cache
-	// can reuse compiled objects without embedding its temporary path.
-	flags := gobuild.InstrumentationFlags("-modcacherw -trimpath")
-	environment = testenv.With(environment, map[string]string{
-		"GOPROXY":    fileURL(proxy) + "," + fileURL(filepath.Join(caches.GOMODCACHE, "cache", "download")),
-		"GOMODCACHE": filepath.Join(root, "module-cache"), "GOCACHE": caches.GOCACHE,
-		"GOPATH": filepath.Join(root, "gopath"), "GOFLAGS": flags,
-	})
-	tools := make([]string, len(versions))
-	for i, release := range versions {
-		bin := filepath.Join(root, fmt.Sprintf("install-%d", i))
-		if err := os.Mkdir(bin, 0700); err != nil {
-			t.Fatal(err)
-		}
-		runGo(root, testenv.With(environment, map[string]string{"GOBIN": bin}), "install", version.Module+"/cmd/godj@"+release)
-		tools[i] = filepath.Join(bin, "godj")
-		fixedModuleBuildIdentity(t, tools[i], release, true)
-		output := testprocess.Run(t, testprocess.CommandLimits{Timeout: 30 * time.Second, Output: maximumRunserverOutput}, root, environment, tools[i], "version", "--json")
-		var doc struct {
-			FormatVersion int          `json:"format_version"`
-			Framework     version.Info `json:"framework"`
-		}
-		if output.ExitCode != 0 || output.Stderr != "" || json.Unmarshal([]byte(output.Stdout), &doc) != nil || doc.FormatVersion != 1 || doc.Framework.Origin != version.ModuleVersion || doc.Framework.Version != release || doc.Framework.ReplacementModule != "" || doc.Framework.RequestedVersion != "" {
-			t.Fatal("installed tool does not identify its fixed module", output.ExitCode, output.Stderr, doc)
-		}
-	}
+	runGo := fixedModuleGo(t, workspace)
+	tools, environment := installFixedModuleTools(t, repository, root, workspace, environment, versions)
 	project := filepath.Join(root, "site")
 	run := func(binary, directory string, args ...string) testprocess.CommandResult {
 		t.Helper()
@@ -194,6 +149,63 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	reject(tools[0])
 	runGo(project, environment, "mod", "verify")
 	t.Logf("fixed module compatibility: installed=%d linked_per_version=3 mismatched_commands_per_direction=5 stored_groups=1", len(versions))
+}
+
+func fixedModuleGo(t *testing.T, workspace string) func(string, []string, ...string) testprocess.CommandResult {
+	t.Helper()
+	return func(directory string, env []string, args ...string) testprocess.CommandResult {
+		t.Helper()
+		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, env, "go", args...)
+		if result.ExitCode != 0 {
+			t.Fatalf("module fixture go %s: exit=%d stderr=%s", args[0], result.ExitCode, result.Stderr)
+		}
+		assertRunserverWorkspaceEmpty(t, workspace)
+		return result
+	}
+}
+
+func installFixedModuleTools(t *testing.T, repository, root, workspace string, environment, versions []string) ([]string, []string) {
+	t.Helper()
+	runGo := fixedModuleGo(t, workspace)
+	hostCaches := runGo(repository, environment, "env", "-json", "GOMODCACHE", "GOCACHE")
+	var caches struct{ GOMODCACHE, GOCACHE string }
+	if json.Unmarshal([]byte(hostCaches.Stdout), &caches) != nil || !filepath.IsAbs(caches.GOMODCACHE) || !filepath.IsAbs(caches.GOCACHE) {
+		t.Fatal("module fixture requires explicit host cache paths")
+	}
+	proxy := filepath.Join(root, "proxy")
+	source := fixedModuleSources(t, repository, environment)
+	for _, release := range versions {
+		fixedModuleArchive(t, repository, proxy, release, source)
+	}
+	fixedModuleWrite(t, filepath.Join(proxy, filepath.FromSlash(version.Module), "@v/list"), []byte(strings.Join(versions, "\n")+"\n"))
+	fileURL := func(path string) string { return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String() }
+	// Match the linked CLI builds so dependencies in this fresh module cache
+	// can reuse compiled objects without embedding its temporary path.
+	flags := gobuild.InstrumentationFlags("-modcacherw -trimpath")
+	environment = testenv.With(environment, map[string]string{
+		"GOPROXY":    fileURL(proxy) + "," + fileURL(filepath.Join(caches.GOMODCACHE, "cache", "download")),
+		"GOMODCACHE": filepath.Join(root, "module-cache"), "GOCACHE": caches.GOCACHE,
+		"GOPATH": filepath.Join(root, "gopath"), "GOFLAGS": flags,
+	})
+	tools := make([]string, len(versions))
+	for i, release := range versions {
+		bin := filepath.Join(root, fmt.Sprintf("install-%d", i))
+		if err := os.Mkdir(bin, 0700); err != nil {
+			t.Fatal(err)
+		}
+		runGo(root, testenv.With(environment, map[string]string{"GOBIN": bin}), "install", version.Module+"/cmd/godj@"+release)
+		tools[i] = filepath.Join(bin, "godj")
+		fixedModuleBuildIdentity(t, tools[i], release, true)
+		output := testprocess.Run(t, testprocess.CommandLimits{Timeout: 30 * time.Second, Output: maximumRunserverOutput}, root, environment, tools[i], "version", "--json")
+		var doc struct {
+			FormatVersion int          `json:"format_version"`
+			Framework     version.Info `json:"framework"`
+		}
+		if output.ExitCode != 0 || output.Stderr != "" || json.Unmarshal([]byte(output.Stdout), &doc) != nil || doc.FormatVersion != 1 || doc.Framework.Origin != version.ModuleVersion || doc.Framework.Version != release || doc.Framework.ReplacementModule != "" || doc.Framework.RequestedVersion != "" {
+			t.Fatal("installed tool does not identify its fixed module", output.ExitCode, output.Stderr, doc)
+		}
+	}
+	return tools, environment
 }
 
 func fixedModuleProjectDependency(t *testing.T, project, repository, release string) {

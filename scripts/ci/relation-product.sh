@@ -8,7 +8,15 @@ if [ "$SCOPE" = darwin-native ]; then
     *) exit 2 ;;
   esac
 fi
-test "$SCOPE" = relation
+if [ "$SCOPE" = darwin-generated-native ]; then
+  case "$1" in
+    prepare) make project-command-dependencies api-client-dependencies ;;
+    run) exec python3 scripts/ci/native_evidence.py "$SCOPE" "$MODE" "$RUNNER_TEMP/native" ;;
+    *) exit 2 ;;
+  esac
+  exit 0
+fi
+[[ "$SCOPE" = complete-relation || "$SCOPE" = darwin-runtime ]]
 mode="$MODE"
 consumer_package=github.com/progresshans/godj/codegen/consumertest
 work="$RUNNER_TEMP/relation"
@@ -42,7 +50,9 @@ case "$1" in
     if [ "$mode" != race ]; then
       cat scripts/ci/compile-required.txt >> "$required"
     fi
-    go test -timeout="$test_timeout" "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
+    if [ "$SCOPE" = complete-relation ]; then
+      go test -timeout="$test_timeout" "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
+    fi
     exit 0
     ;;
   run) ;;
@@ -50,7 +60,7 @@ case "$1" in
 esac
 
 shard="$PART"
-shards="$SHARDS"
+shards="${SHARDS:-0}"
 partition_args=(--shard "$shard" --shards "$shards" --layout "$CONSUMER_LAYOUT")
 part="$work/part-$shard"
 mkdir "$part"
@@ -62,7 +72,12 @@ export GODJ_GENERATED_CONSUMER_CAPTURE_DIR="$part/generated-consumer-diagnostics
 packages=()
 while IFS= read -r package; do packages+=("$package"); done < "$work/selected-packages.txt"
 relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir" "${partition_args[@]}"
+runtime_plan=(runtime --packages "$expected_packages" --required "$required" --output-dir "$shard_dir")
+if [ "$SCOPE" = darwin-runtime ]; then
+  python3 scripts/ci/relation_shards.py "${runtime_plan[@]}"
+else
+  python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir" "${partition_args[@]}"
+fi
 required="$shard_dir/required.txt"
 expected_packages="$shard_dir/packages.txt"
 if grep -Fqx "$consumer_package|TestGeneratedModelResources" "$required"; then
@@ -115,7 +130,11 @@ if [ "$status" -ne 0 ]; then
   exit "$status"
 fi
 python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
-python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --packages "$expected_packages" --log "$log" "${partition_args[@]}"
+if [ "$SCOPE" = darwin-runtime ]; then
+  python3 scripts/ci/relation_shards.py "${runtime_plan[@]}" --log "$log"
+else
+  python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --packages "$expected_packages" --log "$log" "${partition_args[@]}"
+fi
 if [ "$mode" = normal ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
   go vet ./migrations ./db/sqlite
 fi

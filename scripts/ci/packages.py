@@ -67,6 +67,8 @@ def selected(packages, group_name, owners=()):
             include = relative in PORTABLE_PRODUCTS
         else:
             include = group_name == 'all' or category == group_name
+        # Native compatibility selects individual tests inside these packages.
+        # It never takes ownership of an entire Linux package.
         if include and group_name in ('core', 'integration', 'conformance', 'portable-products'):
             if 'relation-product-matrix' in owners and relation_owned(relative):
                 include = False

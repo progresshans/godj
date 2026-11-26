@@ -24,25 +24,7 @@ func TestGeneratedModelResources(t *testing.T) {
 			name = "changed"
 		}
 		t.Run(name, func(t *testing.T) {
-			bundle, err := codegen.GenerateProject(modelResourceProject(t, evolved))
-			if err != nil {
-				t.Fatal(err)
-			}
-			root := writeProjectBundleModule(t, bundle)
-			for _, name := range []string{"backend_test.go", "assembly_test.go", "runtime_test.go", "http_test.go", "admin_test.go", "comparison_test.go", "client_test.go"} {
-				data, err := os.ReadFile(filepath.Join("testdata", "modelresource", name))
-				if err != nil {
-					t.Fatal(err)
-				}
-				writeGeneratedTestFile(t, root, "consumer/"+name, data)
-			}
-			manual, err := os.ReadFile(filepath.Join("testdata", "modelresource", "manual_"+name+".go.txt"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			writeGeneratedTestFile(t, root, "consumer/manual_test.go", manual)
-			writeGeneratedTestFile(t, root, "consumer/version_test.go", []byte(fmt.Sprintf("package consumer\nconst evolved = %t\nconst clientRace = %t\n", evolved, consumerRaceEnabled)))
-			writeModelResourceClient(t, root, name)
+			root := prepareModelResourceModule(t, name, evolved)
 			required := []string{"TestModelResourceAssembly"}
 			for _, vendor := range []string{"sqlite", "postgres"} {
 				if vendor == "postgres" && strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) == "" && os.Getenv("GODJ_REQUIRE_POSTGRES") != "1" {
@@ -87,6 +69,30 @@ func reject(session db.Session) {
 			}
 		})
 	}
+}
+
+func prepareModelResourceModule(t *testing.T, name string, evolved bool) string {
+	t.Helper()
+	bundle, err := codegen.GenerateProject(modelResourceProject(t, evolved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := writeProjectBundleModule(t, bundle)
+	for _, name := range []string{"backend_test.go", "assembly_test.go", "runtime_test.go", "http_test.go", "admin_test.go", "comparison_test.go", "client_test.go"} {
+		data, err := os.ReadFile(filepath.Join("testdata", "modelresource", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/"+name, data)
+	}
+	manual, err := os.ReadFile(filepath.Join("testdata", "modelresource", "manual_"+name+".go.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/manual_test.go", manual)
+	writeGeneratedTestFile(t, root, "consumer/version_test.go", []byte(fmt.Sprintf("package consumer\nconst evolved = %t\nconst clientRace = %t\n", evolved, consumerRaceEnabled)))
+	writeModelResourceClient(t, root, name)
+	return root
 }
 
 func writeModelResourceClient(t *testing.T, root, version string) {

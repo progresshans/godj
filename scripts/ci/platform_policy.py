@@ -10,6 +10,7 @@ PLATFORMS = (
     ('macos-15-intel', 'darwin', 'amd64'),
     ('macos-26', 'darwin', 'arm64'),
 )
+CONTRACT = 'platform-obligations-v2'
 MODES = ('normal', 'race', 'cgo0')
 PROFILES = ('pr', 'native', 'full')
 NATIVE_STEP_MINUTES = {'amd64': 35, 'arm64': 80}
@@ -19,7 +20,6 @@ NATIVE_STEP_MINUTES = {'amd64': 35, 'arm64': 80}
 PROJECT_BUDGETS = {
     'ubuntu-24.04': ('35m', 25, (65, 75, 65), '30m', '30m', 75),
     'ubuntu-24.04-arm': ('20m', 25, (60, 70, 60), '30m', '30m', 75),
-    'macos-15-intel': ('30m', 40, (105, 140, 105), '45m', '45m', 105),
     'macos-26': ('20m', 40, (95, 105, 95), '35m', '30m', 80),
 }
 
@@ -55,25 +55,27 @@ def event_profile():
     return pr_profile(os.fsdecode(path) for path in paths.split(b'\0') if path)
 
 
-def coordinates(profile):
+def product_coordinates(profile):
     if profile not in PROFILES:
         raise ValueError('unknown validation profile: ' + repr(profile))
     return [(runner, system, arch, mode) for runner, system, arch in PLATFORMS for mode in MODES
-            if profile != 'pr' or system == 'linux' or mode == 'normal']
+            if system == 'linux' or arch == 'arm64' and (profile != 'pr' or mode == 'normal')]
 
 
 def product_matrix(profile):
     rows = []
-    for runner, system, arch, mode in coordinates(profile):
+    for runner, system, arch, mode in product_coordinates(profile):
         cmd, flow, project, operator, target, commands = PROJECT_BUDGETS[runner]
-        # The full two-version installation on Intel race was still verifying
-        # persisted data after 40 minutes. Its per-command deadlines stay local.
-        fixed = 50 if (system, arch, mode) == ('darwin', 'amd64', 'race') else flow
         rows.append({'platform': {'runs_on': runner, 'expected_goos': system, 'expected_goarch': arch,
-                                  'cmd_test_timeout': cmd, 'flow_test_timeout': f'{flow}m', 'fixed_module_timeout': f'{fixed}m',
+                                  'cmd_test_timeout': cmd, 'flow_test_timeout': f'{flow}m', 'fixed_module_timeout': f'{flow}m',
                                   'operator_timeout': operator, 'target_timeout': target,
-                                  'project_minutes': project[MODES.index(mode)] + (fixed - flow), 'command_minutes': commands,
+                                  'project_minutes': project[MODES.index(mode)], 'command_minutes': commands,
                                   'native_minutes': NATIVE_STEP_MINUTES[arch],
                                   'reload_minutes': 65 + (NATIVE_STEP_MINUTES[arch] if system == 'darwin' and mode != 'normal' else 0)},
                      'mode': mode})
     return {'include': rows}
+
+def intel_matrix(profile):
+    if profile not in PROFILES:
+        raise ValueError('unknown validation profile')
+    return {'include': [{'mode': mode} for mode in (('normal',) if profile == 'pr' else ('normal','cgo0'))]}

@@ -3,7 +3,7 @@ from collections import defaultdict
 import re
 
 from capture_artifact import github_records
-from platform_policy import coordinates
+from platform_policy import product_coordinates
 
 
 PYTHON = "python-project-reference-3.14.3"
@@ -11,18 +11,18 @@ PYTHON = "python-project-reference-3.14.3"
 
 def producers(profile):
     result = {PYTHON: ("Python compatibility (3.14.3)", "Publish Python project-reference evidence")}
-    for runner, system, arch, mode in coordinates(profile):
+    for runner, system, arch, mode in product_coordinates(profile):
         suffix = f"{system}-{arch}-{mode}"
         result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")
         result[f"project-reload-{suffix}"] = (f"Product reload ({runner}, {mode})", "Publish project-reload evidence")
     return result
 
 
-def verify_upload(job, upload, artifact):
+def verify_upload(job, upload, artifact, prefix="Project artifact "):
     # The trusted upload action supplies both fields in the following step's
     # evaluated name. GitHub returns that step on this exact job and attempt.
-    receipts = [step for step in job["steps"] if step["name"].startswith("Project artifact ")]
-    expected = f"Project artifact {artifact['id']} {artifact['digest'].removeprefix('sha256:')}"
+    receipts = [step for step in job["steps"] if step["name"].startswith(prefix)]
+    expected = f"{prefix}{artifact['id']} {artifact['digest'].removeprefix('sha256:')}"
     if (len(receipts) != 1 or type(upload.get("number")) is not int or upload["number"] < 1
             or type(receipts[0].get("number")) is not int or receipts[0]["number"] != upload["number"] + 1
             or receipts[0]["name"] != expected
@@ -30,12 +30,12 @@ def verify_upload(job, upload, artifact):
         raise ValueError(f"upload receipt differs for {artifact['name']}")
 
 
-def validated_producers(selection, source, repository_id, profile):
+def validated_producers(selection, source, repository_id, profile, expected=None):
     current = int(source["run_attempt"])
     selected = selection["producers"]
     if (selection["source"] != source or type(selection["repository_id"]) is not int
             or selection["repository_id"] != repository_id or selection["profile"] != profile
-            or set(selected) != set(producers(profile))):
+            or set(selected) != set(producers(profile) if expected is None else expected)):
         raise ValueError("project evidence selection differs from the run or required producers")
     ids, jobs = set(), set()
     for stem, record in selected.items():
@@ -69,13 +69,14 @@ def executed_jobs(attempts):
     return executed
 
 
-def resolve(source, repository_id, profile, fetch=github_records):
+def resolve(source, repository_id, profile, fetch=github_records, *, expected=None, receipt_prefix="Project artifact "):
     repository = source["repository"]
     run, current = int(source["run_id"]), int(source["run_attempt"])
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII) or min(run, current, repository_id) < 1:
         raise ValueError("invalid project comparison run identity")
     base = f"repos/{repository}/actions/runs/{run}"
-    expected = producers(profile)
+    if expected is None:
+        expected = producers(profile)
     names = {job for job, _ in expected.values()}
     jobs = defaultdict(dict)
     for job in fetch(base + "/jobs?filter=all", "jobs"):
@@ -120,7 +121,7 @@ def resolve(source, repository_id, profile, fetch=github_records):
             raise ValueError(f"invalid immutable archive for {stem}")
         selected[stem] = {"producer_attempt": attempt, "job_id": job["id"], "artifact_id": artifact["id"],
                           "archive_sha256": artifact["digest"].removeprefix("sha256:")}
-        verify_upload(job, published[0], artifact)
+        verify_upload(job, published[0], artifact, receipt_prefix)
     selection = {"source": source, "repository_id": repository_id, "profile": profile, "producers": selected}
-    validated_producers(selection, source, repository_id, profile)
+    validated_producers(selection, source, repository_id, profile, expected)
     return selection

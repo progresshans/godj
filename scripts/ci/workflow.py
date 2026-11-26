@@ -8,10 +8,12 @@ import subprocess
 from postgres_shards import matrix as postgres_matrix
 from worker_parts import verify_outcomes
 from relation_shards import matrix as relation_matrix
-from platform_policy import PROFILES, event_profile, product_matrix
+from platform_policy import CONTRACT, PROFILES, event_profile, intel_matrix, product_matrix
 
 
 JOBS = frozenset({
+    'darwin-compile-only',
+    'intel-compatibility',
     'conformance-validation',
     'portable-go-matrix',
     'starter-account-browser',
@@ -39,15 +41,15 @@ def verify_results(results, required):
 
 def plan_outputs(profile):
     matrices = {'jobs': sorted(JOBS), 'relation_matrix': relation_matrix(profile), 'product_matrix': product_matrix(profile),
-                'postgres_matrix': postgres_matrix()}
-    return {'profile': profile, **{name: json.dumps(value, separators=(',', ':')) for name, value in matrices.items()}}
+                'intel_matrix': intel_matrix(profile), 'postgres_matrix': postgres_matrix()}
+    return {'profile': profile, 'validation_contract': CONTRACT, **{name: json.dumps(value, separators=(',', ':')) for name, value in matrices.items()}}
 
 
 def verify(results, profile):
     verify_results(results, JOBS | {'validation-plan'})
     if profile not in PROFILES or results['validation-plan'].get('outputs') != plan_outputs(profile):
         raise ValueError('planned validation matrices differ from the checkout and event')
-    return {'profile': profile, 'full_platform_verified': profile == 'full', 'verified_jobs': sorted(JOBS)}
+    return {'profile': profile, 'validation_contract': CONTRACT, 'full_platform_verified': profile == 'full', 'verified_jobs': sorted(JOBS)}
 
 
 def verify_command_products(results):
@@ -58,7 +60,7 @@ def verify_command_products(results):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     actions = parser.add_subparsers(dest='action', required=True)
-    for action in ('plan', 'verify', 'verify-command-products'):
+    for action in ('plan', 'preflight', 'verify', 'verify-command-products'):
         actions.add_parser(action)
     actions.add_parser('verify-parts').add_argument('outcomes', nargs=3)
     args = parser.parse_args()
@@ -67,6 +69,8 @@ def main():
             with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
                 for name, value in plan_outputs(event_profile()).items():
                     print(name + '=' + value, file=output)
+        elif args.action == 'preflight':
+            verify(json.loads(os.environ['REQUIRED_RESULTS_JSON']), event_profile())
         elif args.action == 'verify-parts':
             verify_outcomes(json.loads(os.environ['WORKER_PARTS']), args.outcomes)
         elif args.action == 'verify-command-products':
@@ -77,9 +81,9 @@ def main():
             print(json.dumps(report, sort_keys=True))
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
                 label = {'pr': 'Linux suite and native macOS PR checks',
-                         'native': 'Linux suite and all macOS project modes',
+                         'native': 'Linux suite and Apple Silicon project modes',
                          'full': 'Full platform validation'}[report['profile']]
-                print(label + ' **passed**', file=output)
+                print(f'{label} **passed** ({CONTRACT})', file=output)
     except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + '\n')
 

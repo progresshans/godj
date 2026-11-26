@@ -123,7 +123,7 @@ class RunserverExecutionTests(unittest.TestCase):
         workflow = (root / '.github/workflows/ci.yml').read_text()
         section = workflow.split('  product-project-check-matrix:', 1)[1].split('  product-reload-matrix:', 1)[0]
         platforms = product_matrix('full')['include']
-        self.assertEqual(12, len(platforms))
+        self.assertEqual(9, len(platforms))
         initialization = section[section.index('          cmd_test_flags='):section.index('          # These package groups')]
         loop = section[section.index('          runserver_status=0'):section.index('          if [ "$mode" = "normal" ]')]
         # Retain the former allowance for setup and the other package suites
@@ -135,7 +135,7 @@ class RunserverExecutionTests(unittest.TestCase):
             fields, mode = row['platform'], row['mode']
             platform = fields['runs_on']
             expected_minutes = 40 if platform.startswith('macos-') else 25
-            fixed_minutes = 50 if platform == 'macos-15-intel' and mode == 'race' else expected_minutes
+            fixed_minutes = expected_minutes
             cmd_timeout = fields['cmd_test_timeout']
             flow_timeout = fields['flow_test_timeout']
             setup = initialization.replace('${{ matrix.platform.cmd_test_timeout }}', cmd_timeout)
