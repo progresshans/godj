@@ -39,6 +39,28 @@ class RelationShardTest(unittest.TestCase):
                            self.event('pass', Test=root + '/child'), self.event('pass', Test=root)])
         return result + [self.event('pass')]
 
+    def test_amd64_race_costs_only_place_complete_parts_on_existing_workers(self):
+        from unittest.mock import patch
+        from relation_shards import AMD64_RACE_WORKER_WEIGHTS
+
+        def split(rows):
+            target, other = [], []
+            for row in rows:
+                where = row['platform']
+                if (where['expected_goos'], where['expected_goarch'], row['mode']) == ('linux', 'amd64', 'race') and row['worker'] != 'runtime':
+                    target.append(row['parts'])
+                else:
+                    other.append(row)
+            return target, other
+
+        before, unaffected = split(matrix('full')['include'])
+        with patch.dict(AMD64_RACE_WORKER_WEIGHTS, {ISOLATED_ACCOUNT_ROOTS[0]: 10000}, clear=True):
+            after, remaining = split(matrix('full')['include'])
+        self.assertEqual(unaffected, remaining)
+        self.assertNotEqual(before, after)
+        self.assertCountEqual([p for g in before for p in g], [p for g in after for p in g])
+        self.assertTrue(all(1 <= len(group) <= 3 for group in after))
+
     def test_build_cache_pilots_have_one_writer_per_family(self):
         from relation_shards import ISOLATED_ACCOUNT_ROOTS, matrix
         for profile in ('pr', 'native', 'full'):

@@ -72,15 +72,40 @@ ARM64_RACE_SECONDS = {
     'TestGeneratedUpdateOrCreate': 135,
 }
 
+# Median relative part costs in Linux/amd64 race runs 45780889275, 46027695666,
+# 46041421514 and 46053077506. Each run's median part costs 20 units.
+# Ordinary groups change members with discovery and share their measured cost.
+AMD64_RACE_WORKER_WEIGHTS = {
+    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels': 15,
+    'TestGeneratedFirstAccountUsesRequiredProfiles': 38,
+    'TestGeneratedAccountResetUsesSelectedModels': 17,
+    'TestGeneratedAccountTransition': 15,
+    'TestGeneratedAccountCatalogTransition': 31,
+    'TestGeneratedAccountCatalogCreation': 20,
+    'TestGeneratedAccountSharedThroughTransition': 20,
+    'TestGeneratedAccountTransitionTargetReferences': 22,
+    'TestGeneratedAccountTransitionCatalogFields': 23,
+    'TestGeneratedAccountTransitionCatalogCycles': 12,
+    'TestGeneratedFirstAccountParentDefault': 11,
+    'TestGeneratedFirstAccountParentCustom': 11,
+    'TestGeneratedAccountRoleThroughCreation': 11,
+    'TestGeneratedAccountCatalogThroughCreation': 13,
+    'TestGeneratedAccountRootThroughCreation': 22,
+    'TestGeneratedAccountTransitionThroughCreation': 15,
+}
+AMD64_RACE_ORDINARY_WEIGHT = 42
+
 CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race')
 
 
-def consumer_weight(layout, shard):
+def consumer_weight(arch, mode, shard):
     # Round multi-run Linux race timings to broad bands. Only placement on VMs
     # uses these estimates. Partitioning and package deadlines are independent.
-    if shard > len(ISOLATED_ACCOUNT_ROOTS):
+    root = ISOLATED_ACCOUNT_ROOTS[shard - 1] if shard <= len(ISOLATED_ACCOUNT_ROOTS) else None
+    if (arch, mode) == ('amd64', 'race'):
+        return AMD64_RACE_ORDINARY_WEIGHT if root is None else AMD64_RACE_WORKER_WEIGHTS.get(root, 20)
+    if root is None:
         return 4
-    root = ISOLATED_ACCOUNT_ROOTS[shard - 1]
     if root == 'TestGeneratedFirstAccountUsesRequiredProfiles':
         return 4
     if root in ('TestGeneratedAccountCatalogCreation', 'TestGeneratedAccountCatalogTransition', 'TestGeneratedAccountTransitionTargetReferences',
@@ -122,7 +147,7 @@ def matrix(profile='full'):
             minutes = 70 if sqlite_timeout else 45
             rows.append({**common, 'worker': 'runtime', 'parts':[0], 'sqlite_timeout':sqlite_timeout,
                          'serial_runtime_packages':False, 'step_minutes':minutes, 'job_timeout':minutes+10})
-            weights = {part: consumer_weight(layout, part) for part in range(1, count + 1)}
+            weights = {part: consumer_weight(goarch, mode, part) for part in range(1, count + 1)}
             for parts in pack(weights, 3):
                 rows.append({**common, 'worker':'parts-'+'-'.join(map(str, parts)), 'parts':parts,
                              'sqlite_timeout':'', 'step_minutes':45, 'job_timeout':len(parts)*45+15})

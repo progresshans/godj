@@ -37,6 +37,10 @@ PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target�
 
 값은 모드별로 가장 긴 작업의 part 실행 합이다. 첫 재배치는 직전 실행의 시간만으로 계획했다. 다음 실행의 race 작업 하나에서 target-references·profiles·transition-through 세 구간이 각각 760→1,034초, 588→784초, 323→435초로 늘었다. 최종 배치는 각 구간에 대해 두 번째까지 관측한 값 중 긴 쪽을 사용한다. 마지막 열은 두 실행의 실제 시간을 각각 고정한 시뮬레이션이다. 각 모드의 13개 part 배정이 정확히 한 번이고 작업당 최대 세 개임을 대조했다. 새 part의 가중치는 해당 모드 측정값의 중간값이다. [실제 race 작업](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022463) · [PostgreSQL 배정 코드](../../scripts/ci/postgres_shards.py)
 
+Linux/x64 race의 기존 21개 생성 소비자 part 중 같은 세 part를 처리한 작업이 `803b5f66`에서 46분 52초, `2557f3cf`에서 47분 42초를 기록했다. 각 값은 세 part의 step 합이다. 앞선 제출에서 등록 root가 133개에서 134개로 바뀌자 일반 소비자 그룹 다섯 개는 각 그룹의 기존 root 하나씩만 같은 위치에 남았다. 이에 전용 root는 이름별 실측을 사용하고 일반 그룹에는 공통 가중치를 적용했다. 네 full 실행의 part 시간을 해당 실행의 중간값으로 정규화했다.
+
+이 가중치로 기존 일곱 러너에 재배치한 계산에서 위 두 실행의 최장 합은 각각 40분 47초·39분 34초였다. 검토 기준 `8452e9d4` 비용에 대입하면 7초 늘어난다. 각 모드·프로필에서 원래 part의 테스트 집합·환경·제한을 대조했다. 배치 계산에는 기존 step 시간을 사용하고 러너 대기는 원격 실행에서 별도로 측정한다. [첫 실행 원본](https://github.com/progresshans/godj/actions/runs/46041421514/job/140649911583) · [반복 실행 원본](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689023043)
+
 공통 Go runner 이관 전 `346853c6`의 Linux/arm64와 Darwin/arm64 원본을 모드별로 대조했다. 세 모드 각각에서 같은 159개 root와 405개 root·child 통과 항목을 확인했다. Go 소스·테스트·embed 파일 선택이 갈리면 해당 Mac 작업이 직접 실행하도록 했다. 같은 파일에서 호스트별 동작이 달라질 가능성은 [현재 검증 범위](../TESTING.md#원격-ci-실행-범위)에 기록했다. [Linux race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15215117854) · [Darwin race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15216197862)
 
 Linux SQLite credential race는 첫 단계 case 191개를 등록하고, DB를 쓰는 시나리오는 각 fixture에서 독립 DB를 연다. 기존 두 full에서 job 시작부터 SQLite 패키지 본문 시작까지 x64는 382·255초, ARM64는 228·222초였다. 새 러너마다 이 준비를 반복한다고 가정하면 두 아키텍처에 2개씩 추가하는 안은 약 16~20 runner분, 3개씩 추가하는 안은 약 24~30 runner분이 더 든다. 이 값은 배치 비교 추정이다. 구현은 기존 runtime 작업 안에서 세 묶음을 실행해 컴파일과 환경 준비를 공유한다. [x64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307872) · [ARM64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
