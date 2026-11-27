@@ -84,7 +84,7 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 
 ## 반복 실행과 cache
 
-외부 프로젝트의 오프라인 테스트에 필요한 모듈은 `make project-command-dependencies`로 준비한다. 같은 Go 캐시 키를 복원해도 추가 모듈 다운로드가 필요할 수 있다. 확인된 일시적 전송 오류에는 같은 `go mod download all`을 최대 두 번 더 실행한다. 체크섬·권한 오류와 중단 신호는 즉시 실패로 처리한다.
+외부 프로젝트의 오프라인 테스트에 필요한 모듈은 `make project-command-dependencies`로 준비한다. 같은 Go 캐시 키를 복원해도 추가 모듈 다운로드가 필요할 수 있다. 확인된 일시적 전송 오류에는 같은 `go mod download all`을 최대 두 번 더 실행한다. 체크섬·권한 오류와 중단 신호는 즉시 실패로 처리한다. `cmd/godj`의 외부 프로젝트 fixture는 최초 준비와 DB backend 추가 시마다 저장소의 `go.sum`을 복사한 뒤 실제 `go mod tidy`로 필요한 의존성을 결정한다. 고정된 모듈은 임시 HOME에서도 같은 체크섬으로 검증한다.
 
 Linux 32비트 컴파일과 관계 테스트는 일반 Portable core에서 한 번 실행한다. PostgreSQL 원본을 기다리는 비교 작업과 병렬로 진행하며 두 작업의 성공을 모두 요구한다.
 

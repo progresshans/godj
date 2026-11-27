@@ -283,6 +283,7 @@ func TestActualMainDoesNotResolveCWDBeforeGlobalArgumentParsing(t *testing.T) {
 }
 
 type processFixture struct {
+	goSum    []byte
 	universe string
 	project  string
 	nested   string
@@ -311,7 +312,12 @@ func newProcessFixture(t *testing.T) processFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	goSum, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	fixture := processFixture{
+		goSum:    goSum,
 		universe: universe,
 		project:  filepath.Join(universe, "project"),
 		nested:   filepath.Join(universe, "project", "nested"),
@@ -377,6 +383,11 @@ func newProcessFixture(t *testing.T) processFixture {
 
 func tidyActualE2EProject(t *testing.T, fixture processFixture) {
 	t.Helper()
+	// Tidy prunes unused sums. Seed the repository checksums again when a fixture
+	// adds a backend so its isolated HOME can verify the expanded graph locally.
+	if err := os.WriteFile(filepath.Join(fixture.project, "go.sum"), fixture.goSum, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "mod", "tidy")
