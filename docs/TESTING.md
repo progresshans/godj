@@ -36,7 +36,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 ## 원격 CI 실행 범위
 
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
-일반 PR은 Apple Silicon 일반 모드의 프로젝트·reload·명령, Apple Silicon race·CGO=0의 네이티브 필수 검사, Intel 일반 호환성, 고정 Darwin 참조를 실행한다. 공용 `*_unix.go` 변경은 Apple Silicon 제품을 세 모드로 확대하고 Intel CGO=0 호환성을 추가한다. 이때 필수 네이티브 검사는 Apple Silicon reload 두 작업에서 실행한다.
+일반 PR은 Apple Silicon 일반 모드의 프로젝트·reload·명령, Apple Silicon race·CGO=0의 네이티브 필수 검사, Intel 일반 호환성, 고정 Darwin 참조를 실행한다. 공용 `*_unix.go` 변경은 Apple Silicon 제품을 세 모드로 확대하고 Intel CGO=0 호환성을 추가한다. 이때 필수 네이티브 검사는 같은 모드의 Apple Silicon project-check와 reload가 나누어 실행한다.
 
 `platform-obligations-v3`의 full은 다음 실행을 요구한다. [실행 계획](../scripts/ci/workflow.py) · [네이티브 선택 목록](../scripts/ci/native_suites.py)
 
@@ -46,7 +46,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 | 프로젝트 두 버전 설치·기동·reload·외부 명령 | Linux 여섯 좌표와 Apple Silicon 세 좌표. 제품 기준·reload 원본 18개와 독립 Python 원본 한 개를 대조 |
 | 관계 runtime 패키지·SQLite·compile·godjcheck·vet | Linux 전체와 Apple Silicon 일반 모드 전체 |
 | 외부 relation·mixed collection·앱 시작/정리, 실제 독립 SDK의 HTTP·DB, 첫 계정과 파일 수명 | Apple Silicon 일반·race·CGO=0. Custom 13개, Default 생성/재접속·잘못된 프로필, 실제 filesystem·SQLite·multipart·이미지·range/조건부 응답 |
-| PTY·FD·파일 공개·잠금·취소·다중 프로세스 SQLite | Apple Silicon reload의 기존 13개 root. Intel 일반 모드는 같은 집합과 파일 handle·pipe·잠금 경계를 실행 |
+| PTY·FD·파일 공개·잠금·취소·다중 프로세스 SQLite | Apple Silicon의 기존 13개 root. 일반 PR의 race·CGO=0은 독립 작업이 전부 실행한다. native·full에서는 같은 모드의 project-check가 8개, reload가 5개를 맡고 제품 비교기가 두 봉인 원본의 합집합을 검증한다. Intel 일반 모드는 기존 집합과 파일 handle·pipe·잠금 경계를 실행 |
 | Intel 설치와 호환성 | 일반은 한 버전 공개 설치·첫 계정·HTTP 쓰기·재시작·reload 거부·정리, CGO=0은 CLI와 실제 생성 runner·server·command, SQLite 저장·재접속 |
 | Darwin 빌드 태그·타입·링크 | Linux 작업이 Darwin amd64·arm64 CGO=0 환경에서 각각 패키지를 발견하고 체크인된 코드와 패키지별 테스트 실행 파일을 컴파일 |
 | 고정 Python·SQLite·Django 관측 | 기존 macOS 15 Apple Silicon exact 환경 |
@@ -56,6 +56,8 @@ PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태
 생성 계정 fixture의 독립적인 DB 검사는 [backend별 대응 목록](../scripts/ci/account-database-owners.txt)에서 관리한다. 각 행의 SQLite 경로는 Linux 두 아키텍처 관계 검사의 같은 모드가, PostgreSQL 경로는 해당 PostgreSQL 분할이 맡는다. 계획은 두 실제 필수 목록과 대조하며 PostgreSQL 실행 원본에서 필수 자식의 정확히 한 번 실행·통과를 확인한다. 양 DB의 결과를 직접 대조하는 Django reference와 시스템·운영자 attestation은 해당 원래 작업에서 두 DB를 계속 실행한다.
 
 FirstAccount의 관찰용 관리 명령은 최종 생성 소스에서 fixture별로 한 번 빌드한다. 각 초기화·조회는 소스 지문을 다시 확인한 뒤 독립 프로세스에서 실행한다. 공개 첫 계정 명령의 선언·런타임 빌드, 호환성 검사, PTY 복구와 자식 회수는 각 시나리오에서 실행한다. 네이티브 원본에는 관찰 명령의 실제 빌드 좌표·지문, PID, 빌드·조회·공개 명령별 실행 시간이 남는다.
+
+Apple Silicon race·CGO=0의 세 SQLite 네이티브 root는 기존 두 프로세스 동시 경합, 재접속, migration revision 및 unique rollback의 private assertion을 그대로 실행한다. 이 호출만 Go overlay로 원본 테스트와 프로세스 helper에 필요한 테스트 파일 8개를 컴파일한다. 실제 대상의 Go 목록으로 전후 제품 입력이 일치하는지 확인하고 선택 소스 지문을 업로드한다. Linux와 Apple Silicon 일반 런타임의 전체 SQLite 패키지는 기본 테스트 목록을 사용한다.
 
 Linux의 Darwin 교차 컴파일은 두 대상의 패키지를 발견하고 실제 Mach-O 링크와 빌드 정보를 검증한다. 러너·Go 도구 버전별 객체 캐시를 복원하고, 같은 계열의 저장본이 없을 때만 새로 저장한다. Go는 입력이 바뀐 객체를 다시 빌드한다. 링크된 테스트 파일은 검증 후 폐기하고 별도 cold-build 제품 테스트는 자체 임시 캐시를 사용한다.
 

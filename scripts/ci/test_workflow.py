@@ -92,6 +92,14 @@ import json, os, pathlib, sys
 if sys.argv[1:] == ['env', 'GOOS']:
     print('darwin')
     sys.exit(0)
+if sys.argv[1]=='list':
+    pkg=pathlib.Path('db/sqlite').resolve()
+    tests=sorted(f.name for f in pkg.glob('*_test.go'))
+    if '-overlay' in sys.argv:
+        replaced=json.loads(pathlib.Path(sys.argv[sys.argv.index('-overlay')+1]).read_text())['Replace']
+        tests=[name for name in tests if str(pkg/name) not in replaced]
+    print(json.dumps({'Dir':str(pkg),'TestGoFiles':tests,'GoFiles':sorted(f.name for f in pkg.glob('*.go') if not f.name.endswith('_test.go'))}))
+    sys.exit(0)
 work = pathlib.Path(os.environ['RUNNER_TEMP'])
 with (work / 'args').open('a') as calls:
     print(json.dumps([os.environ['CGO_ENABLED'], *sys.argv[1:]]), file=calls)

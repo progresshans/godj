@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 
+import darwin_boundary
 from go_test_events import discover_roots, events, inspect
 from platform_policy import CONTRACT, product_coordinates
 from project_artifacts import PYTHON, resolve, validated_producers
@@ -276,13 +277,19 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
         reload, reload_source = producer_input("project-reload-" + suffix)
         seals = {"baseline": verify_native(baseline, "baseline", coordinate, baseline_source),
                  "reload": verify_native(reload, "reload", coordinate, reload_source)}
+        boundaries = {}
+        if system == 'darwin' and mode != 'normal':
+            boundaries = {'project-check': darwin_boundary.verify(baseline, 'project-check', mode),
+                          'reload': darwin_boundary.verify(reload, 'reload', mode)}
+            require(Counter(boundaries['project-check'] + boundaries['reload']) == Counter(darwin_boundary.required('standalone')),
+                    'Darwin native boundaries do not have exactly one owner')
         consumers = {
             "notes": go_observation(reload / "runserver-reload-notes.json", SPECIAL["reload-notes"], "GODJ_DEVELOPMENT_OBSERVATION"),
             "article": go_observation(reload / "runserver-reload-article.json", SPECIAL["reload-article"], "GODJ_DEVELOPMENT_OBSERVATION"),
             "command": go_observation(baseline / "runserver-scaffold.json", COMMAND_TEST, "GODJ_DEVELOPMENT_OBSERVATION"),
         }
         event_observation = go_observation(baseline / "runserver-runtime.json", EVENT_TEST, "GODJ_EVENT_OBSERVATION")
-        outputs.append({"coordinate": coordinate, "seals": seals,
+        outputs.append({"coordinate": coordinate, "seals": seals, "native_boundaries": boundaries,
                         "development": compare_development(observed["development"], consumers),
                         "events": compare_events(observed["event"], event_observation)})
     return {"kind": "project-reference-comparison-v4", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,

@@ -16,7 +16,10 @@ required="$evidence/darwin-native-required.txt"
 packages="$evidence/darwin-native-packages.txt"
 log="$evidence/darwin-native-tests.json"
 stderr_log="$evidence/darwin-native.stderr"
-cp scripts/ci/darwin-native-required.txt "$required"
+owner="${3:-standalone}"
+overlay="$(mktemp "${TMPDIR:-/tmp}/godj-darwin-sqlite.XXXXXX")"
+trap 'rm -f "$overlay"' EXIT
+python3 scripts/ci/darwin_boundary.py prepare "$evidence" "$owner" "$1" --overlay "$overlay"
 cut -d '|' -f 1 "$required" | sort -u > "$packages"
 timings="$evidence/darwin-native-timings.txt"
 : > "$log"
@@ -35,7 +38,9 @@ for package in "${args[@]}"; do
   roots=$(awk -F '|' -v package="$package" '$1 == package { split($2, parts, "/"); print parts[1] }' "$required" | sort -u | paste -sd '|' -)
   test -n "$roots"
   printf '%s start %s\n' "$(date -u +%FT%TZ)" "$package" | tee -a "$timings"
-  if go test "${flags[@]}" -run "^($roots)$" "$package" >> "$log" 2>> "$stderr_log"; then
+  package_flags=("${flags[@]}")
+  if [ "$package" = "$sqlite" ]; then package_flags+=(-overlay "$overlay"); fi
+  if go test "${package_flags[@]}" -run "^($roots)$" "$package" >> "$log" 2>> "$stderr_log"; then
     outcome=pass
   else
     outcome=fail
@@ -49,3 +54,4 @@ if [ "$status" != 0 ]; then
   exit 1
 fi
 python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$packages" --no-skips
+python3 scripts/ci/darwin_boundary.py verify "$evidence" "$owner" "$1"

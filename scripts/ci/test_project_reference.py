@@ -1,5 +1,6 @@
 """Synthetic reader controls; these fixtures are never product execution evidence."""
 import copy
+import darwin_boundary
 import json
 from pathlib import Path
 import tempfile
@@ -121,12 +122,36 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                         values.append(self.event("skip" if root in batch["allowed_skips"] else "pass", Test=root))
                     values.append(self.event("pass"))
                     self.write_events(target / ("runserver-" + name + ".json"), values)
+                if owner=='reload' and coordinate[0]=='darwin' and coordinate[2]!='normal':
+                    self.reload_boundaries(target, coordinate[2])
                 seal(target)
+
+    def reload_boundaries(self, target, mode):
+        wanted = darwin_boundary.required('reload')
+        (target/'darwin-native-required.txt').write_text('\n'.join(wanted)+'\n')
+        records = []
+        for pkg in sorted({v.split('|')[0] for v in wanted}):
+            names={v.split('|')[1] for v in wanted if v.startswith(pkg+'|')}
+            names.update(n.split('/')[0] for n in list(names))
+            records.append(self.event('start',Package=pkg))
+            for n in sorted(names):
+                records.extend(self.event(a,Package=pkg,Test=n) for a in ('run','pass'))
+            records.append(self.event('pass',Package=pkg))
+        self.write_events(target/'darwin-native-tests.json',records)
+        sqlite=ROOT/'db/sqlite'
+        self.write_json(target/'darwin-native-sqlite-inputs.json',{'package':darwin_boundary.SQLITE,'mode':mode,
+            'tests':{f:digest(sqlite/f) for f in darwin_boundary.SQLITE_TEST_FILES},
+            'inactive_go_files':[], 'product_go_files':sorted(f.name for f in sqlite.glob('*.go') if not f.name.endswith('_test.go')),
+            'other_test_files':sorted(f.name for f in sqlite.glob('*_test.go') if f.name not in darwin_boundary.SQLITE_TEST_FILES)})
 
     def scaffold_fixture(self, target):
         other = 'github.com/progresshans/godj/project'
         roots = ['TestSyntheticPublication', 'TestSyntheticCancellation']
-        (target / 'platform-packages.txt').write_text(other + '\n' + SCAFFOLD_PACKAGE + '\n')
+        delegated = [v.split('|',1) for v in darwin_boundary.required('project-check')]
+        scaffold = {test for pkg,test in delegated if pkg==SCAFFOLD_PACKAGE}
+        roots += sorted({n.split('/')[0] for n in scaffold})
+        check = darwin_boundary.MODULE+'internal/projectcheck'
+        (target / 'platform-packages.txt').write_text(other + '\n' + check + '\n' + SCAFFOLD_PACKAGE + '\n')
         discovery = ([self.event('start', Package=SCAFFOLD_PACKAGE)] +
                      [self.event('output', Package=SCAFFOLD_PACKAGE, Output=root + '\n') for root in roots] +
                      [self.event('output', Package=SCAFFOLD_PACKAGE, Output='ok  \t' + SCAFFOLD_PACKAGE + '\t0.1s\n'),
@@ -135,11 +160,49 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         execution = [self.event('start', Package=other), self.event('run', Package=other, Test='TestSyntheticRunner'),
                      self.event('pass', Package=other, Test='TestSyntheticRunner'), self.event('pass', Package=other),
                      self.event('start', Package=SCAFFOLD_PACKAGE)]
-        for test in [roots[0], roots[1], roots[1] + '/canceled']:
+        for test in sorted(set(roots) | {roots[1]+'/canceled'} | scaffold):
             execution.extend([self.event('run', Package=SCAFFOLD_PACKAGE, Test=test),
                               self.event('pass', Package=SCAFFOLD_PACKAGE, Test=test)])
         execution.append(self.event('pass', Package=SCAFFOLD_PACKAGE))
+        execution.append(self.event('start',Package=check))
+        for test in sorted({n for pkg,n in delegated if pkg==check}):
+            execution.extend(self.event(a,Package=check,Test=test) for a in ('run','pass'))
+        execution.append(self.event('pass',Package=check))
         self.write_events(target / 'platform.json', execution)
+
+    def test_native_boundary_requires_each_delegated_event_and_unchanged_sqlite_sources(self):
+        self.fixture()
+        for owner, directory, filename in (
+            ('project-check', 'project-check-darwin-arm64-race-2', 'platform.json'),
+            ('reload', 'project-reload-darwin-arm64-race-2', 'darwin-native-tests.json'),
+        ):
+            target = self.directory / directory
+            self.assertTrue(darwin_boundary.verify(target, owner, 'race'))
+            log = target / filename
+            original = log.read_bytes()
+            values = [json.loads(line) for line in original.splitlines()]
+            rows = set(darwin_boundary.required(owner))
+            event = next(v for v in values if v['Action'] == 'pass'
+                         and v['Package'] + '|' + v.get('Test', '') in rows)
+            for altered in ([v for v in values if v is not event], values + [event]):
+                with self.subTest(owner=owner), self.assertRaisesRegex(ValueError, 'exactly once'):
+                    self.write_events(log, altered)
+                    darwin_boundary.verify(target, owner, 'race')
+            log.write_bytes(original)
+        target = self.directory / 'project-reload-darwin-arm64-race-2'
+        path = target / 'darwin-native-sqlite-inputs.json'
+        record = document(path)
+        for mutation in ('duplicate', 'missing', 'hash'):
+            changed = copy.deepcopy(record)
+            if mutation == 'duplicate':
+                changed['inactive_go_files'].append(changed['product_go_files'][0])
+            elif mutation == 'missing':
+                changed['other_test_files'].pop()
+            else:
+                changed['tests'][darwin_boundary.SQLITE_TEST_FILES[0]] = '0' * 64
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.write_json(path, changed)
+                darwin_boundary.verify(target, 'reload', 'race')
 
     def test_native_scaffold_requires_discovery_and_complete_execution(self):
         self.fixture()

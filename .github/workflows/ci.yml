@@ -1053,7 +1053,7 @@ jobs:
       - name: Verify Darwin native boundaries in race and CGO-disabled modes
         timeout-minutes: ${{ matrix.platform.native_minutes }}
         if: matrix.platform.expected_goos == 'darwin' && matrix.mode != 'normal'
-        run: bash scripts/ci/darwin-native.sh "${{ matrix.mode }}" "$RUNNER_TEMP/project-reload-evidence"
+        run: bash scripts/ci/darwin-native.sh "${{ matrix.mode }}" "$RUNNER_TEMP/project-reload-evidence" reload
 
       - name: Seal project-reload evidence
         if: always() && steps.reload-evidence.outcome == 'success'

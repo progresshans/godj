@@ -180,6 +180,15 @@ class NativeObligationsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             manifest('intel-compatibility', 'race')
 
+    def test_darwin_boundary_owners_cover_the_standalone_manifest_once(self):
+        import darwin_boundary as boundary
+        complete = boundary.required('standalone')
+        check, reload = boundary.required('project-check'), boundary.required('reload')
+        self.assertCountEqual(check+reload, complete)
+        self.assertFalse(set(check)&set(reload))
+        self.assertEqual({v.split('|')[0] for v in reload}, boundary.RELOAD_PACKAGES)
+        self.assertEqual((len(check),len(reload)), (15,6))
+
     def test_intel_lifecycle_has_a_distinct_owner_from_reference_producers(self):
         from native_suites import INTEL_ROOTS, SERVER
         from runserver_tests import SPECIAL, plan
