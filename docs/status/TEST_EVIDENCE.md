@@ -18,6 +18,20 @@ Apple Silicon 세 모드에서 FirstAccount 사용자 정의 fixture별로 관�
 
 Darwin cross-compile의 첫 대상 캐시는 비어 있었다. 280개 패키지를 대상별로 다시 검사했다. amd64 빌드·링크 검증은 310.2·432.1초, arm64는 312.9·438.3초였다. 캐시 2.34GB의 저장에 38초가 들었다. [빌드·전송 로그](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603305565)
 
+다음 제출 `803b5f66`에서 같은 2.34GB를 복원하는 데 72초가 걸렸다. 두 대상의 280개 패키지에 대한 검사 단계는 1,494→203초, 설정·전송·업로드를 포함한 작업은 1,565→310초였다. amd64 빌드·링크 검증은 23.4·78.2초, arm64는 20.8·79.0초였다. 이 실행은 기존 캐시를 다시 저장하지 않았다. [캐시 복원과 실제 링크](https://github.com/progresshans/godj/actions/runs/46041421514/job/140649909688)
+
+PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target의 성공 회차·job ID·업로드 직후 archive ID·SHA-256과 두 원본의 내부 provenance를 재확인했다. 두 번째 증거가 준비된 뒤 1초 만에 참조 작업이 생성됐고 러너 대기는 16분 24초였다. 실제 conformance 시작은 마지막 PostgreSQL 작업 완료보다 10분 1초 빨랐다. [시스템 상태 원본](https://github.com/progresshans/godj/actions/runs/46041421514/artifacts/15220874937) · [운영자 원본](https://github.com/progresshans/godj/actions/runs/46041421514/artifacts/15221525609) · [소비 작업](https://github.com/progresshans/godj/actions/runs/46041421514/job/140661916393)
+
+각 모드의 PostgreSQL 계정 작업 5개에서 13개 part·19개 root·133개 필수 항목을 확인했다. 이관 전 189개 중 56개는 동일한 독립 fixture의 SQLite 경로였고, PostgreSQL counterpart 56개는 모두 실행됐다. 별도로 준비한 생성 바이너리 세 개의 실제 계정 시나리오 프로세스는 PostgreSQL 11회였으며 각 바이너리·PID·모드를 대조했다. [DB별 대응 목록](../../scripts/ci/account-database-owners.txt)
+
+| 모드 | 기존 배치의 최장 part 합 실측 | 같은 비용으로 계산한 새 배치 |
+|---|---:|---:|
+| 일반 | 13분 12초 | 12분 42초 |
+| race | 37분 32초 | 29분 00초 |
+| CGO=0 | 14분 59초 | 13분 04초 |
+
+오른쪽 열은 `803b5f66`의 성공한 part 시간을 고정한 배치 시뮬레이션이다. 각 모드에서 모든 part가 한 번씩 배정되고 작업당 최대 세 개임을 대조했다. 새 part에는 해당 모드의 측정 중간값을 사용한다. [PostgreSQL 배정 코드](../../scripts/ci/postgres_shards.py)
+
 ## 플랫폼별 검증 의무
 
 기존 `e8555cf8`의 177개 작업은 첫 시도에 통과했다. macOS 53개 작업의 러너 시간 합계는 36시간 9분 52초, 워크플로 생성부터 최종 집계 완료까지는 7시간 35분 45초다. [기준 실행](https://github.com/progresshans/godj/actions/runs/45674268509)

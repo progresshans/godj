@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from postgres_shards import (
     account_database_pairs, audit_database_owners, verify_account_backends, ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
@@ -311,6 +312,18 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                     self.assertEqual(len(expected['required']), metadata['required_tests'])
                     self.assertEqual(expected['test_timeout'], metadata['test_timeout'])
 
+    def test_mode_timings_change_placement_without_owning_membership(self):
+        from postgres_shards import ACCOUNT_PART_SECONDS
+
+        hints = {'catalog': (1000, 1, 1), 'through': (1, 1000, 1), 'reset': (1, 1, 1000)}
+        with patch.dict(ACCOUNT_PART_SECONDS, hints, clear=True):
+            rows = matrix()['include']
+            for mode, expensive in [('normal', 'catalog'), ('race', 'through'), ('cgo0', 'reset')]:
+                workers = [row['parts'] for row in rows if row['mode'] == mode and row['shard'].startswith('accounts-')]
+                self.assertEqual(workers[0][0], 'core-account-' + expensive)
+                self.assertCountEqual([part for group in workers for part in group],
+                                      [p for p in partitions(mode) if p.startswith('core-account-') and p != 'core-account-management'])
+
     def test_workflow_runs_every_partition_and_retains_canceled_logs(self):
         workflow = (self.root / '.github/workflows/ci.yml').read_text()
         from workflow import plan_outputs
@@ -327,7 +340,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             self.assertEqual(len({row['shard'] for row in scheduled}), len(scheduled))
             for row in scheduled:
                 if row['shard'].startswith('accounts-'):
-                    self.assertTrue(1 < len(row['parts']) <= 3)
+                    self.assertTrue(1 <= len(row['parts']) <= 3)
                     self.assertTrue(all(part.startswith('core-account-') and part != 'core-account-management'
                                         for part in row['parts']))
                 else:
