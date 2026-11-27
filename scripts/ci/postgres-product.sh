@@ -51,6 +51,8 @@ case "$shard" in
     partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
     python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
       --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
+    GODJ_ACCOUNT_POSTGRES_ROOTS="$(jq -er '.account_postgres_roots | join(" ")' "$partition/plan.json")"
+    export GODJ_ACCOUNT_POSTGRES_ROOTS
     test_timeout="$(jq -er '.test_timeout' "$partition/plan.json")"
     required_passes=()
     while IFS= read -r sentinel; do required_passes+=("$sentinel"); done < "$partition/required.txt"
@@ -104,6 +106,10 @@ if [ "$status" -ne 0 ]; then
   exit "$status"
 fi
 python3 scripts/ci/go_test_events.py "$log" --required "$required" --no-skips
+if [ -n "${GODJ_ACCOUNT_POSTGRES_ROOTS:-}" ]; then
+  python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
+    --required scripts/ci/postgres-core-required.txt --output-dir "$partition" --verify-log "$log"
+fi
 if [ "$mode" != "normal" ]; then
   exit 0
 fi

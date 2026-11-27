@@ -422,11 +422,46 @@ func runAccountConsumerBranches(t *testing.T, root string, required []string, br
 	runAccountConsumerDatabasePlans(t, root, plans)
 }
 
+func accountVendors(name, postgresOwners, url string, required bool) ([]string, error) {
+	root, _, _ := strings.Cut(name, "/")
+	hasPostgres := strings.TrimSpace(url) != ""
+	if slices.Contains(strings.Fields(postgresOwners), root) {
+		if !required || !hasPostgres {
+			return nil, fmt.Errorf("PostgreSQL account owner %s requires its live database", root)
+		}
+		return []string{"postgres"}, nil
+	}
+	if hasPostgres || required {
+		return []string{"sqlite", "postgres"}, nil
+	}
+	return []string{"sqlite"}, nil
+}
+
+func TestAccountDatabaseOwnerSelection(t *testing.T) {
+	for _, test := range []struct {
+		name, owners, url string
+		required          bool
+		want              []string
+	}{
+		{"TestIndependent/variant", "TestOther TestIndependent", "postgres", true, []string{"postgres"}},
+		{"TestIndependent/variant", "TestIndependent", "", true, nil},
+		{"TestIndependent/variant", "TestIndependent", "postgres", false, nil},
+		{"TestIndependentControl/variant", "TestIndependent", "postgres", true, []string{"sqlite", "postgres"}},
+		{"TestIndependent/variant", "", "", false, []string{"sqlite"}},
+		{"TestIndependent/variant", "", "postgres", false, []string{"sqlite", "postgres"}},
+	} {
+		got, err := accountVendors(test.name, test.owners, test.url, test.required)
+		if (err != nil) != (test.want == nil) || !slices.Equal(got, test.want) {
+			t.Fatalf("account owner %q for %q: vendors=%v, err=%v", test.owners, test.name, got, err)
+		}
+	}
+}
+
 func runAccountConsumerDatabasePlans(t *testing.T, root string, plans []accountConsumerTestPlan) {
 	t.Helper()
-	vendors := []string{"sqlite"}
-	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
-		vendors = append(vendors, "postgres")
+	vendors, err := accountVendors(t.Name(), os.Getenv("GODJ_ACCOUNT_POSTGRES_ROOTS"), os.Getenv("GODJ_TEST_POSTGRES_URL"), os.Getenv("GODJ_REQUIRE_POSTGRES") == "1")
+	if err != nil {
+		t.Fatal(err)
 	}
 	var prepared *accountTestBinary
 	if len(plans) > 1 {

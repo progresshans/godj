@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from postgres_shards import (
-    ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
+    account_database_pairs, audit_database_owners, verify_account_backends, ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
     PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, THROUGH_CONSUMER_ROOTS, ISOLATED_ACCOUNT_CONSUMER_OWNERS, WRITE_CONSUMER_ROOTS, audit, matches, matrix, partitions,
     plan, required_entries,
 )
@@ -39,6 +39,37 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def assert_nonconsumer_core(self, mode, required):
         expected = [entry for entry in required if entry.partition('|')[0] != MODULE + 'codegen/consumertest']
         self.assertEqual(expected, plan(mode, 'core', required)['required'])
+
+    def test_account_backends_have_one_live_owner_and_pair_for_every_leaf(self):
+        linux = set((self.root / 'scripts/ci/relation-required.txt').read_text().splitlines())
+        pg = set(self.required)
+        pairs = account_database_pairs()
+        audit_database_owners(pg, linux, pairs)
+        self.assertEqual(56, len(pairs))
+        first = next(iter(pairs))
+        sqlite = pairs[first]
+        for p, l, m in [(pg-{first},linux,pairs), (pg,linux-{sqlite},pairs), (pg|{sqlite},linux,pairs),
+                        (pg,linux,{k:v for k,v in pairs.items() if k!=first})]:
+            with self.subTest(first=first), self.assertRaises(ValueError):
+                audit_database_owners(p, l, m)
+        for mode in ('normal','race','cgo0'):
+            all_roots = [r for part in partitions(mode) for r in plan(mode,part,self.required)['account_postgres_roots']]
+            self.assertCountEqual(all_roots, {e.partition('|')[2].split('/')[0] for e in pairs})
+
+    def test_postgres_account_evidence_rejects_missing_duplicate_or_sqlite_execution(self):
+        required = next(iter(account_database_pairs()))
+        package, _, name = required.partition('|')
+        roots = [name.split('/')[0]]
+        with tempfile.TemporaryDirectory() as directory:
+            log=Path(directory)/'events.json'
+            def check(actions):
+                log.write_text(''.join(json.dumps({'Package':package,'Action':action,'Test':test})+'\n' for action,test in actions))
+                verify_account_backends(log,[required],roots)
+            good=[('run',name),('pass',name)]
+            check(good)
+            for bad in (good[:1],good+good,good+[('run',name.replace('/postgres','/sqlite'))], [('run',name),('skip',name)]):
+                with self.subTest(bad=bad), self.assertRaises(ValueError):
+                    check(bad)
 
     def test_new_child_sentinel_inherits_its_real_package_owner(self):
         for package, owner in (('examples/helpdesk', 'core'), ('forms', 'core'), ('forms/model', 'core'), ('orm', 'core'),
@@ -213,8 +244,14 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
             self.assertTrue(expected)
             for variant in variants:
-                for database in ('sqlite', 'postgres'):
-                    self.assertIn(root + '/' + variant + '/' + database, expected)
+                pg = root + '/' + variant + '/postgres'
+                sqlite = root + '/' + variant + '/sqlite'
+                self.assertIn(pg, expected)
+                if owner == 'core-account-management':
+                    self.assertIn(sqlite, expected)
+                else:
+                    self.assertEqual(account_database_pairs()[pg], sqlite)
+                    self.assertNotIn(sqlite, expected)
             by_owner.setdefault(owner, set()).update(expected)
         for mode in ('normal', 'race', 'cgo0'):
             for shard in partitions(mode):

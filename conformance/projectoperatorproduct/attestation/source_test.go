@@ -123,6 +123,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"scripts/ci/postgres-product.sh",
 		"scripts/ci/postgres_shards.py",
 		"scripts/ci/postgres-core-required.txt",
+		"scripts/ci/account-database-owners.txt",
 		"scripts/ci/relation-required.txt",
 		"scripts/ci/compile-required.txt",
 		".github/workflows/ci.yml",

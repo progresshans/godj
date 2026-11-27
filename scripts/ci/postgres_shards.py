@@ -8,11 +8,13 @@ The required manifest stays authoritative for tests, including child-only roots.
 """
 import argparse
 from collections import Counter
+from functools import cache
 import hashlib
 import json
 from pathlib import Path
 import re
 
+from go_test_events import events
 from worker_parts import pack
 
 MODULE = 'github.com/progresshans/godj/'
@@ -156,6 +158,50 @@ def required_entries(path):
     return entries
 
 
+@cache
+def account_database_pairs():
+    rows = (Path(__file__).with_name('account-database-owners.txt')).read_text().splitlines()
+    if not rows or len(rows) != len(set(rows)):
+        raise ValueError('empty or duplicate account database coverage')
+    pairs = {}
+    for entry in rows:
+        if not entry.startswith(CONSUMER_PACKAGE + '|TestGeneratedAccount') or entry.split('/').count('{backend}') != 1:
+            raise ValueError('invalid account database coverage: ' + entry)
+        pairs[entry.replace('{backend}', 'postgres')] = entry.replace('{backend}', 'sqlite')
+    return pairs
+
+
+def audit_database_owners(pg_entries, linux_entries, pairs):
+    pg, linux = set(pg_entries), set(linux_entries)
+    if not pairs or not set(pairs) <= pg or not set(pairs.values()) <= linux or set(pairs.values()) & pg:
+        raise ValueError('missing or duplicated backend owner for an account sentinel')
+    roots = {entry.partition('|')[2].split('/')[0] for entry in pairs}
+    for backend, entries, expected in [('postgres', pg, set(pairs)), ('sqlite', linux, set(pairs.values()))]:
+        actual = {e for e in entries if e.partition('|')[0] == CONSUMER_PACKAGE
+                  and e.partition('|')[2].split('/')[0] in roots and backend in e.partition('|')[2].split('/')}
+        if actual != expected:
+            raise ValueError('account coverage differs from the ' + backend + ' manifest')
+
+
+def verify_account_backends(log, required, roots):
+    wanted = {e.partition('|')[2] for e in required if e in account_database_pairs()}
+    starts, passes = Counter(), Counter()
+    for event in events(log):
+        name = event.get('Test', '')
+        parts = name.split('/')
+        if event.get('Package') != CONSUMER_PACKAGE or parts[0] not in roots:
+            continue
+        if 'sqlite' in parts or event['Action'] in ('skip', 'fail'):
+            raise ValueError('wrong backend or incomplete PostgreSQL account execution: ' + name)
+        if name in wanted:
+            if event['Action'] == 'run':
+                starts[name] += 1
+            elif event['Action'] == 'pass':
+                passes[name] += 1
+    if starts != Counter(wanted) or passes != Counter(wanted):
+        raise ValueError('PostgreSQL account sentinel missing or duplicated')
+
+
 def plan(mode, shard, entries):
     owners = partitions(mode)
     if shard not in owners:
@@ -233,7 +279,8 @@ def plan(mode, shard, entries):
     credentials = MODULE + 'db/postgres|TestPostgresAccountCredentialStore'
     owns_credentials = any(entry == credentials or entry.startswith(credentials + '/') for entry in selected)
     long_package = shard in CONSUMER_PARTITIONS or (shard == 'core' and mode != 'race') or owns_credentials
-    return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,
+    account_roots = sorted({e.partition('|')[2].split('/')[0] for e in selected if e in account_database_pairs()})
+    return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected, 'account_postgres_roots': account_roots,
             'test_timeout': '30m' if long_package else '18m',
             'manifest_sha256': hashlib.sha256(('\n'.join(entries) + '\n').encode()).hexdigest()}
 
@@ -264,11 +311,16 @@ def main():
     parser.add_argument('--shard', choices=tuple(RACE_PARTITIONS), required=True)
     parser.add_argument('--required', required=True)
     parser.add_argument('--output-dir', required=True)
+    parser.add_argument('--verify-log', type=Path)
     args = parser.parse_args()
     try:
         entries = required_entries(args.required)
+        audit_database_owners(entries, Path(__file__).with_name('relation-required.txt').read_text().splitlines(), account_database_pairs())
         audit(entries)
         result = plan(args.mode, args.shard, entries)
+        if args.verify_log:
+            verify_account_backends(args.verify_log, result['required'], result['account_postgres_roots'])
+            return
         destination = Path(args.output_dir)
         destination.mkdir(parents=True, exist_ok=True)
         for name in ('packages', 'required'):

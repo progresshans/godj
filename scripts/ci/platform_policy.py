@@ -10,7 +10,7 @@ PLATFORMS = (
     ('macos-15-intel', 'darwin', 'amd64'),
     ('macos-26', 'darwin', 'arm64'),
 )
-CONTRACT = 'platform-obligations-v2'
+CONTRACT = 'platform-obligations-v3'
 MODES = ('normal', 'race', 'cgo0')
 PROFILES = ('pr', 'native', 'full')
 NATIVE_STEP_MINUTES = {'amd64': 35, 'arm64': 80}

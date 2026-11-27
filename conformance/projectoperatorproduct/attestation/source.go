@@ -35,6 +35,7 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/postgres-product.sh":                                           {},
 	"scripts/ci/postgres_shards.py":                                            {},
 	"scripts/ci/postgres-core-required.txt":                                    {},
+	"scripts/ci/account-database-owners.txt":                                   {},
 	"scripts/ci/runserver_tests.py":                                            {},
 	"scripts/ci/runserver-required.txt":                                        {},
 	"scripts/ci/native_suites.py":                                              {},
