@@ -205,27 +205,78 @@ def compare_events(reference, consumer):
     return sorted(seen)
 
 
+COMMON_RUNNER = "github.com/progresshans/godj/conformance/runners/godj"
+RUNNER_FILES = ("GoFiles", "CgoFiles", "TestGoFiles", "XTestGoFiles", "CFiles", "CXXFiles", "MFiles", "HFiles",
+                "FFiles", "SFiles", "SwigFiles", "SwigCXXFiles", "SysoFiles", "EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles")
+
+
+def list_runner_files(system, arch, mode):
+    flags = ["-race"] if mode == "race" else []
+    env = os.environ | {"GOOS": system, "GOARCH": arch, "CGO_ENABLED": "0" if mode == "cgo0" else "1"}
+    value = json.loads(subprocess.check_output(["go", "list", *flags, "-json", COMMON_RUNNER], cwd=ROOT, env=env))
+    require(value["ImportPath"] == COMMON_RUNNER, "wrong common runner package")
+    return {"active": {key: sorted(value[key]) for key in RUNNER_FILES if value.get(key)},
+            "ignored_go": sorted(value.get("IgnoredGoFiles", []))}
+
+
+def runner_input_digest(record):
+    base = ROOT / "conformance/runners/godj"
+    active = record["active"]
+    require(set(active) <= set(RUNNER_FILES) and active.get("GoFiles")
+            and (active.get("TestGoFiles") or active.get("XTestGoFiles")), "incomplete common runner package inputs")
+    go_files = list(record["ignored_go"])
+    material = []
+    for kind, names in sorted(active.items()):
+        require(isinstance(names, list) and names == sorted(set(names)), "duplicate common runner source")
+        if kind in ("GoFiles", "CgoFiles", "TestGoFiles", "XTestGoFiles"):
+            go_files.extend(names)
+        for name in names:
+            path = base / name
+            require(not Path(name).is_absolute() and ".." not in Path(name).parts and path.is_file()
+                    and not path.is_symlink() and path.resolve().is_relative_to(base.resolve()), "invalid common runner source")
+            material.append([kind, name])
+    on_disk = {p.name for p in base.glob("*.go") if not p.name.startswith((".", "_"))}
+    require(len(go_files) == len(set(go_files)) and set(go_files) == on_disk, "common runner omitted or duplicated Go inputs")
+    # The producer and comparison already bind file contents to the same Git tree.
+    return hashlib.sha256(json.dumps(material, separators=(",", ":")).encode()).hexdigest()
+
+
+def plan_common_runner(directory):
+    source = document(directory / "source.json")
+    system, arch, mode = source["go"]["GOOS"], source["go"]["GOARCH"], source["mode"]
+    native = list_runner_files(system, arch, mode)
+    actual = runner_input_digest(native)
+    delegate = system == "darwin" and actual == runner_input_digest(list_runner_files("linux", arch, mode))
+    record = {"coordinate": [system, arch, mode], "files": native, "delegate": delegate}
+    (directory / "common-runner-plan.json").write_text(json.dumps(record, sort_keys=True) + '\n')
+    return "delegate" if delegate else "execute"
+
+
 def verify_common_runner(directory, system, arch, mode):
-    package = "github.com/progresshans/godj/conformance/runners/godj"
+    package = COMMON_RUNNER
+    record = document(directory / "common-runner-plan.json")
+    require(record["coordinate"] == [system, arch, mode] and type(record["delegate"]) is bool, "wrong common runner plan")
+    declared = {"source_selection_sha256": runner_input_digest(record["files"])}
     required = [line for line in (ROOT / "scripts/ci/relation-required.txt").read_text().splitlines()
                 if line.startswith(package + "|")]
     require(required and len(required) == len(set(required)), "invalid common runner sentinel inventory")
-    if system == "darwin":
+    if record["delegate"]:
+        require(system == "darwin", "Linux must execute its complete common runner")
         require(not list(directory.glob("conformance-runner*")), "delegated runner has unexpected local evidence")
-        return {"owner": ["linux", arch, mode], "required": required}
+        return {**declared, "owner": ["linux", arch, mode], "required": required}
     require((directory / "conformance-runner-required.txt").read_text().splitlines() == required,
-            "Linux common runner required inventory differs")
+            "common runner required inventory differs")
     log = directory / "conformance-runner.json"
     roots = discover_roots(directory / "conformance-runner-discovery.json", package)
     inventory = inspect(log)
     require(inventory.packages == {package} and not inventory.verify(
         required=[(package, root) for root in roots] + [tuple(line.split("|", 1)) for line in required],
-        packages=[package], no_skips=True), "Linux common runner execution is incomplete")
+        packages=[package], no_skips=True), "common runner execution is incomplete")
     counts = Counter((event["Test"], event["Action"]) for event in events(log) if event.get("Test"))
     require({name for name, action in counts if action == "run" and "/" not in name} == set(roots)
             and all(counts[name, "run"] == counts[name, "pass"] == 1 for name, _ in counts),
-            "Linux common runner test was missing or duplicated")
-    return {"owner": [system, arch, mode], "required": required, "executed_roots": roots}
+            "common runner test was missing or duplicated")
+    return {**declared, "owner": [system, arch, mode], "required": required, "executed_roots": roots}
 
 
 def verify_native(directory, owner, coordinate, expected_source):
@@ -330,6 +381,12 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
                         "events": compare_events(observed["event"], event_observation)})
     owners = {tuple(row["coordinate"]): row["product_coverage"] for row in outputs}
     for row in outputs:
+        system, arch, mode = row["coordinate"]
+        if system == "darwin":
+            native = row["product_coverage"]["common_runner"]
+            linux = owners["linux", arch, mode]["common_runner"]
+            require((native["owner"] == ["linux", arch, mode]) == (native["source_selection_sha256"] == linux["source_selection_sha256"]),
+                    "Darwin common runner delegation differs from the actual same-mode Linux sources")
         for family, obligation in row["product_coverage"].items():
             actual = owners.get(tuple(obligation["owner"]), {}).get(family, {})
             require(actual.get("executed_roots") and actual["required"] == obligation["required"],
@@ -341,7 +398,7 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("initialize-python", "seal", "resolve", "verify"))
+    parser.add_argument("action", choices=("initialize-python", "plan-common-runner", "seal", "resolve", "verify"))
     parser.add_argument("path", type=Path)
     parser.add_argument("--selection", type=Path)
     parser.add_argument("--output", type=Path)
@@ -351,6 +408,8 @@ def main():
             args.path.mkdir()
             source = {**source_identity(), "python_version": os.environ["EXPECTED_PYTHON"]}
             (args.path / "source.json").write_text(json.dumps(source, sort_keys=True) + "\n")
+        elif args.action == "plan-common-runner":
+            print(plan_common_runner(args.path))
         elif args.action == "seal":
             seal(args.path)
         elif args.action == "resolve":

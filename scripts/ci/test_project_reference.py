@@ -98,6 +98,14 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                     "go": {"GOOS": coordinate[0], "GOARCH": coordinate[1], "GOVERSION": "go1.26.5"}})
                 if owner == 'baseline':
                     self.scaffold_fixture(target)
+                    files = sorted(p.name for p in (ROOT / 'conformance/runners/godj').glob('*.go')
+                                   if not p.name.startswith(('.', '_')))
+                    self.write_json(target / 'common-runner-plan.json', {
+                        'coordinate': coordinate, 'delegate': coordinate[0] == 'darwin',
+                        'files': {'active': {'GoFiles': [name for name in files if not name.endswith('_test.go')],
+                                             'TestGoFiles': [name for name in files if name.endswith('_test.go')]},
+                                  'ignored_go': []},
+                    })
                     if coordinate[0] == "linux":
                         self.common_runner_fixture(target)
                 (target / "runserver-required.txt").write_text("\n".join(required) + "\n")
@@ -223,6 +231,27 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         seal(mac)
         with self.assertRaisesRegex(ValueError, 'delegated fixed-module'):
             self.verify()
+
+    def test_different_darwin_runner_files_require_actual_native_results(self):
+        self.fixture()
+        target = self.directory / 'project-check-darwin-arm64-cgo0-2'
+        path = target / 'common-runner-plan.json'
+        selection = document(path)
+        self.assertTrue(selection['delegate'])
+        selection['files']['ignored_go'].append(selection['files']['active']['TestGoFiles'].pop())
+        self.write_json(path, selection)
+        (target / 'SHA256SUMS').unlink()
+        seal(target)
+        with self.assertRaisesRegex(ValueError, 'delegation differs'):
+            self.verify()
+        selection['delegate'] = False
+        self.write_json(path, selection)
+        self.common_runner_fixture(target)
+        (target / 'SHA256SUMS').unlink()
+        seal(target)
+        result = self.verify()
+        coordinate = next(row for row in result['coordinates'] if row['coordinate'] == ('darwin', 'arm64', 'cgo0'))
+        self.assertIn('TestNewCommonRunner', coordinate['product_coverage']['common_runner']['executed_roots'])
 
     def test_native_boundary_requires_each_delegated_event_and_unchanged_sqlite_sources(self):
         self.fixture()

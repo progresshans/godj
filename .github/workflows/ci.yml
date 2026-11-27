@@ -879,8 +879,9 @@ jobs:
             exit "$status"
           fi
           python3 scripts/ci/go_test_events.py "$platform_log" --packages "$evidence_dir/platform-packages.txt" --required scripts/ci/first-account-platform-required.txt
-          # Linux executes the common conformance runner in every mode and architecture.
-          if [ "${{ matrix.platform.expected_goos }}" = linux ]; then
+          # Darwin-specific package inputs retain a native execution in this coordinate.
+          runner_decision="$(python3 scripts/ci/project_reference.py plan-common-runner "$evidence_dir")"
+          if [ "$runner_decision" = execute ]; then
             runner_log="$evidence_dir/conformance-runner.json"
             runner_stderr="$evidence_dir/conformance-runner.stderr"
             go test "${test_flags[@]}" -json -list . ./conformance/runners/godj > "$evidence_dir/conformance-runner-discovery.json"
