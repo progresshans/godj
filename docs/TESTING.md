@@ -55,8 +55,6 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 
 두 버전의 호환성 거부와 Darwin race·CGO=0가 겹칠 때만 나타나는 결함, 같은 소스 선택에서만 드러나는 공통 runner의 Mac 고유 동작은 기본 full에서 직접 발견하기 어렵다. 제품 비교 결과의 `product_coverage`에 각 검사의 실제 담당 좌표·발견 root 또는 이관한 필수 목록을 남긴다.
 
-Darwin에서 SQLite의 세 경계 테스트만 실행할 때는 기존 테스트 파일과 모든 제품 소스를 그대로 컴파일한다. 테스트 소스가 수정·추가·삭제되어 검토된 지문이 달라지면 해당 패키지의 테스트 소스를 전부 컴파일한다. 새 초기화 코드나 간접 의존성도 이 경로에서 보존된다.
-
 Linux amd64·arm64 race의 SQLite credential suite는 기존 runtime 작업에서 한 번 컴파일하고 실행한다. 같은 테스트 바이너리 안에서 독립적인 최상위 case를 세 묶음으로 실행한다. 각 case는 자체 DB·마이그레이션·fixture를 열고, 상태를 공유하는 child는 같은 case 안에서 원래 순서로 실행한다. 257행·256 경계도 그대로 검사한다. PostgreSQL과 다른 모드는 기존 순서로 실행한다.
 runtime 작업은 소스에서 등록된 모든 case, 세 묶음의 중복 없는 합집합, 필수 child 각각의 실제 run/pass, OS·아키텍처·race를 원본 이벤트에서 대조한다. 추가 러너·컴파일·fixture 공유는 없다. 실제 묶음별 경과 시간은 각 runtime artifact의 `sqlite-account-groups.json`에 남는다.
 
@@ -66,7 +64,7 @@ PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태
 
 FirstAccount의 관찰용 관리 명령은 최종 생성 소스에서 fixture별로 한 번 빌드한다. 각 초기화·조회는 소스 지문을 다시 확인한 뒤 독립 프로세스에서 실행한다. 공개 첫 계정 명령의 선언·런타임 빌드, 호환성 검사, PTY 복구와 자식 회수는 각 시나리오에서 실행한다. 네이티브 원본에는 관찰 명령의 실제 빌드 좌표·지문, PID, 빌드·조회·공개 명령별 실행 시간이 남는다.
 
-Apple Silicon race·CGO=0의 세 SQLite 네이티브 root는 기존 두 프로세스 동시 경합, 재접속, migration revision 및 unique rollback의 private assertion을 그대로 실행한다. 이 호출만 Go overlay로 원본 테스트와 프로세스 helper에 필요한 테스트 파일 8개를 컴파일한다. 실제 대상의 Go 목록으로 전후 제품 입력이 일치하는지 확인하고 선택 소스 지문을 업로드한다. Linux와 Apple Silicon 일반 런타임의 전체 SQLite 패키지는 기본 테스트 목록을 사용한다.
+Apple Silicon race·CGO=0에서는 원래 SQLite 테스트로 두 프로세스의 경합·재접속·migration revision·unique rollback을 검증한다. 이 세 root에 필요한 원본 테스트 파일 8개와 전체 제품 소스를 컴파일한다. Go가 선택한 제품 입력을 overlay 적용 전후로 비교하고 테스트 소스 지문을 기록한다. 패키지 테스트 파일이 수정·추가·삭제되어 검토된 지문이 달라지면 테스트 파일 전체를 컴파일한다. Linux와 Apple Silicon 일반 runtime도 전체 파일을 사용한다.
 
 Linux의 Darwin 교차 컴파일은 두 대상의 패키지를 발견하고 실제 Mach-O 링크와 빌드 정보를 검증한다. 러너·Go 도구 버전별 객체 캐시를 복원하고, 같은 계열의 저장본이 없을 때만 새로 저장한다. Go는 입력이 바뀐 객체를 다시 빌드한다. 링크된 테스트 파일은 검증 후 폐기하고 별도 cold-build 제품 테스트는 자체 임시 캐시를 사용한다.
 
