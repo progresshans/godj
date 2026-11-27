@@ -239,11 +239,11 @@ aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다
 테스트를 삭제하거나 통합하면 위 위험을 현재 어느 test가 검증하는지 확인한다.
 전체 이름·개수·payload 길이의 영구 잠금 대신 실행한 scope, required capability/sentinel과 실제 실패/skip를 검사한다.
 Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 runtime 안전성의 대체 검증이 아니다.
-Python normal·exact·compatibility는 `scripts/ci/python_tests.py --profile`의 공통 launcher로 현재 발견한 testcase의
-시작·종료와 허용 skip을 대조한다. Make의 normal/exact는 고정 DRF 환경에서 전체 suite를 실행하며 DRF skip을 허용하지 않는다.
-Normal·compatibility의 고정 reference 전용 네 검사는 exact가 맡고, exact는 skip을 허용하지 않는다. Launcher가 discovery 전에
-exact flag를 설정하므로 host flag가 선택한 profile을 바꾸지 않는다. 전역 테스트 수를 고정하지 않고 실패·expected failure·
-임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
+Django Python 테스트는 같은 소스에서 모두 발견한다. Linux normal과 각 Python compatibility는 전체를 실행하며 고정 Darwin 전용 네 검사만 skip한다.
+Darwin exact는 잠긴 Python·Django·SQLite fingerprint와 oracle 재생성 비교, 전용 네 검사, SQLite 빌드·파일·시간대·프로세스 경계와 미분류 모듈을 실행한다.
+공통 동작을 Linux에 맡긴 모듈은 [소스와 발견 목록의 digest](../scripts/ci/python-portable-modules.txt)로 식별한다. 새 모듈·수정된 소스·case 목록 변경은 다시 Darwin에서도 실행한다.
+같은 run의 Linux normal·Darwin exact artifact에서 전체 발견 목록, 실제 testcase 시작·완료·skip, 호스트 fingerprint를 대조한다. 공통 모듈의 Mac 실행 차이는 최종 결과의 `python_coverage.linux_only`에 case별로 기록된다.
+실패·expected failure·임의 skip·중복·중단된 실행을 거부하고, launcher가 discovery 전에 exact flag를 설정한다.
 
 CI 도구의 Python 검사는 같은 launcher의 `tools` profile로 `scripts/ci/test_*.py` 전체를 실행한다.
 Portable normal core-vet의 필수 `Verify CI tooling` step과 `make ci-tools-test`/`make ci`가 같은 경로를 사용한다.

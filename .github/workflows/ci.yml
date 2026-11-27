@@ -122,6 +122,7 @@ jobs:
 
       - name: Verify same-run capture provenance and execute conformance
         env:
+          GODJ_PYTHON_INVENTORY: ${{ runner.temp }}/platform-python/inventory.json
           ATTESTATION_DIR: ${{ runner.temp }}/godj-evidence
           SYSTEMSTATE_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.systemstate_producer_attempt }}
           OPERATOR_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.operator_producer_attempt }}
@@ -160,6 +161,21 @@ jobs:
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
+
+      - name: Seal Python execution inventory
+        run: python3 scripts/ci/native_receipts.py seal-python "$RUNNER_TEMP/platform-python"
+
+      - name: Publish platform obligation evidence
+        id: platform_upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-ownership-linux-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/platform-python
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}
+        run: test -n "${{ steps.platform_upload.outputs.artifact-id }}" && test -n "${{ steps.platform_upload.outputs.artifact-digest }}"
 
   portable-go-matrix:
     needs: validation-plan
@@ -425,10 +441,10 @@ jobs:
     needs: validation-plan
     name: Validate exact darwin/arm64 profile and SQLite lifecycle
     runs-on: macos-15
-    # The complete Python suite and locked-oracle replay share this owner.
-    # Keep every check while allowing cold-run variation as the catalog grows.
+    # The locked oracle, host-sensitive tests and unclassified changes run natively.
     timeout-minutes: 30
     env:
+      GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       LC_ALL: C
       PYTHONHASHSEED: "0"
       TZ: UTC
@@ -466,6 +482,8 @@ jobs:
           go env GOOS GOARCH
 
       - name: Verify exact Python profile and locked oracles
+        env:
+          GODJ_PYTHON_INVENTORY: ${{ runner.temp }}/platform-python/inventory.json
         run: make python-test-exact oracle-check
 
       - name: Ensure reference artifacts were not rewritten
@@ -490,6 +508,21 @@ jobs:
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
+
+      - name: Seal Python execution inventory
+        run: python3 scripts/ci/native_receipts.py seal-python "$RUNNER_TEMP/platform-python"
+
+      - name: Publish platform obligation evidence
+        id: platform_upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-ownership-darwin-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/platform-python
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}
+        run: test -n "${{ steps.platform_upload.outputs.artifact-id }}" && test -n "${{ steps.platform_upload.outputs.artifact-digest }}"
 
   relation-product-matrix:
     needs: validation-plan

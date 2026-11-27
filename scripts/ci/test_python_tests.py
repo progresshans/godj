@@ -1,9 +1,14 @@
+import copy
+import hashlib
 import io
+import json
 import os
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
-from python_tests import EXACT_PROFILE_TESTS, configure_profile, run_suite
+from python_tests import EXACT_PROFILE_TESTS, ROOT, configure_profile, exact_selection, run_suite, verify_owners
 
 
 class PythonSuiteTests(unittest.TestCase):
@@ -70,3 +75,46 @@ class PythonSuiteTests(unittest.TestCase):
             case.run = incomplete
             with self.subTest(start=start), self.assertRaises(ValueError):
                 self.check([case])
+
+
+    def test_unreviewed_sources_and_cases_default_to_exact(self):
+        common = "test_common.Case.test_one"
+        native = "test_native.Case.test_io"
+        discovered = sorted({common, native} | EXACT_PROFILE_TESTS)
+        with tempfile.TemporaryDirectory() as scratch:
+            directory = Path(scratch)
+            source = directory / "test_common.py"
+            source.write_text("# reviewed")
+            digest = hashlib.sha256(source.read_bytes() + bytes([0]) + (common + '\n').encode()).hexdigest()
+            manifest = directory / "portable.txt"
+            manifest.write_text("test_common " + digest + '\n')
+
+            def select(names):
+                return exact_selection(names, directory=directory, manifest=manifest)
+
+            self.assertEqual(select(discovered), {native} | EXACT_PROFILE_TESTS)
+            changed = discovered + ["test_common.Case.test_new"]
+            self.assertEqual(select(changed), set(changed))
+            source.write_text("# changed")
+            self.assertEqual(select(discovered), set(discovered))
+            for bad in (discovered + [common], [common]):
+                with self.assertRaises(ValueError):
+                    select(bad)
+
+    def test_gate_rejects_missing_duplicate_skipped_or_wrong_host_python_results(self):
+        ids = sorted(EXACT_PROFILE_TESTS | {"test_new.Case.test_boundary"})
+        locked = json.loads((ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json").read_text())["fingerprint"]
+        linux = dict(profile="normal", fingerprint={**locked, "platform": "linux", "architecture": "x86_64"},
+                     discovered=ids, started=ids, stopped=ids, skipped=sorted(EXACT_PROFILE_TESTS))
+        exact = dict(profile="exact", fingerprint=locked, discovered=ids, started=ids, stopped=ids, skipped=[])
+        self.assertEqual(verify_owners(linux, exact)["darwin_passed"], len(ids))
+        for owner, field, mutation in (
+            ("normal", "started", ids[:-1]), ("normal", "skipped", []),
+            ("exact", "discovered", ids[:-1]), ("exact", "stopped", ids + [ids[0]]),
+            ("exact", "skipped", ids[:1]), ("exact", "fingerprint", linux["fingerprint"]),
+            ("exact", "fingerprint", {**locked, "sqlite_source_id": "different"}),
+        ):
+            records = copy.deepcopy([linux, exact])
+            records[owner == "exact"][field] = mutation
+            with self.subTest(owner=owner, field=field), self.assertRaises(ValueError):
+                verify_owners(*records)

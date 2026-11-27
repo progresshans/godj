@@ -7,9 +7,10 @@ from pathlib import Path
 
 import darwin_compile
 import native_evidence
+import python_tests
 from platform_policy import CONTRACT, MODES, event_profile, intel_matrix
 from project_artifacts import resolve, validated_producers
-from project_reference import document, require, source_identity
+from project_reference import document, require, seal, source_identity, verify_seal
 
 UPLOAD = 'Publish platform obligation evidence'
 PREFIX = 'Platform artifact '
@@ -17,6 +18,10 @@ PREFIX = 'Platform artifact '
 
 def contracts(profile):
     result = {'darwin-compile-only': ('Compile Darwin targets on Linux', 'darwin-compile-only', None)}
+    result.update({
+        'python-ownership-linux': ('Validate references and current product captures', 'python', 'normal'),
+        'python-ownership-darwin': ('Validate exact darwin/arm64 profile and SQLite lifecycle', 'python', 'exact'),
+    })
     for row in intel_matrix(profile)['include']:
         mode = row['mode']
         result['native-compat-darwin-amd64-' + mode] = (
@@ -46,6 +51,7 @@ def verify(directory, selection, source, repo_id, profile):
     selected = validated_producers(selection, source, repo_id, profile, expected_jobs(profile))
     folders = {name + '-' + str(row['producer_attempt']) for name, row in selected.items()}
     require({p.name for p in directory.iterdir()} == folders, 'unexpected native archive set')
+    python = {}
     for name, (_, suite, mode) in contracts(profile).items():
         attempt = str(selected[name]['producer_attempt'])
         producer_source = {**source, 'run_attempt': attempt}
@@ -53,18 +59,29 @@ def verify(directory, selection, source, repo_id, profile):
         require(folder.is_dir() and not folder.is_symlink(), 'missing native artifact')
         if suite == 'darwin-compile-only':
             darwin_compile.verify(folder, producer_source)
+        elif suite == 'python':
+            verify_seal(folder)
+            require({path.name for path in folder.iterdir()} == {'SHA256SUMS', 'source.json', 'inventory.json'}
+                    and document(folder / 'source.json') == producer_source, 'wrong Python ownership source')
+            python[mode] = document(folder / 'inventory.json')
         else:
             native_evidence.verify(folder, suite, mode, producer_source)
-    return {'validation_contract': CONTRACT, 'profile': profile, 'source': source, 'native_producers': selected}
+    return {'validation_contract': CONTRACT, 'profile': profile, 'source': source, 'native_producers': selected,
+            'python_coverage': python_tests.verify_owners(python['normal'], python['exact'])}
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('resolve', 'verify'))
+    parser.add_argument('action', choices=('resolve', 'verify', 'seal-python'))
     parser.add_argument('selection', type=Path)
     parser.add_argument('directory', type=Path, nargs='?')
     args = parser.parse_args()
     source = source_identity()
+    if args.action == 'seal-python':
+        require((args.selection / 'inventory.json').is_file(), 'missing actual Python test inventory')
+        (args.selection / 'source.json').write_text(json.dumps(source, sort_keys=True) + '\n')
+        seal(args.selection)
+        raise SystemExit(0)
     profile = event_profile()
     repository_id = int(os.environ['GITHUB_REPOSITORY_ID'])
     if args.action == 'resolve':

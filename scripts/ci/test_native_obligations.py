@@ -147,7 +147,7 @@ class NativeObligationsTests(unittest.TestCase):
         self.assertEqual(len(set(uploads)), 1)
         self.assertRegex(uploads[0], r'^[0-9a-f]{40}$')
         blocks = workflow.split('      - name: Publish platform obligation evidence')[1:]
-        self.assertEqual(len(blocks), 3)
+        self.assertEqual(len(blocks), 5)
         for block in blocks:
             step, following = block.split('      - name: ', 1)
             self.assertIn('        id: platform_upload', step)
@@ -159,7 +159,7 @@ class NativeObligationsTests(unittest.TestCase):
             )
 
     def test_actual_manifest_has_one_owner_per_selected_child(self):
-        for profile, count in [('pr', 2), ('native', 3), ('full', 6)]:
+        for profile, count in [('pr', 4), ('native', 5), ('full', 8)]:
             self.assertEqual(len(contracts(profile)), count)
             self.assertFalse(producers(profile).keys() & expected_jobs(profile).keys())
         for mode in ('normal', 'race', 'cgo0'):

@@ -56,6 +56,7 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/native_receipts.py":                                                  {},
 	"scripts/ci/project_reference.py":                                                {},
 	"scripts/ci/python_tests.py":                                                     {},
+	"scripts/ci/python-portable-modules.txt":                                         {},
 	"scripts/ci/relation-required.txt":                                               {},
 	"scripts/ci/compile-required.txt":                                                {},
 	".github/workflows/ci.yml":                                                       {},
