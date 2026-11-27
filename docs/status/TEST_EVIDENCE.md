@@ -27,6 +27,8 @@ PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target�
 
 각 모드의 PostgreSQL 계정 작업 5개에서 13개 part·19개 root·133개 필수 항목을 확인했다. 이관 전 189개 중 56개는 동일한 독립 fixture의 SQLite 경로였고, PostgreSQL counterpart 56개는 모두 실행됐다. 별도로 준비한 생성 바이너리 세 개의 실제 계정 시나리오 프로세스는 PostgreSQL 11회였으며 각 바이너리·PID·모드를 대조했다. [DB별 대응 목록](../../scripts/ci/account-database-owners.txt)
 
+생성 계정 fixture 세 개의 프로그램 내부 계측을 합산하면 PostgreSQL race에서 준비는 1,072.792→1,061.816초, 시나리오 본문은 1,938.710→952.758초였다. 일반·CGO=0 본문은 각각 387.204→329.601초, 390.362→329.577초였다. 이 두 모드의 준비 시간은 각각 32.055초, 60.261초 늘었다. 준비는 생성 바이너리를 만드는 시간이고 본문은 DB별 자식 프로세스의 경과 시간이다. [변경 전 실행](https://github.com/progresshans/godj/actions/runs/46027695666) · [변경 후 실행](https://github.com/progresshans/godj/actions/runs/46041421514)
+
 | 모드 | 기존 배치의 최장 part 합 실측 | 같은 비용으로 계산한 새 배치 |
 |---|---:|---:|
 | 일반 | 13분 12초 | 12분 42초 |
@@ -34,6 +36,10 @@ PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target�
 | CGO=0 | 14분 59초 | 13분 04초 |
 
 오른쪽 열은 `803b5f66`의 성공한 part 시간을 고정한 배치 시뮬레이션이다. 각 모드에서 모든 part가 한 번씩 배정되고 작업당 최대 세 개임을 대조했다. 새 part에는 해당 모드의 측정 중간값을 사용한다. [PostgreSQL 배정 코드](../../scripts/ci/postgres_shards.py)
+
+공통 Go runner 이관 전 `346853c6`의 Linux/arm64와 Darwin/arm64 원본을 모드별로 대조했다. 세 모드 각각에서 같은 159개 root와 405개 root·child 통과 항목을 확인했다. Go 소스·테스트·embed 파일 선택이 갈리면 해당 Mac 작업이 직접 실행하도록 했다. 같은 파일에서 호스트별 동작이 달라질 가능성은 [현재 검증 범위](../TESTING.md#원격-ci-실행-범위)에 기록했다. [Linux race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15215117854) · [Darwin race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15216197862)
+
+Linux SQLite credential race는 첫 단계 case 191개를 등록하고, DB를 쓰는 시나리오는 각 fixture에서 독립 DB를 연다. 기존 두 full에서 job 시작부터 SQLite 패키지 본문 시작까지 x64는 382·255초, ARM64는 228·222초였다. 새 러너마다 이 준비를 반복한다고 가정하면 두 아키텍처에 2개씩 추가하는 안은 약 16~20 runner분, 3개씩 추가하는 안은 약 24~30 runner분이 더 든다. 이 값은 배치 비교 추정이다. 구현은 기존 runtime 작업 안에서 세 묶음을 실행해 컴파일과 환경 준비를 공유한다. [x64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307872) · [ARM64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
 
 ## 플랫폼별 검증 의무
 
