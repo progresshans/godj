@@ -35,6 +35,7 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/go_test_events.py":                                                   {},
 	"scripts/ci/packages.py":                                                         {},
 	"scripts/ci/workflow.py":                                                         {},
+	"scripts/ci/sqlite_race_groups.py":                                               {},
 	"scripts/ci/relation_shards.py":                                                  {},
 	"scripts/ci/worker_parts.py":                                                     {},
 	"scripts/ci/platform_policy.py":                                                  {},
@@ -167,6 +168,7 @@ var embeddedAssetPrefixes = []string{
 }
 
 var conformanceSourcePrefixes = []string{
+	"internal/accountstoretest/",
 	"internal/testenv/",
 	"conformance/cmd/godjcheck/",
 	"conformance/internal/protocol/",

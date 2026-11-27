@@ -80,8 +80,8 @@ func usernameCommitted(t *testing.T, backend Backend, before userReferenceState,
 	return accountmodel.Creation{ID: expected.ID, Revision: 1, ChangedFields: slices.Clone(userReferenceCreationFields)}
 }
 
-func runCreationUsernamePolicy(t *testing.T, vendor string, open Open) {
-	t.Run("creation_username_policy", func(t *testing.T) {
+func runCreationUsernamePolicy(add registerCase, vendor string, open Open) {
+	add("creation_username_policy", func(t *testing.T) {
 		inputs, reference := iexacttest.CreationReference(t, vendor)
 		for index, input := range inputs {
 			t.Run(fmt.Sprintf("reference_%02d", index), func(t *testing.T) {

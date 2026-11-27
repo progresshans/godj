@@ -18,8 +18,8 @@ import (
 	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 )
 
-func runUserHostDeletion(t *testing.T, open Open) {
-	t.Run("user_host_delete", func(t *testing.T) {
+func runUserHostDeletion(add registerCase, open Open) {
+	add("user_host_delete", func(t *testing.T) {
 		backend, reopen := open(t)
 		userHostDeletion(t, backend, reopen)
 	})

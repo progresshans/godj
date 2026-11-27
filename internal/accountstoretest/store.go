@@ -57,6 +57,12 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	if referenceBackend == "postgres" && generatedKeys == nil {
 		t.Fatal("PostgreSQL native generated-key fixture is required")
 	}
+	runCases(t, referenceBackend, func(add registerCase) {
+		registerAccountCases(add, referenceBackend, open, storedKey, generatedKeys)
+	})
+}
+
+func registerAccountCases(add registerCase, referenceBackend string, open Open, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture) {
 	for _, test := range []struct {
 		name string
 		run  func(*testing.T, Backend, func(*testing.T) Backend)
@@ -213,7 +219,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"role_concurrent_catalog_expansion", roleConcurrentCatalogExpansion},
 		{"role_deactivation_versus_login", roleDeactivationVersusLogin},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		add(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
@@ -230,35 +236,35 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			test.run(t, backend, reopen)
 		})
 	}
-	runCatalogMutationOutcomes(t, open)
-	runUserManagementReferences(t, referenceBackend, open)
-	runPasswordAdminNative(t, open)
-	runSelfPasswordNative(t, open)
-	runResetMailNative(t, open)
-	runResetWriteNative(t, open)
-	runResetNativeReferences(t, open)
-	runAccountResetHTTP(t, open)
-	runAccountHTTP(t, open)
-	runAuthenticationNative(t, open)
-	runCreationUsernamePolicy(t, referenceBackend, open)
-	runUnusableReference(t, open)
-	runUnusableWriteFailures(t, open)
-	runUnusableFences(t, open)
-	runUnusableConcurrentReplacement(t, open)
-	runLoginReference(t, open)
-	runLoginWriteFailures(t, open)
-	runLoginAdmission(t, open)
-	runLoginExpired(t, open)
-	runLoginCollision(t, open)
-	runLoginCurrentFences(t, open)
-	runLoginConcurrentEdits(t, open)
-	runUserHostDeletion(t, open)
-	runStartupSchemaRequired(t, open)
-	runAccountDeletion(t, open, storedKey)
-	runCollectionChanges(t, open, storedKey, generatedKeys)
-	runCollectionObservations(t, open, storedKey)
-	runCollectionLifecycle(t, open, storedKey)
-	runProfileRelations(t, open, storedKey)
+	runCatalogMutationOutcomes(add, open)
+	runUserManagementReferences(add, referenceBackend, open)
+	runPasswordAdminNative(add, open)
+	runSelfPasswordNative(add, open)
+	runResetMailNative(add, open)
+	runResetWriteNative(add, open)
+	runResetNativeReferences(add, open)
+	runAccountResetHTTP(add, open)
+	runAccountHTTP(add, open)
+	runAuthenticationNative(add, open)
+	runCreationUsernamePolicy(add, referenceBackend, open)
+	runUnusableReference(add, open)
+	runUnusableWriteFailures(add, open)
+	runUnusableFences(add, open)
+	runUnusableConcurrentReplacement(add, open)
+	runLoginReference(add, open)
+	runLoginWriteFailures(add, open)
+	runLoginAdmission(add, open)
+	runLoginExpired(add, open)
+	runLoginCollision(add, open)
+	runLoginCurrentFences(add, open)
+	runLoginConcurrentEdits(add, open)
+	runUserHostDeletion(add, open)
+	runStartupSchemaRequired(add, open)
+	runAccountDeletion(add, open, storedKey)
+	runCollectionChanges(add, open, storedKey, generatedKeys)
+	runCollectionObservations(add, open, storedKey)
+	runCollectionLifecycle(add, open, storedKey)
+	runProfileRelations(add, open, storedKey)
 }
 
 const password = "native-selected-account-password"

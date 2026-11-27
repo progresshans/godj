@@ -73,8 +73,8 @@ func assertLoginReference(t *testing.T, authentication map[string]any, lifecycle
 	}
 }
 
-func runLoginReference(t *testing.T, open Open) {
-	t.Run("login_reference", func(t *testing.T) {
+func runLoginReference(add registerCase, open Open) {
+	add("login_reference", func(t *testing.T) {
 		backend, reopen := open(t)
 		f := provisionLogin(t, backend, false)
 		browser := newUserReferenceHTTPConfigured(t, f.runtime, f.clock, 200)

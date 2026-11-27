@@ -142,6 +142,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"internal/temporal/datetime.go",
 		"internal/booleaninput/select.go",
 		"scripts/ci/python-portable-modules.txt", "scripts/ci/python_tests.py",
+		"scripts/ci/sqlite_race_groups.py",
 		"scripts/ci/relation_shards.py",
 		"scripts/ci/worker_parts.py",
 		"scripts/ci/platform_policy.py",
@@ -201,6 +202,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"scripts/ci/portable-core-required.txt",
 
 		"conformance/internal/testfixture/external.go",
+		"internal/accountstoretest/cases.go",
 		"internal/testenv/environment.go",
 		"conformance/internal/relationstate/observe.go",
 		"query/plan.go",

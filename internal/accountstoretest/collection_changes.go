@@ -20,9 +20,8 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture) {
-	t.Helper()
-	t.Run("collection_changes", func(t *testing.T) {
+func runCollectionChanges(add registerCase, open Open, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture) {
+	add("collection_changes", func(t *testing.T) {
 		for _, mode := range []string{
 			"commit", "preserved_duplicate", "clear", "nonpositive_keys", "protected",
 			"query_failure", "close_failure", "callback_failure", "callback_cancel",

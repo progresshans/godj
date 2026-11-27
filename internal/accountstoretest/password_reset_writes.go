@@ -295,8 +295,8 @@ func resetWriteCase(t *testing.T, open Open, stage, mode string) {
 	}
 }
 
-func runResetWriteNative(t *testing.T, open Open) {
-	t.Run("password_reset_write_failures", func(t *testing.T) {
+func runResetWriteNative(add registerCase, open Open) {
+	add("password_reset_write_failures", func(t *testing.T) {
 		for _, stage := range []string{"create", "rotate", "finish", "clear"} {
 			t.Run(stage, func(t *testing.T) {
 				for _, mode := range resetWriteModes(stage) {

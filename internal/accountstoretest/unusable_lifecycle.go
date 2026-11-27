@@ -13,8 +13,8 @@ import (
 	websession "github.com/progresshans/godj/web/sessionauth"
 )
 
-func runUnusableReference(t *testing.T, open Open) {
-	t.Run("unusable_reference", func(t *testing.T) {
+func runUnusableReference(add registerCase, open Open) {
+	add("unusable_reference", func(t *testing.T) {
 		backend, reopen := open(t)
 		f := provisionUnusable(t, backend, 3)
 		actor := f.actor.Principal()

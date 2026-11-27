@@ -238,8 +238,8 @@ func startupMigrations(t *testing.T, backend Backend, _ func(*testing.T) Backend
 	}
 }
 
-func runStartupSchemaRequired(t *testing.T, open Open) {
-	t.Run("startup_schema_required", func(t *testing.T) {
+func runStartupSchemaRequired(add registerCase, open Open) {
+	add("startup_schema_required", func(t *testing.T) {
 		for _, mode := range []string{"empty", "framework_only", "project_only"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, _ := open(t)

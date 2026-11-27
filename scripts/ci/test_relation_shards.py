@@ -233,6 +233,11 @@ class RelationShardTest(unittest.TestCase):
                 stderr.write_text('stale\n')
                 script = '''
                     go() {
+                      if [ "${!#}" = "$SQLITE" ]; then
+                        [ "${GODJ_SQLITE_ACCOUNT_GROUPS:-}" = 3 ] || return 91
+                      else
+                        [ -z "${GODJ_SQLITE_ACCOUNT_GROUPS:-}" ] || return 92
+                      fi
                       echo "$*"
                       echo "$*" >&2
                       for arg in "$@"; do if [ "$arg" = "$FAIL_PACKAGE" ]; then return 23; fi; done
@@ -240,7 +245,7 @@ class RelationShardTest(unittest.TestCase):
                     }
                     packages=("$SQLITE" "$consumer_package" "$ORDINARY" "$NEIGHBOR")
                 ''' + flags + dispatch + 'exit "$status"\n'
-                env = dict(os.environ, mode='race', shard='0', shards=str(row['shards']),
+                env = dict(os.environ, mode='race', SCOPE=row['scope'], GODJ_SQLITE_ACCOUNT_GROUPS='', shard='0', shards=str(row['shards']),
                            TEST_TIMEOUT=row['test_timeout'], SQLITE_TIMEOUT=row['sqlite_timeout'],
                            SERIAL_RUNTIME_PACKAGES=json.dumps(row['serial_runtime_packages']),
                            SQLITE=sqlite, ORDINARY=ordinary, NEIGHBOR=neighbor, consumer_package=CONSUMER,

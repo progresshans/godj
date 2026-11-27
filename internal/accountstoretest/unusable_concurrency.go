@@ -28,8 +28,8 @@ func (owner *unusableBeforeWrite) CoordinatedAtomic(ctx context.Context, write f
 	return owner.Backend.CoordinatedAtomic(ctx, write)
 }
 
-func runUnusableFences(t *testing.T, open Open) {
-	t.Run("unusable_fences", func(t *testing.T) {
+func runUnusableFences(add registerCase, open Open) {
+	add("unusable_fences", func(t *testing.T) {
 		for _, mode := range []string{"actor_deactivated", "group_grant_removed", "target_revision", "target_hash_without_revision"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -125,8 +125,8 @@ func runUnusableFences(t *testing.T, open Open) {
 	})
 }
 
-func runUnusableConcurrentReplacement(t *testing.T, open Open) {
-	t.Run("unusable_concurrent_replacement", func(t *testing.T) {
+func runUnusableConcurrentReplacement(add registerCase, open Open) {
+	add("unusable_concurrent_replacement", func(t *testing.T) {
 		backend, reopen := open(t)
 		f := provisionUnusable(t, backend, 3)
 		before := userReferenceSnapshot(t, reopen(t))

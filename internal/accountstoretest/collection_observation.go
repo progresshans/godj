@@ -18,9 +18,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func runCollectionObservations(t *testing.T, open Open, storedKey StoredKeyFixture) {
-	t.Helper()
-	t.Run("collection_observations", func(t *testing.T) {
+func runCollectionObservations(add registerCase, open Open, storedKey StoredKeyFixture) {
+	add("collection_observations", func(t *testing.T) {
 		for _, mode := range []string{"commit", "nonpositive_keys", "snapshot_cleanup", "row_close", "protected", "link_identity", "new_descendant", "reparented_cascade", "reparented_null", "changed_nullable_endpoint", "final_query_failure", "final_close_failure", "late_insert_failure", "outer_failure"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)

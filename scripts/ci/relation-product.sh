@@ -103,7 +103,11 @@ elif [ "$shard" -eq 0 ]; then
     if [ "$package" = "$consumer_package" ]; then continue; fi
     if [ -n "$sqlite_timeout" ] && [ "$package" = "$sqlite_package" ]; then
       echo "Running $package with Go package timeout $sqlite_timeout"
-      run_tests "$sqlite_timeout" "$package"
+      if [ "$SCOPE" = complete-relation ] && [ "$mode" = race ]; then
+        GODJ_SQLITE_ACCOUNT_GROUPS=3 run_tests "$sqlite_timeout" "$package"
+      else
+        run_tests "$sqlite_timeout" "$package"
+      fi
     else
       runtime_packages+=("$package")
     fi
@@ -130,6 +134,9 @@ if [ "$status" -ne 0 ]; then
   exit "$status"
 fi
 python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
+if [ "$SCOPE" = complete-relation ] && [ "$mode" = race ] && [ "$runtime_owner" = true ]; then
+  python3 scripts/ci/sqlite_race_groups.py "$log" "$(go env GOARCH)" "$part/sqlite-account-groups.json"
+fi
 if [ "$SCOPE" = darwin-runtime ]; then
   python3 scripts/ci/relation_shards.py "${runtime_plan[@]}" --log "$log"
 else

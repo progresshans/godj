@@ -132,8 +132,8 @@ func (probe *catalogMutationProbe) InsertOnConflict(ctx context.Context, plan qu
 	return result, err
 }
 
-func runCatalogMutationOutcomes(t *testing.T, open Open) {
-	t.Run("catalog_mutation_outcomes", func(t *testing.T) {
+func runCatalogMutationOutcomes(add registerCase, open Open) {
+	add("catalog_mutation_outcomes", func(t *testing.T) {
 		for _, operation := range []string{"create_group", "update_group", "delete_group", "create_permission", "update_permission", "delete_permission"} {
 			t.Run(operation, func(t *testing.T) {
 				modes := []string{"skipped", "nil_session", "root_session", "repeated", "swallowed_query", "audit_failure", "write_failure", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"}

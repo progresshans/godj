@@ -406,16 +406,16 @@ func passwordResetConfiguration(t *testing.T, open Open) {
 	}
 }
 
-func runResetNativeReferences(t *testing.T, open Open) {
-	t.Run("password_reset_browser_current", func(t *testing.T) { passwordResetBrowserCurrent(t, open) })
-	t.Run("password_reset_browser_admission", func(t *testing.T) { passwordResetBrowserAdmission(t, open) })
-	t.Run("password_reset_session_fence", func(t *testing.T) { passwordResetSessionFence(t, open) })
-	t.Run("password_reset_entropy", func(t *testing.T) { passwordResetEntropy(t, open) })
-	t.Run("password_reset_web", func(t *testing.T) { passwordResetWeb(t, open) })
-	t.Run("password_reset_lifecycle", func(t *testing.T) { passwordResetLifecycle(t, open) })
-	t.Run("password_reset_bindings", func(t *testing.T) { passwordResetBindings(t, open) })
-	t.Run("password_reset_clock_keys", func(t *testing.T) { passwordResetClockKeys(t, open) })
-	t.Run("password_reset_configuration", func(t *testing.T) { passwordResetConfiguration(t, open) })
-	t.Run("password_reset_current", func(t *testing.T) { passwordResetCurrent(t, open) })
-	t.Run("password_reset_concurrent", func(t *testing.T) { passwordResetConcurrent(t, open) })
+func runResetNativeReferences(add registerCase, open Open) {
+	add("password_reset_browser_current", func(t *testing.T) { passwordResetBrowserCurrent(t, open) })
+	add("password_reset_browser_admission", func(t *testing.T) { passwordResetBrowserAdmission(t, open) })
+	add("password_reset_session_fence", func(t *testing.T) { passwordResetSessionFence(t, open) })
+	add("password_reset_entropy", func(t *testing.T) { passwordResetEntropy(t, open) })
+	add("password_reset_web", func(t *testing.T) { passwordResetWeb(t, open) })
+	add("password_reset_lifecycle", func(t *testing.T) { passwordResetLifecycle(t, open) })
+	add("password_reset_bindings", func(t *testing.T) { passwordResetBindings(t, open) })
+	add("password_reset_clock_keys", func(t *testing.T) { passwordResetClockKeys(t, open) })
+	add("password_reset_configuration", func(t *testing.T) { passwordResetConfiguration(t, open) })
+	add("password_reset_current", func(t *testing.T) { passwordResetCurrent(t, open) })
+	add("password_reset_concurrent", func(t *testing.T) { passwordResetConcurrent(t, open) })
 }

@@ -264,10 +264,10 @@ func resetAccountSetup(t *testing.T, h *resetAccountHTTP, reopen func(*testing.T
 	return link, proof, csrf
 }
 
-func runAccountResetHTTP(t *testing.T, open Open) {
-	t.Run("account_reset_http", func(t *testing.T) { accountResetHTTP(t, open) })
-	t.Run("account_reset_acknowledgement", func(t *testing.T) { accountResetAcknowledgement(t, open) })
-	t.Run("account_reset_refusals", func(t *testing.T) { accountResetRefusals(t, open) })
-	t.Run("account_reset_request_refusals", func(t *testing.T) { accountResetRequestRefusals(t, open) })
-	t.Run("account_reset_failures", func(t *testing.T) { accountResetFailures(t, open) })
+func runAccountResetHTTP(add registerCase, open Open) {
+	add("account_reset_http", func(t *testing.T) { accountResetHTTP(t, open) })
+	add("account_reset_acknowledgement", func(t *testing.T) { accountResetAcknowledgement(t, open) })
+	add("account_reset_refusals", func(t *testing.T) { accountResetRefusals(t, open) })
+	add("account_reset_request_refusals", func(t *testing.T) { accountResetRequestRefusals(t, open) })
+	add("account_reset_failures", func(t *testing.T) { accountResetFailures(t, open) })
 }

@@ -22,9 +22,8 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func runProfileRelations(t *testing.T, open Open, storedKey StoredKeyFixture) {
-	t.Helper()
-	t.Run("profile_relations", func(t *testing.T) {
+func runProfileRelations(add registerCase, open Open, storedKey StoredKeyFixture) {
+	add("profile_relations", func(t *testing.T) {
 		for _, test := range []struct {
 			name string
 			run  func(*testing.T, Backend, func(*testing.T) Backend)

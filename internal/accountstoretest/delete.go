@@ -30,8 +30,8 @@ import (
 	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 )
 
-func runAccountDeletion(t *testing.T, open Open, storedKey StoredKeyFixture) {
-	t.Helper()
+func runAccountDeletion(add registerCase, open Open, storedKey StoredKeyFixture) {
+
 	for _, test := range []struct {
 		name string
 		run  func(*testing.T, Backend, func(*testing.T) Backend)
@@ -49,7 +49,7 @@ func runAccountDeletion(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"delete_membership_copies", accountDeletionMembershipCopies},
 		{"delete_batches", accountDeletionBatches},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		add(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
 			migrateDeletion(t, backend)
 			test.run(t, backend, reopen)

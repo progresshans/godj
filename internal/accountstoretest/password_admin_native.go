@@ -48,8 +48,8 @@ func passwordAdminExpected(t *testing.T, f *loginFixture, owner *userReferenceOw
 	return before, accountmodel.PasswordEditResult{ID: row.ID, Revision: row.Revision, RevokedSessions: len(f.targetSessions)}
 }
 
-func runPasswordAdminNative(t *testing.T, open Open) {
-	t.Run("password_admin_native", func(t *testing.T) {
+func runPasswordAdminNative(add registerCase, open Open) {
+	add("password_admin_native", func(t *testing.T) {
 		for _, mode := range []string{"many_sessions_and_http", "corrupt_late_session", "current_group_grant", "group_grant_removed"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -198,7 +198,7 @@ func runPasswordAdminNative(t *testing.T, open Open) {
 			})
 		}
 	})
-	t.Run("password_admin_commit_failures", func(t *testing.T) { passwordAdminCommitFailures(t, open) })
+	add("password_admin_commit_failures", func(t *testing.T) { passwordAdminCommitFailures(t, open) })
 }
 
 func passwordAdminHTTP(t *testing.T, f *loginFixture, backend Backend, before userReferenceState, encoded string, controls [2]sessions.Record) {

@@ -371,8 +371,8 @@ func passwordResetMailReadFailures(t *testing.T, open Open) {
 	}
 }
 
-func runResetMailNative(t *testing.T, open Open) {
-	t.Run("password_reset_mail_delivery", func(t *testing.T) { passwordResetMailDelivery(t, open) })
-	t.Run("password_reset_mail_failures", func(t *testing.T) { passwordResetMailFailures(t, open) })
-	t.Run("password_reset_mail_read_failures", func(t *testing.T) { passwordResetMailReadFailures(t, open) })
+func runResetMailNative(add registerCase, open Open) {
+	add("password_reset_mail_delivery", func(t *testing.T) { passwordResetMailDelivery(t, open) })
+	add("password_reset_mail_failures", func(t *testing.T) { passwordResetMailFailures(t, open) })
+	add("password_reset_mail_read_failures", func(t *testing.T) { passwordResetMailReadFailures(t, open) })
 }

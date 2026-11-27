@@ -239,14 +239,14 @@ func accountPasswordLifecycle(t *testing.T, open Open, surface string) {
 	accountSessionRecord(t, reopened.runtime.SessionStore(), previous, false)
 }
 
-func runAccountHTTP(t *testing.T, open Open) {
-	t.Run("account_password_form", func(t *testing.T) { accountPasswordForm(t, open) })
-	t.Run("account_password_lifecycle", func(t *testing.T) {
+func runAccountHTTP(add registerCase, open Open) {
+	add("account_password_form", func(t *testing.T) { accountPasswordForm(t, open) })
+	add("account_password_lifecycle", func(t *testing.T) {
 		for _, surface := range []string{"form", "json"} {
 			t.Run(surface, func(t *testing.T) { accountPasswordLifecycle(t, open, surface) })
 		}
 	})
-	t.Run("account_password_refusals", func(t *testing.T) { accountPasswordRefusals(t, open) })
-	t.Run("account_password_failures", func(t *testing.T) { accountPasswordFailures(t, open) })
-	t.Run("account_entry_refusals", func(t *testing.T) { accountEntryRefusals(t, open) })
+	add("account_password_refusals", func(t *testing.T) { accountPasswordRefusals(t, open) })
+	add("account_password_failures", func(t *testing.T) { accountPasswordFailures(t, open) })
+	add("account_entry_refusals", func(t *testing.T) { accountEntryRefusals(t, open) })
 }

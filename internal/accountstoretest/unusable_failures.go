@@ -14,8 +14,8 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func runUnusableWriteFailures(t *testing.T, open Open) {
-	t.Run("unusable_write_failures", func(t *testing.T) {
+func runUnusableWriteFailures(add registerCase, open Open) {
+	add("unusable_write_failures", func(t *testing.T) {
 		for _, mode := range []string{"skipped", "nil_session", "root_session", "password_update", "revoke_failure", "late_revoke_failure", "audit_insert", "repeated", "cleanup_failure", "swallowed_failure", "invalid_clock", "unknown_rollback", "unknown_commit", "cancel_before_commit", "cancel_confirmed_rollback", "post_commit_cancel"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)

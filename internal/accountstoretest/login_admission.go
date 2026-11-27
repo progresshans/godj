@@ -40,8 +40,8 @@ func loginPrevious(t *testing.T, f *loginFixture, operation string) sessions.Rec
 	return previous
 }
 
-func runLoginAdmission(t *testing.T, open Open) {
-	t.Run("login_admission", func(t *testing.T) {
+func runLoginAdmission(add registerCase, open Open) {
+	add("login_admission", func(t *testing.T) {
 		for _, operation := range []string{"create", "rotate", "replace"} {
 			t.Run(operation, func(t *testing.T) {
 				for _, mode := range []string{"denied", "joined_denial", "joined_unknown", "entropy", "capacity", "canceled", "opaque", "denied_cleanup", "swallowed_denial"} {
@@ -109,8 +109,8 @@ func runLoginAdmission(t *testing.T, open Open) {
 	})
 }
 
-func runLoginExpired(t *testing.T, open Open) {
-	t.Run("login_expired", func(t *testing.T) {
+func runLoginExpired(add registerCase, open Open) {
+	add("login_expired", func(t *testing.T) {
 		for _, mode := range []string{"idle", "absolute"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -153,8 +153,8 @@ func runLoginExpired(t *testing.T, open Open) {
 	})
 }
 
-func runLoginCollision(t *testing.T, open Open) {
-	t.Run("login_collision", func(t *testing.T) {
+func runLoginCollision(add registerCase, open Open) {
+	add("login_collision", func(t *testing.T) {
 		for _, operation := range []string{"create", "rotate", "replace"} {
 			t.Run(operation, func(t *testing.T) {
 				backend, reopen := open(t)

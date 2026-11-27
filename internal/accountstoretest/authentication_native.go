@@ -15,8 +15,8 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func runAuthenticationNative(t *testing.T, open Open) {
-	t.Run("stored_credential_integrity", func(t *testing.T) {
+func runAuthenticationNative(add registerCase, open Open) {
+	add("stored_credential_integrity", func(t *testing.T) {
 		for _, mode := range []string{"revision", "credential", "username", "principal"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -89,7 +89,7 @@ func runAuthenticationNative(t *testing.T, open Open) {
 			})
 		}
 	})
-	t.Run("authentication_current_state", func(t *testing.T) {
+	add("authentication_current_state", func(t *testing.T) {
 		for _, mode := range []string{"password", "rehash", "username", "inactive", "deleted", "authorization"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -170,7 +170,7 @@ func runAuthenticationNative(t *testing.T, open Open) {
 			})
 		}
 	})
-	t.Run("authentication_http", func(t *testing.T) { selectedAuthenticationHTTP(t, open) })
+	add("authentication_http", func(t *testing.T) { selectedAuthenticationHTTP(t, open) })
 }
 
 // The expected credential is assembled from the independently known row,

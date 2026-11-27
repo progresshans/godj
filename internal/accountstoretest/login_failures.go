@@ -161,8 +161,8 @@ func (scope *loginFailureScope) Delete(ctx context.Context, plan query.DeletePla
 	return count, err
 }
 
-func runLoginWriteFailures(t *testing.T, open Open) {
-	t.Run("login_write_failures", func(t *testing.T) {
+func runLoginWriteFailures(add registerCase, open Open) {
+	add("login_write_failures", func(t *testing.T) {
 		for _, operation := range []string{"create", "rotate", "replace"} {
 			t.Run(operation, func(t *testing.T) {
 				modes := []string{"skipped", "nil_session", "root_session", "repeated", "query", "swallowed_failure", "session_query_entropy", "before_insert", "before_insert_entropy", "after_insert", "after_insert_entropy", "before_last_login", "after_last_login", "after_last_login_entropy", "callback_cancel", "cancel_before_commit", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"}

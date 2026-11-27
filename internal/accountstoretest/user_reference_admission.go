@@ -14,17 +14,17 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func runUserManagementReferences(t *testing.T, vendor string, open Open) {
-	t.Run("user_input_refusals", func(t *testing.T) { userInputRefusals(t, open) })
-	t.Run("user_native_reference", func(t *testing.T) {
+func runUserManagementReferences(add registerCase, vendor string, open Open) {
+	add("user_input_refusals", func(t *testing.T) { userInputRefusals(t, open) })
+	add("user_native_reference", func(t *testing.T) {
 		backend, reopen := open(t)
 		userReferenceLifecycle(t, vendor, backend, reopen)
 	})
-	t.Run("user_native_email", func(t *testing.T) {
+	add("user_native_email", func(t *testing.T) {
 		backend, reopen := open(t)
 		userReferenceEmail(t, vendor, backend, reopen)
 	})
-	t.Run("user_native_admission", func(t *testing.T) {
+	add("user_native_admission", func(t *testing.T) {
 		userReferenceAdmission(t, vendor, open)
 	})
 }

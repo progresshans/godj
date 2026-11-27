@@ -327,11 +327,11 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 	}
 }
 
-func runSelfPasswordNative(t *testing.T, open Open) {
-	t.Run("self_password_lifecycle", func(t *testing.T) { selfPasswordLifecycle(t, open) })
-	t.Run("self_password_write_failures", func(t *testing.T) { selfPasswordWriteFailures(t, open) })
-	t.Run("self_password_configuration", func(t *testing.T) { selfPasswordConfiguration(t, open) })
-	t.Run("self_password_refusals", func(t *testing.T) { selfPasswordRefusals(t, open) })
-	t.Run("self_password_current", func(t *testing.T) { selfPasswordCurrent(t, open) })
-	t.Run("self_password_web", func(t *testing.T) { selfPasswordWeb(t, open) })
+func runSelfPasswordNative(add registerCase, open Open) {
+	add("self_password_lifecycle", func(t *testing.T) { selfPasswordLifecycle(t, open) })
+	add("self_password_write_failures", func(t *testing.T) { selfPasswordWriteFailures(t, open) })
+	add("self_password_configuration", func(t *testing.T) { selfPasswordConfiguration(t, open) })
+	add("self_password_refusals", func(t *testing.T) { selfPasswordRefusals(t, open) })
+	add("self_password_current", func(t *testing.T) { selfPasswordCurrent(t, open) })
+	add("self_password_web", func(t *testing.T) { selfPasswordWeb(t, open) })
 }

@@ -14,8 +14,8 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func runLoginConcurrentEdits(t *testing.T, open Open) {
-	t.Run("login_concurrent_edits", func(t *testing.T) {
+func runLoginConcurrentEdits(add registerCase, open Open) {
+	add("login_concurrent_edits", func(t *testing.T) {
 		for _, mode := range []string{"profile", "password"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)

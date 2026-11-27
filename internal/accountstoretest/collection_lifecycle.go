@@ -21,10 +21,10 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture) {
-	t.Helper()
+func runCollectionLifecycle(add registerCase, open Open, storedKey StoredKeyFixture) {
+
 	for _, kind := range []string{"account", "catalog"} {
-		t.Run("collection_"+kind+"_lifecycle", func(t *testing.T) {
+		add("collection_"+kind+"_lifecycle", func(t *testing.T) {
 			modes := []string{
 				"commit", "zero_key", "negative_key", "scalar_only", "additional_denial", "validator_rejection",
 				"protected", "root_deleted", "corrupt_revision", "query_failure", "close_failure",
@@ -46,7 +46,7 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 			}
 		})
 	}
-	t.Run("collection_account_creation", func(t *testing.T) {
+	add("collection_account_creation", func(t *testing.T) {
 		for _, mode := range []string{"effects_allowed", "new_authority_denied", "missing_effect_policy", "root_deleted", "validator_rollback", "late_link_key", "late_payload", "unknown_rollback", "unknown_commit", "cleanup_failure"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -55,7 +55,7 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 			})
 		}
 	})
-	t.Run("collection_catalog_creation", func(t *testing.T) {
+	add("collection_catalog_creation", func(t *testing.T) {
 		for _, mode := range []string{"effects_allowed", "new_authority_denied", "validator_rollback", "late_link_key"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)

@@ -12,8 +12,8 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func runLoginCurrentFences(t *testing.T, open Open) {
-	t.Run("login_current_fences", func(t *testing.T) {
+func runLoginCurrentFences(add registerCase, open Open) {
+	add("login_current_fences", func(t *testing.T) {
 		for _, change := range []string{"password", "inactive", "nonstaff", "grant", "deleted", "profile"} {
 			t.Run(change, func(t *testing.T) {
 				backend, reopen := open(t)

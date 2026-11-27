@@ -55,6 +55,9 @@ ARM Mac normal은 현재 버전과 다음 고정 모듈 버전을 모두 실제 
 Mac에서 직접 실행하는 scaffold, linked child의 실제 빌드 정보, 서버 시작·reload·drain·cleanup과 command 제품은 세 모드 모두 유지한다. Darwin 고유 동작과 두 버전 거부의 race·CGO=0 교차 조합, 공통 runner의 Mac 고유 차이는 기본 full의 직접 범위에서 빠진다.
 제품 비교는 각 좌표의 실제 실행과 이관한 required 목록을 구분하며, 같은 run에서 지정 Linux owner의 발견 목록과 실행 증거를 대조한다.
 
+Linux amd64·arm64 race의 SQLite credential suite는 기존 runtime 작업에서 한 번 컴파일하고 실행한다. 같은 테스트 바이너리 안에서 독립적인 최상위 case를 세 묶음으로 실행한다. 각 case는 자체 DB·마이그레이션·fixture를 열고, 상태를 공유하는 child는 같은 case 안에서 원래 순서로 실행한다. 257행·256 경계도 그대로 검사한다. PostgreSQL과 다른 모드는 기존 순서로 실행한다.
+runtime 작업은 소스에서 등록된 모든 case, 세 묶음의 중복 없는 합집합, 필수 child 각각의 실제 run/pass, OS·아키텍처·race를 원본 이벤트에서 대조한다. 추가 러너·컴파일·fixture 공유는 없다. 실제 묶음별 경과 시간은 각 runtime artifact의 `sqlite-account-groups.json`에 남는다.
+
 PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태와 운영자 증거를 생성한다. conformance는 이 두 작업이 끝나면 원본을 대조한다. 나머지 PostgreSQL 작업은 최종 CI 집계에 모두 필수다. 각 비교는 업로드 바로 다음 단계의 artifact ID·SHA-256, 실제 성공한 job ID·회차, 제출 소스와 checkout에 묶인다.
 
 생성 계정 fixture의 독립적인 DB 검사는 [backend별 대응 목록](../scripts/ci/account-database-owners.txt)에서 관리한다. 각 행의 SQLite 경로는 Linux 두 아키텍처 관계 검사의 같은 모드가, PostgreSQL 경로는 해당 PostgreSQL 분할이 맡는다. 계획은 두 실제 필수 목록과 대조하며 PostgreSQL 실행 원본에서 필수 자식의 정확히 한 번 실행·통과를 확인한다. 양 DB의 결과를 직접 대조하는 Django reference와 시스템·운영자 attestation은 해당 원래 작업에서 두 DB를 계속 실행한다.
