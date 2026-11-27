@@ -1,17 +1,141 @@
 """Negative controls for the native subset and Darwin compile-only contracts."""
 
 from collections import Counter
+from copy import deepcopy
+import hashlib
 import json
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
 
 from darwin_compile import ARCHES, verify_target
-from native_evidence import build_coordinate, outputs, strict_events, verify, verify_module
+from native_evidence import build_coordinate, outputs, strict_events, suite_identity, verify, verify_module
 from native_receipts import contracts, expected_jobs
-from native_suites import CONSUMER, CUSTOM, GENERATED, manifest
+from native_suites import CHILDREN, MODULE_CHILDREN, ROOT, CONSUMER, CUSTOM, GENERATED, manifest
 from platform_policy import CONTRACT
 from project_artifacts import producers, validated_producers
+
+
+def generated_fixture(directory, source):
+    """Complete offline reader fixture. Execution evidence comes from native CI."""
+
+    def write_json(path, data):
+        path.write_text(json.dumps(data) + '\n')
+
+    def stream(package, tests, messages=()):
+        records = [{'Action': 'start', 'Package': package}]
+        records.extend({'Action': 'run', 'Package': package, 'Test': name} for name in tests)
+        records.extend(
+            {'Action': 'output', 'Package': package, 'Test': tests[-1], 'Output': msg + '\n'}
+            for msg in messages
+        )
+        records.extend({'Action': 'pass', 'Package': package, 'Test': name} for name in reversed(tests))
+        return [*records, {'Action': 'pass', 'Package': package}]
+
+    def write_events(name, records):
+        (directory / name).write_text(''.join(json.dumps(e) + '\n' for e in records))
+
+    identity = suite_identity('darwin-generated-native', 'normal', source)
+    write_json(directory / 'native.json', identity)
+    settings = [
+        {'Key': k, 'Value': v} for k, v in {'GOOS': 'darwin', 'GOARCH': 'arm64', 'CGO_ENABLED': '1'}.items()
+    ]
+    write_json(
+        directory / 'builds.json',
+        {CONSUMER: {'info': {'Path': CONSUMER + '.test', 'Settings': settings}, 'sha256': '1' * 64}},
+    )
+    for i, row in enumerate(identity['manifest']):
+        tests = row['tests']
+        records = stream(row['package'], tests)
+        if tests[0].startswith('TestGeneratedFirstAccountParent'):
+            identity_fields = 'source=' + 'a' * 64 + ' binary=' + 'b' * 64
+            lines = [
+                (
+                    tests[0],
+                    f'GODJ_FIRST_ACCOUNT_OBSERVER {identity_fields} goos=darwin goarch=arm64 cgo=1 race=false go=go1.26.5 trimpath=true elapsed_us=1',
+                )
+            ]
+            for test in tests[1:]:
+                actions = ['init', 'inspect', 'inspect']
+                if test.endswith('/not_fresh'):
+                    actions.append('inspect')
+                for action in actions:
+                    lines.append(
+                        (
+                            test,
+                            f'GODJ_FIRST_ACCOUNT_OBSERVE {identity_fields} action={action} pid={len(lines) + 1} elapsed_us=1',
+                        )
+                    )
+                lines.append((test, 'GODJ_FIRST_ACCOUNT_PUBLIC elapsed_us=1'))
+                if test.endswith('/not_fresh'):
+                    lines.append((test, 'GODJ_FIRST_ACCOUNT_PUBLIC elapsed_us=1'))
+            records[1 + len(tests) : 1 + len(tests)] = [
+                {'Action': 'output', 'Package': row['package'], 'Test': t, 'Output': line + '\n'}
+                for t, line in lines
+            ]
+        write_events(f'batch-{i}.json', records)
+
+    sdk = directory / 'sdk/baseline/sqlite'
+    sdk.mkdir(parents=True)
+    for name in ('go.mod', 'go.sum', 'ogen.yml', 'LICENSE.ogen', 'NOTICE.md'):
+        shutil.copyfile(ROOT / 'api/openapi/consumertest/testdata/client' / name, sdk / name)
+    for name, template in [('main.go', 'client_main.go.txt'), ('scenario.go', 'client_baseline.go.txt')]:
+        shutil.copyfile(ROOT / 'codegen/consumertest/testdata/modelresource' / template, sdk / name)
+    (sdk / 'inventoryapi').mkdir()
+    (sdk / 'inventoryapi/api.go').write_text('package inventoryapi\n')
+    write_json(sdk / 'schema.json', {})
+    files = {
+        p.relative_to(sdk).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sdk.rglob('*')
+        if p.is_file()
+    }
+    client = {
+        'race': False,
+        'evolved': False,
+        'rows': {'old': 1, 'default': 2, 'value': 3},
+        'checks': 'malformed_credentials invalid_credentials prior_permission model_defaults typed_write response_projection request_projection normalized_input invalid_length canceled_request'.split(),
+    }
+    write_json(sdk / 'client-receipt.json', client)
+    receipt = {
+        'source_files': files,
+        'client': client,
+        'version': 'baseline',
+        'vendor': 'sqlite',
+        'http_requests': 6,
+        'document_sha256': files['schema.json'],
+        'receipt_sha256': hashlib.sha256((sdk / 'client-receipt.json').read_bytes()).hexdigest(),
+        'executable_sha256': '2' * 64,
+        'build_flags': '-mod=readonly -trimpath',
+    }
+    write_json(sdk / 'evidence.json', receipt)
+    coordinate = 'goos=darwin goarch=arm64 cgo=1 race=false'
+    messages = {
+        'mode': ['GODJ_CHILD_MODE ' + coordinate],
+        'sdk': [
+            'GODJ_SDK_MODE ' + coordinate,
+            'model resource generated client evidence: ' + json.dumps(receipt),
+        ],
+    }
+    for name, (package, tests) in CHILDREN.items():
+        write_events(name + '-child.json', stream(package, tests, messages.get(name, ())))
+    for name, (module, tested, tests, empty) in MODULE_CHILDREN.items():
+        records = stream(module + '/' + tested, tests)
+        for suffix in empty:
+            package = module + '/' + suffix
+            records.extend(
+                [
+                    {'Action': 'start', 'Package': package},
+                    {
+                        'Action': 'output',
+                        'Package': package,
+                        'Output': '?   ' + package + ' [no test files]\n',
+                    },
+                    {'Action': 'skip', 'Package': package},
+                ]
+            )
+        write_events(name + '-child.json', records)
+    return identity
 
 
 class NativeObligationsTests(unittest.TestCase):
@@ -153,7 +277,7 @@ class NativeObligationsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     check(invalid)
 
-    def test_actual_binary_metadata_and_native_source_are_required(self):
+    def test_actual_binary_metadata_is_required(self):
         good = {
             'Settings': [
                 {'Key': k, 'Value': v}
@@ -169,26 +293,64 @@ class NativeObligationsTests(unittest.TestCase):
         ]:
             with self.assertRaises(ValueError):
                 build_coordinate(good, *coord)
+
+    def test_native_identity_rejects_each_mutation_of_a_verified_artifact(self):
+        source = {'event_head': 'a' * 40, 'checkout': 'b' * 40, 'tree': 'c' * 40, 'run_attempt': '2'}
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp)
-            identity = {
-                'validation_contract': CONTRACT,
-                'source': {'tree': 'a', 'run_attempt': '2'},
-                'suite': 'darwin-generated-native',
-                'goos': 'darwin',
-                'goarch': 'arm64',
-                'mode': 'normal',
-                'manifest': manifest('darwin-generated-native', 'normal'),
-            }
-            for change in (
-                {'validation_contract': 'old'},
-                {'source': {'tree': 'b', 'run_attempt': '2'}},
-                {'source': {'tree': 'a', 'run_attempt': '1'}},
-                {'manifest': identity['manifest'][:-1]},
+            directory = Path(tmp)
+            identity = generated_fixture(directory, source)
+
+            def check():
+                verify(directory, 'darwin-generated-native', 'normal', source)
+
+            check()
+            for key, value in (
+                ('validation_contract', 'old'),
+                ('source.tree', 'd' * 40),
+                ('source.run_attempt', '1'),
+                ('manifest', identity['manifest'][:-1]),
+                ('child_tests', {}),
+                ('module_tests', {}),
             ):
-                (path / 'native.json').write_text(json.dumps({**identity, **change}))
-                with self.assertRaises(ValueError):
-                    verify(path, 'darwin-generated-native', 'normal', identity['source'])
+                changed = deepcopy(identity)
+                if key.startswith('source.'):
+                    changed['source'][key.split('.')[1]] = value
+                else:
+                    changed[key] = value
+                (directory / 'native.json').write_text(json.dumps(changed))
+                with (
+                    self.subTest(key=key),
+                    self.assertRaisesRegex(
+                        ValueError, r'^native identity differs: ' + key.replace('.', r'\.') + '$'
+                    ),
+                ):
+                    check()
+
+    def test_first_account_observer_requires_distinct_processes_and_public_calls(self):
+        from native_evidence import verify_first_account_observer
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            identity = generated_fixture(directory, {'tree': 'a', 'run_attempt': '1'})
+            index, row = next(
+                (i, r) for i, r in enumerate(identity['manifest']) if r['tests'][0].endswith('ParentDefault')
+            )
+            log = directory / f'batch-{index}.json'
+            original = log.read_text()
+            coordinate = 'goos=darwin goarch=arm64 cgo=1 race=false'
+            verify_first_account_observer(log, row['tests'], coordinate)
+            for old, new, error in [
+                ('action=inspect pid=3 ', 'action=inspect pid=2 ', 'wrong or reused'),
+                ('GODJ_FIRST_ACCOUNT_PUBLIC elapsed_us', 'OTHER elapsed_us', 'incomplete first-account'),
+                ('action=init', 'action=inspect', 'incomplete first-account'),
+                ('cgo=1 race=false', 'cgo=0 race=false', 'build coordinate differs'),
+            ]:
+                self.assertIn(old, original)
+                log.write_text(original.replace(old, new, 1))
+                with self.subTest(old=old), self.assertRaisesRegex(ValueError, error):
+                    verify_first_account_observer(log, row['tests'], coordinate)
+
+    def test_native_producer_set_cannot_be_empty(self):
         source = {'run_attempt': '1'}
         data = {'source': source, 'profile': 'pr', 'repository_id': 1, 'producers': {}}
         with self.assertRaises(ValueError):

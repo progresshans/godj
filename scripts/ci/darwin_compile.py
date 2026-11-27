@@ -10,6 +10,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 
 from platform_policy import CONTRACT
 from project_reference import document, require, source_identity
@@ -51,12 +52,15 @@ def test_main(binary):
 
 
 def compile_target(arch, out):
-    # Each architecture owns its temporary build cache. Limit simultaneous
-    # links and release each test executable as soon as its identity is recorded.
+    # Go keys build objects by target, source and build flags. Only the final
+    # linked test binaries are temporary. Keep cross-target links bounded.
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        env, packages = inventory(arch, {**os.environ, 'GOCACHE': str(root / 'cache')})
+        start = time.monotonic()
+        env, packages = inventory(arch, os.environ)
         subprocess.run(['go', 'build', '-trimpath', '-p=3', './...'], env=env, check=True)
+
+        built = time.monotonic()
 
         def one(package):
             binary = root / (hashlib.sha256(package.encode()).hexdigest() + '.test')
@@ -94,6 +98,10 @@ def compile_target(arch, out):
         data = {'inventory': packages, 'linked': compiled}
         (out / (arch + '.json')).write_text(json.dumps(data, sort_keys=True) + '\n')
         verify_target(data, arch, packages)
+        print(
+            f'DARWIN_COMPILE arch={arch} packages={len(packages)} build_s={built - start:.3f} link_verify_s={time.monotonic() - built:.3f}',
+            flush=True,
+        )
 
 
 def verify_target(data, arch, expected):
@@ -148,11 +156,10 @@ def verify(directory, source):
 if __name__ == '__main__':
     directory = Path(sys.argv[1])
     directory.mkdir(parents=True)
-    (directory / 'source.json').write_text(
-        json.dumps(
-            {'validation_contract': CONTRACT, 'source': source_identity(), 'suite': 'darwin-compile-only'}
-        )
-        + '\n'
-    )
+    source = source_identity()
     for name in ARCHES:
         compile_target(name, directory)
+    require(source_identity() == source, 'compile producer checkout changed during execution')
+    (directory / 'source.json').write_text(
+        json.dumps({'validation_contract': CONTRACT, 'source': source, 'suite': 'darwin-compile-only'}) + '\n'
+    )

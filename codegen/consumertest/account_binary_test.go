@@ -55,26 +55,20 @@ func accountSourceDigest(root string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), err
 }
 
-func (binary *accountTestBinary) checkSource() error {
-	actual, err := accountSourceDigest(binary.root)
+func checkAccountSource(root, expected string) error {
+	actual, err := accountSourceDigest(root)
 	if err != nil {
 		return err
 	}
-	if actual != binary.source {
+	if actual != expected {
 		return errors.New("generated module changed after preparing its test binary")
 	}
 	return nil
 }
 
-func prepareAccountTestBinary(t *testing.T, root string) *accountTestBinary {
+func accountExecutableIdentity(t *testing.T, path string) (string, string, string) {
 	t.Helper()
-	started := time.Now()
-	binary := &accountTestBinary{root: root, binary: filepath.Join(t.TempDir(), "consumer.test"), env: generatedTestEnvironment(os.Environ())}
-	// Go test -c retains the normal test compilation and its default vet pass.
-	build := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-c", "-o", binary.binary, "./consumer")
-	groupCancellation(build)
-	runStrictGeneratedCommand(t, build)
-	info, err := buildinfo.ReadFile(binary.binary)
+	info, err := buildinfo.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,12 +84,37 @@ func prepareAccountTestBinary(t *testing.T, root string) *accountTestBinary {
 		return m
 	}
 	child, host := settings(info), settings(parent)
-	binary.pkg = strings.TrimSuffix(info.Path, ".test")
-	if !strings.HasSuffix(binary.pkg, "/consumer") || info.Path != binary.pkg+".test" || info.GoVersion != runtime.Version() ||
+	if info.GoVersion != runtime.Version() ||
 		child["GOOS"] != runtime.GOOS || child["GOARCH"] != runtime.GOARCH || child["CGO_ENABLED"] != host["CGO_ENABLED"] ||
 		(child["-race"] == "true") != consumerRaceEnabled || child["-trimpath"] != "true" {
 		t.Fatal("prepared account binary differs from fixture coordinate", info.Path)
 	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.New()
+	_, err = io.Copy(hash, file)
+	if err = errors.Join(err, file.Close()); err != nil {
+		t.Fatal(err)
+	}
+	return info.Path, child["CGO_ENABLED"], fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func prepareAccountTestBinary(t *testing.T, root string) *accountTestBinary {
+	t.Helper()
+	started := time.Now()
+	binary := &accountTestBinary{root: root, binary: filepath.Join(t.TempDir(), "consumer.test"), env: generatedTestEnvironment(os.Environ())}
+	// Go test -c retains the normal test compilation and its default vet pass.
+	build := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-c", "-o", binary.binary, "./consumer")
+	groupCancellation(build)
+	runStrictGeneratedCommand(t, build)
+	path, cgo, checksum := accountExecutableIdentity(t, binary.binary)
+	binary.pkg = strings.TrimSuffix(path, ".test")
+	if !strings.HasSuffix(binary.pkg, "/consumer") || path != binary.pkg+".test" {
+		t.Fatalf("unexpected account test executable %s", path)
+	}
+	binary.checksum = checksum
 	tool, err := generatedGoCommand(t.Context(), root, "tool", "-n", "test2json").Output()
 	if err != nil {
 		t.Fatal(err)
@@ -109,17 +128,7 @@ func prepareAccountTestBinary(t *testing.T, root string) *accountTestBinary {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := os.Open(binary.binary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hash := sha256.New()
-	_, err = io.Copy(hash, file)
-	if err = errors.Join(err, file.Close()); err != nil {
-		t.Fatal(err)
-	}
-	binary.checksum = fmt.Sprintf("%x", hash.Sum(nil))
-	t.Logf("GODJ_ACCOUNT_PREPARED source=%s binary=%s goos=%s goarch=%s cgo=%s race=%t elapsed_ms=%d", binary.source, binary.checksum, runtime.GOOS, runtime.GOARCH, child["CGO_ENABLED"], consumerRaceEnabled, time.Since(started).Milliseconds())
+	t.Logf("GODJ_ACCOUNT_PREPARED source=%s binary=%s goos=%s goarch=%s cgo=%s race=%t elapsed_ms=%d", binary.source, binary.checksum, runtime.GOOS, runtime.GOARCH, cgo, consumerRaceEnabled, time.Since(started).Milliseconds())
 	return binary
 }
 
@@ -139,7 +148,7 @@ func groupCancellation(cmd *exec.Cmd) {
 
 func (b *accountTestBinary) run(t *testing.T, vendor string, plan accountConsumerTestPlan, retain func([]byte) error) []byte {
 	t.Helper()
-	if err := b.checkSource(); err != nil {
+	if err := checkAccountSource(b.root, b.source); err != nil {
 		t.Fatal(err)
 	}
 	// go test's standard package deadline is ten minutes. The extra minute
@@ -238,11 +247,11 @@ func TestAccountPreparedFixtureRejectsMutatedSourceAndIncompleteEvents(t *testin
 		t.Fatal(err)
 	}
 	b := accountTestBinary{root: root, source: source}
-	if err := b.checkSource(); err != nil {
+	if err := checkAccountSource(b.root, b.source); err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/input.go", []byte("package another\n"))
-	if err := b.checkSource(); err == nil {
+	if err := checkAccountSource(b.root, b.source); err == nil {
 		t.Fatal("prepared binary accepted a changed source")
 	}
 	records := []string{`{"Package":"p","Action":"start"}`, `{"Package":"p","Action":"run","Test":"TestA"}`, `{"Package":"p","Action":"pass","Test":"TestA"}`, `{"Package":"p","Action":"pass"}`}

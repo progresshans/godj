@@ -664,7 +664,17 @@ jobs:
           cache: true
           cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
+      - name: Restore or save Darwin target build objects
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/go-darwin-cache
+          key: darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-${{ github.event.pull_request.head.sha || github.sha }}
+          restore-keys: |
+            darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-
+
       - name: Compile the checked-in packages and test binaries for each target
+        env:
+          GOCACHE: ${{ runner.temp }}/go-darwin-cache
         run: python3 scripts/ci/darwin_compile.py "$RUNNER_TEMP/native"
 
       - name: Publish platform obligation evidence

@@ -50,7 +50,8 @@ def strict_stream(records, package, tests):
                 active.remove(name)
             else:
                 require(
-                    action in ('output', 'cont', 'pause', 'bench', 'attr'), 'failed or skipped native execution'
+                    action in ('output', 'cont', 'pause', 'bench', 'attr'),
+                    'failed or skipped native execution',
                 )
     require(
         phase == 'finished' and started == passed == expected, 'missing, duplicate or truncated native test'
@@ -71,7 +72,9 @@ def verify_module(path, module, tested, tests, build_only):
         require(
             [e['Action'] for e in records] == ['start', 'output', 'skip']
             and all(not e.get('Test') for e in records)
-            and re.fullmatch(r'\?\s+' + re.escape(package) + r'\s+\[no test files\]\s*', records[1]['Output']),
+            and re.fullmatch(
+                r'\?\s+' + re.escape(package) + r'\s+\[no test files\]\s*', records[1]['Output']
+            ),
             'skipped generated test or invalid build-only package',
         )
 
@@ -147,6 +150,48 @@ def verify_sdk(directory, mode):
     require(len(observed) == 1 and same(observed[0], receipt), 'SDK receipt differs from actual child log')
 
 
+def verify_first_account_observer(path, tests, coordinate):
+    root = tests[0]
+    prepared = [
+        line.split('GODJ_FIRST_ACCOUNT_OBSERVER ', 1)[1]
+        for line in outputs(path, root)
+        if 'GODJ_FIRST_ACCOUNT_OBSERVER ' in line
+    ]
+    require(len(prepared) == 1, 'expected one first-account observer build')
+    match = re.fullmatch(
+        r'(source=[a-f0-9]{64} binary=[a-f0-9]{64}) '
+        + re.escape(coordinate)
+        + r' go=go\S+ trimpath=true elapsed_us=[0-9]+',
+        prepared[0],
+    )
+    require(match, 'first-account observer build coordinate differs')
+    identity = match[1]
+    pids = set()
+    for name in tests[1:]:
+        actions, operations = [], 0
+        for line in outputs(path, name):
+            if 'GODJ_FIRST_ACCOUNT_OBSERVE ' in line:
+                record = re.fullmatch(
+                    re.escape(identity) + r' action=(init|inspect) pid=([1-9]\d*) elapsed_us=\d+',
+                    line.split('GODJ_FIRST_ACCOUNT_OBSERVE ', 1)[1],
+                )
+                require(record and record[2] not in pids, 'wrong or reused first-account observer process')
+                actions.append(record[1])
+                pids.add(record[2])
+            if 'GODJ_FIRST_ACCOUNT_PUBLIC ' in line:
+                require(
+                    re.search(r'GODJ_FIRST_ACCOUNT_PUBLIC elapsed_us=\d+$', line),
+                    'invalid first-account operation',
+                )
+                operations += 1
+        extra = name.endswith('/not_fresh')
+        require(
+            actions == ['init', 'inspect', *(['inspect'] if extra else []), 'inspect']
+            and operations == 1 + extra,
+            'incomplete first-account observations or public operations',
+        )
+
+
 def suite_identity(suite, mode, source):
     evidence = {
         'validation_contract': CONTRACT,
@@ -166,9 +211,19 @@ def suite_identity(suite, mode, source):
 def verify(directory, suite, mode, source):
     identity = suite_identity(suite, mode, source)
     planned, arch = identity['manifest'], identity['goarch']
-    require(
-        same(document(directory / 'native.json'), identity), 'native source, coordinate or manifest differs'
-    )
+    recorded = document(directory / 'native.json')
+    require(isinstance(recorded, dict) and set(recorded) == set(identity), 'native identity fields differ')
+    for key, expected in identity.items():
+        if key == 'source':
+            actual = recorded[key]
+            require(
+                isinstance(actual, dict) and set(actual) == set(expected),
+                'native identity source fields differ',
+            )
+            for field, value in expected.items():
+                require(same(actual[field], value), 'native identity differs: source.' + field)
+        else:
+            require(same(recorded[key], expected), 'native identity differs: ' + key)
     packages = sorted({batch['package'] for batch in planned})
     builds = document(directory / 'builds.json')
     require(set(builds) == set(packages), 'missing or extra native package build')
@@ -188,6 +243,12 @@ def verify(directory, suite, mode, source):
     cgo = '0' if mode == 'cgo0' else '1'
     coordinate = f'goos=darwin goarch={arch} cgo={cgo} race={str(mode == "race").lower()}'
     if suite == 'darwin-generated-native':
+        for i, batch in enumerate(planned):
+            if batch['tests'][0] in (
+                'TestGeneratedFirstAccountParentCustom',
+                'TestGeneratedFirstAccountParentDefault',
+            ):
+                verify_first_account_observer(directory / f'batch-{i}.json', batch['tests'], coordinate)
         for name, (package, tests) in CHILDREN.items():
             strict_events(directory / (name + '-child.json'), package, tests)
         for name, label in [('mode', 'GODJ_CHILD_MODE'), ('sdk', 'GODJ_SDK_MODE')]:
@@ -240,7 +301,9 @@ def run(directory, suite, mode):
     cgo = '0' if mode == 'cgo0' else '1'
     env = {**os.environ, 'CGO_ENABLED': cgo}
     require(
-        subprocess.check_output(['go', 'env', 'GOOS', 'GOARCH', 'CGO_ENABLED'], text=True, env=env).splitlines()
+        subprocess.check_output(
+            ['go', 'env', 'GOOS', 'GOARCH', 'CGO_ENABLED'], text=True, env=env
+        ).splitlines()
         == ['darwin', arch, cgo],
         'native runner differs from requested coordinate',
     )
@@ -304,6 +367,7 @@ def run(directory, suite, mode):
                 {'package': package, 'run': row['run'], 'body_s': round(time.monotonic() - started, 3)}
             )
             write(directory / 'timings.json', timings)
+    require(source_identity() == source, 'native producer checkout changed during execution')
     verify(directory, suite, mode, source)
 
 

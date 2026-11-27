@@ -13,8 +13,10 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,11 +148,56 @@ func main() {
 	return root
 }
 
+// Only init and inspect share this binary. The public first-account operation
+// still builds, probes and reaps its real declaration and runtime on each call.
+type firstAccountObserver struct {
+	root, path, source, checksum string
+}
+
+func prepareFirstAccountObserver(t *testing.T, root string) firstAccountObserver {
+	t.Helper()
+	started := time.Now()
+	source, err := accountSourceDigest(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "observe")
+	build := generatedGoCommand(t.Context(), root, "build", "-mod=readonly", "-o", bin, "./cmd/commands")
+	groupCancellation(build)
+	runStrictGeneratedCommand(t, build)
+	if err := checkAccountSource(root, source); err != nil {
+		t.Fatal(err)
+	}
+	path, cgo, checksum := accountExecutableIdentity(t, bin)
+	if path != "example.com/godj-project-bundle/cmd/commands" {
+		t.Fatalf("unexpected first-account observer %s", path)
+	}
+	t.Logf("GODJ_FIRST_ACCOUNT_OBSERVER source=%s binary=%s goos=%s goarch=%s cgo=%s race=%t go=%s trimpath=true elapsed_us=%d", source, checksum, runtime.GOOS, runtime.GOARCH, cgo, consumerRaceEnabled, runtime.Version(), time.Since(started).Microseconds())
+	return firstAccountObserver{root: root, path: bin, source: source, checksum: checksum}
+}
+
+func (observer firstAccountObserver) run(t *testing.T, env []string, args ...string) {
+	t.Helper()
+	if err := checkAccountSource(observer.root, observer.source); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	command := exec.CommandContext(t.Context(), observer.path, args...)
+	command.Dir = observer.root
+	command.Env = env
+	groupCancellation(command)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("independent runtime %v: %v\\n%s", args, err, output)
+	}
+	t.Logf("GODJ_FIRST_ACCOUNT_OBSERVE source=%s binary=%s action=%s pid=%d elapsed_us=%d", observer.source, observer.checksum, args[0], command.Process.Pid, time.Since(started).Microseconds())
+}
+
 func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 	t.Helper()
 	started := time.Now()
 	root := writeFirstAccountParentModule(t, custom)
 	nativeFixturePrepared(t, started)
+	observer := prepareFirstAccountObserver(t, root)
 	for _, test := range []struct {
 		name, mode, status, code string
 		exit                     int
@@ -200,16 +247,8 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 				"GODJ_PARENT_STORAGE="+filepath.Join(state, "published"), "GODJ_PARENT_FILE_REPORTS="+state,
 				"GODJ_PARENT_UPLOAD_SOURCE="+uploadSource,
 				"GODJ_PARENT_DESCRIPTION="+descriptionPath, "GODJ_PARENT_MODE=")
-			run := func(arguments ...string) {
-				t.Helper()
-				command := generatedGoCommand(t.Context(), root, append([]string{"run", "./cmd/commands"}, arguments...)...)
-				command.Env = append([]string(nil), environment...)
-				if output, err := command.CombinedOutput(); err != nil {
-					t.Fatalf("independent runtime %v: %v\n%s", arguments, err, output)
-				}
-			}
-			run("init")
-			run("inspect", "fresh", "-")
+			observer.run(t, environment, "init")
+			observer.run(t, environment, "inspect", "fresh", "-")
 			assertFirstAccountParentTrace(t, tracePath, "")
 			document, err := os.ReadFile(descriptionPath)
 			if err != nil {
@@ -226,7 +265,7 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 					t.Fatalf("nonfresh control was not created: %+v", created)
 				}
 				firstOperation = created.Result.OperationID
-				run("inspect", "created", firstOperation)
+				observer.run(t, environment, "inspect", "created", firstOperation)
 				assertFirstAccountParentTrace(t, tracePath, "open\nclose\n")
 			}
 			environment[len(environment)-1] = "GODJ_PARENT_MODE=" + test.mode
@@ -308,9 +347,9 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 				if firstOperation != "" {
 					operation = firstOperation
 				}
-				run("inspect", "created", operation)
+				observer.run(t, environment, "inspect", "created", operation)
 			} else {
-				run("inspect", "fresh", "-")
+				observer.run(t, environment, "inspect", "fresh", "-")
 			}
 			assertFirstAccountParentTrace(t, tracePath, wantTrace)
 		})
@@ -358,6 +397,9 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 	withTTY, invalidProfile, custom bool, collectionInput string,
 ) projectcheck.FirstAccountReport {
 	t.Helper()
+	started := time.Now()
+	defer func() { t.Logf("GODJ_FIRST_ACCOUNT_PUBLIC elapsed_us=%d", time.Since(started).Microseconds()) }()
+
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	info := compatibility.Current()
