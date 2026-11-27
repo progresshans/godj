@@ -12,6 +12,7 @@
 | [검토 기준](https://github.com/progresshans/godj/actions/runs/45780889275) | `8452e9d4 / 5d0b541a / c8e85356` | v2 · 1 | 1:36:32 | 36:35:37 | 5:29:51 |
 | [관찰 CLI·Darwin 빌드 캐시](https://github.com/progresshans/godj/actions/runs/46027695666) | `346853c6 / c2bd93b1 / 30013cf0` | v2 · 1 | 1:36:33 | 36:48:23 | 5:24:00 |
 | [PostgreSQL 검사·캡처 분리](https://github.com/progresshans/godj/actions/runs/46041421514) | `803b5f66 / 6ca803b0 / e64296ec` | v3 · 1 | 1:31:31 | 35:40:52 | 5:37:01 |
+| [모드별 첫 재배치·캐시 첫 저장](https://github.com/progresshans/godj/actions/runs/46053077506) | `2557f3cf / fc589c28 / fcd8de58` | v3 · 1 | 1:31:10 | 35:35:43 | 5:13:46 |
 
 검토 기준과 관찰 CLI 변경은 각각 Linux 125개·macOS 16개 작업이 통과했다. 관찰 CLI 변경에서 마지막 Linux ARM64 race runtime은 준비 가능 시점부터 45분 8초 기다렸고, 50분 24초 실행됐다. 제품 원본 19개와 독립 플랫폼 원본 6개는 성공 job·실행 회차·archive ID·SHA-256을 다시 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46027695666/job/140648817947) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
 
@@ -44,6 +45,13 @@ Linux/x64 race의 기존 21개 생성 소비자 part 중 같은 세 part를 처�
 공통 Go runner 이관 전 `346853c6`의 Linux/arm64와 Darwin/arm64 원본을 모드별로 대조했다. 세 모드 각각에서 같은 159개 root와 405개 root·child 통과 항목을 확인했다. Go 소스·테스트·embed 파일 선택이 갈리면 해당 Mac 작업이 직접 실행하도록 했다. 같은 파일에서 호스트별 동작이 달라질 가능성은 [현재 검증 범위](../TESTING.md#원격-ci-실행-범위)에 기록했다. [Linux race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15215117854) · [Darwin race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15216197862)
 
 Linux SQLite credential race는 첫 단계 case 191개를 등록하고, DB를 쓰는 시나리오는 각 fixture에서 독립 DB를 연다. 기존 두 full에서 job 시작부터 SQLite 패키지 본문 시작까지 x64는 382·255초, ARM64는 228·222초였다. 새 러너마다 이 준비를 반복한다고 가정하면 두 아키텍처에 2개씩 추가하는 안은 약 16~20 runner분, 3개씩 추가하는 안은 약 24~30 runner분이 더 든다. 이 값은 배치 비교 추정이다. 구현은 기존 runtime 작업 안에서 세 묶음을 실행해 컴파일과 환경 준비를 공유한다. [x64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307872) · [ARM64 원본](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
+
+모듈 저장소와 Go 빌드 객체를 별도로 저장한 두 시범 작업의 첫 실행을 비교했다. 반복 소스 커밋은 같은 도구·잠금 파일·작업 종류의 캐시를 복원한다. 아래 실행은 각 전용 키가 비어 있던 경우다. [같은 소스 최종 집계](https://github.com/progresshans/godj/actions/runs/46053077506/job/140723700032)
+
+| 작업 | 기존 공유 캐시 작업 전체 | 전용 캐시 첫 작업 전체 | 모듈 / 빌드 저장량 | 저장 시간 |
+|---|---:|---:|---:|---:|
+| [Linux ARM64 계정 race](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022898) | 32분 26초 | 33분 54초 | 125.5 / 600.8 MB | 17초 |
+| [Apple Silicon 일반 runtime](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022989) | 17분 07초 | 20분 25초 | 125.9 / 776.9 MB | 33초 |
 
 ## 플랫폼별 검증 의무
 
