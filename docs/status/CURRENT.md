@@ -2,7 +2,7 @@
 
 2026-11-26 기준 가장 최근에 수용한 작업은 C1 Project/Core다. Q1/G-ORM·A1·F1·C1은 각 제품 커밋에서 검증을 마쳤다. [구현 범위](IMPLEMENTATION_MATRIX.md) · [C1 수용 기록](TEST_EVIDENCE.md#gdj-0137--projectcore-전체-원격-검증과-i1-전환)
 
-I1 사용자 정의 계정과 M1 스키마·데이터 마이그레이션이 PR #1 브랜치에 모였다. 통합 커밋의 기존 전체 CI가 통과했다. 새 플랫폼 검증 계약의 소스별 결과는 PR의 최종 CI 집계에서 확인한다. main 병합은 보류했다. [통합 PR #1](https://github.com/progresshans/godj/pull/1) · [I1 요구와 실제 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [M1 범위](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)
+I1 사용자 정의 계정과 M1 스키마·데이터 마이그레이션이 PR #1 브랜치에 모였다. 통합 커밋의 기존 전체 CI가 통과했다. 현재 full 최적화의 단계별 측정은 제출 소스와 실제 checkout별로 기록한다. [후속 CI 측정](TEST_EVIDENCE.md#pr-1-full-ci-후속-최적화) main 병합은 보류했다. [통합 PR #1](https://github.com/progresshans/godj/pull/1) · [I1 요구와 실제 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [M1 범위](../EXECUTION_PLAN.md#m1의-첫-구현과-검증)
 
 ## 재개 지점
 

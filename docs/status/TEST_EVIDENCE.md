@@ -3,6 +3,21 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## PR 1 full CI 후속 최적화
+
+같은 PR의 자동 full 실행을 제출 head·실제 checkout·트리와 대조했다. 러너 시간은 GitHub job의 시작부터 완료까지를 합산했다. 전체 경과 시간에는 대기가 포함된다.
+
+| 실행 | head / checkout / tree | 계약·회차 | 전체 경과 | Linux 합계 | macOS 합계 |
+|---|---|---|---:|---:|---:|
+| [검토 기준](https://github.com/progresshans/godj/actions/runs/45780889275) | `8452e9d4 / 5d0b541a / c8e85356` | v2 · 1 | 1:36:32 | 36:35:37 | 5:29:51 |
+| [관찰 CLI·Darwin 빌드 캐시](https://github.com/progresshans/godj/actions/runs/46027695666) | `346853c6 / c2bd93b1 / 30013cf0` | v2 · 1 | 1:36:33 | 36:48:23 | 5:24:00 |
+
+두 실행은 각각 Linux 125개·macOS 16개 작업이 통과했다. 두 번째 실행에서 마지막 Linux ARM64 race runtime은 준비 가능 시점부터 45분 8초 기다렸고, 50분 24초 실행됐다. 제품 원본 19개와 독립 플랫폼 원본 6개는 성공 job·실행 회차·archive ID·SHA-256을 다시 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46027695666/job/140648817947) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
+
+Apple Silicon 세 모드에서 FirstAccount 사용자 정의 fixture별로 관찰 CLI를 한 번 빌드하고 관찰 프로세스를 40회, 공개 명령을 14회 실행했다. 기본 fixture는 각각 1·6·2회다. 여섯 root의 합계는 1,111.37초에서 1,022.92초로 줄었다. 일반 모드 사용자 정의 root는 227.22→174.49초, 기본 root는 67.73→69.48초였다. CGO=0에서는 두 root 모두 늘었다. 로컬 ARM64 일반 모드의 기본 시나리오 두 개에서는 관찰 명령 준비 합이 6.275→3.374초, 실제 관찰 실행 합이 0.836→0.560초였다. [플랫폼 원본 선택](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15220400773)
+
+Darwin cross-compile의 첫 대상 캐시는 비어 있었다. 280개 패키지를 대상별로 다시 검사했다. amd64 빌드·링크 검증은 310.2·432.1초, arm64는 312.9·438.3초였다. 캐시 2.34GB의 저장에 38초가 들었다. [빌드·전송 로그](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603305565)
+
 ## 플랫폼별 검증 의무
 
 기존 `e8555cf8`의 177개 작업은 첫 시도에 통과했다. macOS 53개 작업의 러너 시간 합계는 36시간 9분 52초, 워크플로 생성부터 최종 집계 완료까지는 7시간 35분 45초다. [기준 실행](https://github.com/progresshans/godj/actions/runs/45674268509)
