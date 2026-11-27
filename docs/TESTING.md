@@ -55,6 +55,8 @@ ARM Mac normal은 현재 버전과 다음 고정 모듈 버전을 모두 실제 
 Mac에서 직접 실행하는 scaffold, linked child의 실제 빌드 정보, 서버 시작·reload·drain·cleanup과 command 제품은 세 모드 모두 유지한다. Darwin 고유 동작과 두 버전 거부의 race·CGO=0 교차 조합, 공통 runner의 Mac 고유 차이는 기본 full의 직접 범위에서 빠진다.
 제품 비교는 각 좌표의 실제 실행과 이관한 required 목록을 구분하며, 같은 run에서 지정 Linux owner의 발견 목록과 실행 증거를 대조한다.
 
+Darwin에서 SQLite의 세 경계 테스트만 실행할 때는 기존 테스트 파일과 모든 제품 소스를 그대로 컴파일한다. 제외할 테스트 소스의 검토된 지문이 바뀌거나 파일이 추가되면 해당 패키지의 테스트 소스를 전부 컴파일한다. 새 초기화 코드나 간접 의존성도 이 경로에서 보존된다.
+
 Linux amd64·arm64 race의 SQLite credential suite는 기존 runtime 작업에서 한 번 컴파일하고 실행한다. 같은 테스트 바이너리 안에서 독립적인 최상위 case를 세 묶음으로 실행한다. 각 case는 자체 DB·마이그레이션·fixture를 열고, 상태를 공유하는 child는 같은 case 안에서 원래 순서로 실행한다. 257행·256 경계도 그대로 검사한다. PostgreSQL과 다른 모드는 기존 순서로 실행한다.
 runtime 작업은 소스에서 등록된 모든 case, 세 묶음의 중복 없는 합집합, 필수 child 각각의 실제 run/pass, OS·아키텍처·race를 원본 이벤트에서 대조한다. 추가 러너·컴파일·fixture 공유는 없다. 실제 묶음별 경과 시간은 각 runtime artifact의 `sqlite-account-groups.json`에 남는다.
 
@@ -113,7 +115,7 @@ Go audit는 시작 시각을 기록하고 준비 진단은 고정 phase 이름·
 새 프로젝트·고정 module·Notes의 최초 `startproject`도 같은 Go audit를 사용한다. 실패 전에 HTTP runtime이 없더라도
 bootstrap 의존성·candidate inventory/compile·module tidy·declaration/runtime build 중 마지막 시작 단계를 남긴다.
 이 진단은 기존 5분 명령·출력·process 회수 제한에서 동작하며 compiler 완료나 시간 초과 원인의 확정을 뜻하지 않는다.
-Article reload에서 로그인과 계정 생성은 실제 비밀번호 비용을 포함하므로 인증 정보가 담긴 POST를 30초 제한으로 한 번 보낸다. 일반 HTTP 요청의 제한은 5초다. 고정 버전 설치 검사는 전용 모듈 캐시와 파일 프록시를 사용하며 직접 빌드에도 `-trimpath`를 적용한다. 두 버전의 설치·기동·호환성 거부는 Linux와 Apple Silicon 제품 검사가 담당한다. [검증 근거](status/TEST_EVIDENCE.md#통합-ci에서-확인한-mac-실행-제한)
+Article reload에서 로그인과 계정 생성은 실제 비밀번호 비용을 포함하므로 인증 정보가 담긴 POST를 30초 제한으로 한 번 보낸다. 일반 HTTP 요청의 제한은 5초다. 고정 버전 설치 검사는 전용 모듈 캐시와 파일 프록시를 사용하며 직접 빌드에도 `-trimpath`를 적용한다. 두 버전의 설치·기동·호환성 거부는 Linux 각 모드와 Apple Silicon 일반 모드가 담당한다. [검증 근거](status/TEST_EVIDENCE.md#통합-ci에서-확인한-mac-실행-제한)
 
 Runserver의 기존 흐름과 reload 흐름은 별도 native CI owner가 같은 전체 binary discovery를 사용한다. 필수 manifest의
 root/child와 이후 추가된 root 모두 정확히 한 owner에서 실행해야 한다. PostgreSQL 전용 root는 별도 DB owner가 맡으며

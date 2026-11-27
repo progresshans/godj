@@ -139,6 +139,22 @@ def generated_fixture(directory, source):
 
 
 class NativeObligationsTests(unittest.TestCase):
+    def test_unreviewed_sqlite_test_inputs_fall_back_to_full_compilation(self):
+        from darwin_boundary import SQLITE_TEST_FILES, sqlite_test_inputs
+        with tempfile.TemporaryDirectory() as temp:
+            package = Path(temp)
+            active = set(SQLITE_TEST_FILES) | {'future_test.go'}
+            for name in active:
+                (package / name).write_text('package sqlite')
+            (package / 'future_test.go').write_text('package sqlite\\nvar registered = registerFixture()')
+            kept, omitted = sqlite_test_inputs(package, active)
+            self.assertEqual(set(kept), active)
+            self.assertEqual(omitted, [])
+            active.remove(SQLITE_TEST_FILES[0])
+            self.assertEqual(set(sqlite_test_inputs(package, active)[0]), active)
+            with self.assertRaises(ValueError):
+                sqlite_test_inputs(package, {'../outside_test.go'})
+
     def test_all_new_artifact_owners_use_the_same_pinned_upload_with_an_adjacent_receipt(self):
         import re
 

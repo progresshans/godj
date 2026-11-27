@@ -14,6 +14,7 @@ from project_reference import document, require, seal, source_identity, verify_s
 
 UPLOAD = 'Publish platform obligation evidence'
 PREFIX = 'Platform artifact '
+FAMILY = 'platform-obligations'
 
 
 def contracts(profile):
@@ -45,7 +46,7 @@ def expected_jobs(profile):
 
 def verify(directory, selection, source, repo_id, profile):
     require(
-        selection.get('validation_contract') == CONTRACT and selection.get('kind') == 'native-obligations',
+        selection.get('validation_contract') == CONTRACT and selection.get('kind') == FAMILY,
         'wrong artifact family',
     )
     selected = validated_producers(selection, source, repo_id, profile, expected_jobs(profile))
@@ -66,7 +67,7 @@ def verify(directory, selection, source, repo_id, profile):
             python[mode] = document(folder / 'inventory.json')
         else:
             native_evidence.verify(folder, suite, mode, producer_source)
-    return {'validation_contract': CONTRACT, 'profile': profile, 'source': source, 'native_producers': selected,
+    return {'validation_contract': CONTRACT, 'profile': profile, 'source': source, 'platform_producers': selected,
             'python_coverage': python_tests.verify_owners(python['normal'], python['exact'])}
 
 
@@ -88,7 +89,7 @@ if __name__ == '__main__':
         selection = resolve(
             source, repository_id, profile, expected=expected_jobs(profile), receipt_prefix=PREFIX
         )
-        selection.update(validation_contract=CONTRACT, kind='native-obligations')
+        selection.update(validation_contract=CONTRACT, kind=FAMILY)
         args.selection.write_text(json.dumps(selection) + '\n')
         ids = ','.join(str(row['artifact_id']) for row in selection['producers'].values())
         with open(os.environ['GITHUB_OUTPUT'], 'a') as out:

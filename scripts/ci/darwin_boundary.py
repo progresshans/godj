@@ -5,7 +5,6 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
-import re
 import subprocess
 
 from go_test_events import events, inspect
@@ -21,6 +20,11 @@ SQLITE_TEST_FILES = (
     'unique_integration_test.go',
     'unique_test.go',
 )
+# Before narrowing the test compilation, these other units were audited for
+# package initialization and dependencies of the selected roots. Changes to
+# any of them (including a new file) use the complete original test package.
+REVIEWED_OTHER_TESTS = 'cbb930b235fd086c24cde3e5bbf5117b315c2047f2176be54ded72380efc93f1'
+
 CHECK_PACKAGES = {MODULE + 'internal/projectcheck', MODULE + 'internal/projectscaffold', SERVER}
 RELOAD_PACKAGES = {MODULE + 'internal/projectgenerate', SQLITE}
 PRODUCTION = (
@@ -56,6 +60,20 @@ def required(owner):
     return selected
 
 
+def sqlite_test_inputs(package, active):
+    if not active or any(Path(f).name != f or not f.endswith('_test.go') for f in active):
+        raise ValueError('invalid SQLite test source inventory')
+    required = set(SQLITE_TEST_FILES)
+    others = sorted(set(active) - required)
+    hashes = {f: hashlib.sha256((package / f).read_bytes()).digest() for f in active}
+    checksum = hashlib.sha256()
+    for f in others:
+        checksum.update(f.encode() + bytes([0]) + hashes[f])
+    omit = others if required <= set(active) and checksum.hexdigest() == REVIEWED_OTHER_TESTS else []
+    kept = {f: hashes[f].hex() for f in sorted(set(active) - set(omit))}
+    return kept, omit
+
+
 def sqlite_overlay(directory, mode, overlay):
     if mode not in ('race', 'cgo0'):
         raise ValueError('unsupported Darwin boundary mode')
@@ -67,24 +85,12 @@ def sqlite_overlay(directory, mode, overlay):
     before = listing([])
     package = Path(before['Dir'])
     tests = set(before.get('TestGoFiles', []) + before.get('XTestGoFiles', []))
-    if not set(SQLITE_TEST_FILES) <= tests or any(
-        Path(f).name != f or not f.endswith('_test.go') for f in tests
-    ):
-        raise ValueError('unexpected SQLite test sources')
-    omitted = sorted(tests - set(SQLITE_TEST_FILES))
-    # TestMain, package init and explicit side-effect imports would also run
-    # outside a selected root. Review newly introduced setup before omitting it.
-    for f in omitted:
-        if re.search(
-            r'(?m)^(?:func\s+(?:init|TestMain)\s*\(|(?:\s*import\s+|\s*)_\s*")', (package / f).read_text()
-        ):
-            raise ValueError('SQLite test file owns package initialization: ' + f)
+    kept, omitted = sqlite_test_inputs(package, tests)
     overlay.write_text(json.dumps({'Replace': {str(package / f): '' for f in omitted}}))
     after = listing(['-overlay', str(overlay)])
     if (
         any(before.get(k, []) != after.get(k, []) for k in PRODUCTION)
-        or sorted(after.get('TestGoFiles', [])) != list(SQLITE_TEST_FILES)
-        or after.get('XTestGoFiles')
+        or set(after.get('TestGoFiles', []) + after.get('XTestGoFiles', [])) != set(kept)
     ):
         raise ValueError('native SQLite overlay changed product inputs or its selected test units')
     record = {
@@ -92,7 +98,7 @@ def sqlite_overlay(directory, mode, overlay):
         'mode': mode,
         'product_go_files': sorted(before['GoFiles'] + before.get('CgoFiles', [])),
         'inactive_go_files': sorted(before.get('IgnoredGoFiles', [])),
-        'tests': {f: hashlib.sha256((package / f).read_bytes()).hexdigest() for f in SQLITE_TEST_FILES},
+        'tests': kept,
         'other_test_files': omitted,
     }
     (directory / 'darwin-native-sqlite-inputs.json').write_text(json.dumps(record, sort_keys=True) + '\n')
@@ -126,11 +132,11 @@ def verify_execution(log, selected, complete_packages=False):
 def verify_sqlite_inputs(directory, mode):
     record = json.loads((directory / 'darwin-native-sqlite-inputs.json').read_text())
     package = ROOT / 'db/sqlite'
-    expected = {f: hashlib.sha256((package / f).read_bytes()).hexdigest() for f in SQLITE_TEST_FILES}
     omitted = record['other_test_files']
+    expected, allowed_omissions = sqlite_test_inputs(package, set(record['tests']) | set(omitted))
     sources = record['product_go_files']
     inactive = record['inactive_go_files']
-    listed = [*sources, *omitted, *expected, *inactive]
+    listed = [*sources, *omitted, *record['tests'], *inactive]
     on_disk = {p.name for p in package.glob('*.go') if not p.name.startswith(('.', '_'))}
     if len(listed) != len(set(listed)) or set(listed) != on_disk:
         raise ValueError('incomplete or overlapping native SQLite source inventory')
@@ -138,6 +144,7 @@ def verify_sqlite_inputs(directory, mode):
         record['package'] != SQLITE
         or record['mode'] != mode
         or record['tests'] != expected
+        or omitted != allowed_omissions
         or not sources
         or len(sources) != len(set(sources))
         or len(omitted) != len(set(omitted))

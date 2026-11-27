@@ -1828,7 +1828,7 @@ jobs:
           cache: true
           cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
-      - name: Resolve the native and compile artifact IDs
+      - name: Resolve effective platform and Python artifact IDs
         id: native_inputs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1843,7 +1843,7 @@ jobs:
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/platform-inputs
 
-      - name: Verify native events, binary coordinates and compile-only targets
+      - name: Verify native, compile-only and Python coverage
         run: python3 scripts/ci/native_receipts.py verify "$RUNNER_TEMP/platform-selection.json" "$RUNNER_TEMP/platform-inputs"
 
       - name: Publish verified platform obligations
