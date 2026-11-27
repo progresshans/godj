@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from darwin_compile import ARCHES, verify_target
 from native_evidence import build_coordinate, outputs, strict_events, suite_identity, verify, verify_module
@@ -143,15 +144,23 @@ class NativeObligationsTests(unittest.TestCase):
         from darwin_boundary import SQLITE_TEST_FILES, sqlite_test_inputs
         with tempfile.TemporaryDirectory() as temp:
             package = Path(temp)
-            active = set(SQLITE_TEST_FILES) | {'future_test.go'}
+            active = set(SQLITE_TEST_FILES) | {'other_test.go'}
+            original = b'package sqlite\n'
             for name in active:
-                (package / name).write_text('package sqlite')
-            (package / 'future_test.go').write_text('package sqlite\\nvar registered = registerFixture()')
-            kept, omitted = sqlite_test_inputs(package, active)
-            self.assertEqual(set(kept), active)
-            self.assertEqual(omitted, [])
-            active.remove(SQLITE_TEST_FILES[0])
-            self.assertEqual(set(sqlite_test_inputs(package, active)[0]), active)
+                (package / name).write_bytes(original)
+            material = b''.join(name.encode() + bytes([0]) + hashlib.sha256(original).digest()
+                                for name in sorted(active))
+            with patch('darwin_boundary.REVIEWED_TEST_INPUTS', hashlib.sha256(material).hexdigest()):
+                kept, omitted = sqlite_test_inputs(package, active)
+                self.assertEqual(set(kept), set(SQLITE_TEST_FILES))
+                self.assertEqual(omitted, ['other_test.go'])
+                for name in ('other_test.go', SQLITE_TEST_FILES[0]):
+                    (package / name).write_text('package sqlite\nvar registered = registerFixture()\n')
+                    self.assertEqual(sqlite_test_inputs(package, active)[1], [])
+                    (package / name).write_bytes(original)
+                (package / 'new_test.go').write_bytes(original)
+                self.assertEqual(sqlite_test_inputs(package, active | {'new_test.go'})[1], [])
+                self.assertEqual(sqlite_test_inputs(package, active - {SQLITE_TEST_FILES[0]})[1], [])
             with self.assertRaises(ValueError):
                 sqlite_test_inputs(package, {'../outside_test.go'})
 

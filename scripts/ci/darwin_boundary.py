@@ -20,10 +20,9 @@ SQLITE_TEST_FILES = (
     'unique_integration_test.go',
     'unique_test.go',
 )
-# Before narrowing the test compilation, these other units were audited for
-# package initialization and dependencies of the selected roots. Changes to
-# any of them (including a new file) use the complete original test package.
-REVIEWED_OTHER_TESTS = 'cbb930b235fd086c24cde3e5bbf5117b315c2047f2176be54ded72380efc93f1'
+# This source inventory was reviewed for package initialization and helper
+# dependencies. Any test edit, addition or deletion uses the complete package.
+REVIEWED_TEST_INPUTS = 'a7c86fea6f8373ced19162fa1a6a1efe55cab3b95d13112d2b608a46f36b3620'
 
 CHECK_PACKAGES = {MODULE + 'internal/projectcheck', MODULE + 'internal/projectscaffold', SERVER}
 RELOAD_PACKAGES = {MODULE + 'internal/projectgenerate', SQLITE}
@@ -67,9 +66,9 @@ def sqlite_test_inputs(package, active):
     others = sorted(set(active) - required)
     hashes = {f: hashlib.sha256((package / f).read_bytes()).digest() for f in active}
     checksum = hashlib.sha256()
-    for f in others:
+    for f in sorted(active):
         checksum.update(f.encode() + bytes([0]) + hashes[f])
-    omit = others if required <= set(active) and checksum.hexdigest() == REVIEWED_OTHER_TESTS else []
+    omit = others if required <= set(active) and checksum.hexdigest() == REVIEWED_TEST_INPUTS else []
     kept = {f: hashes[f].hex() for f in sorted(set(active) - set(omit))}
     return kept, omit
 
