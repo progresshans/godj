@@ -39,6 +39,19 @@ class RelationShardTest(unittest.TestCase):
                            self.event('pass', Test=root + '/child'), self.event('pass', Test=root)])
         return result + [self.event('pass')]
 
+    def test_build_cache_pilots_have_one_writer_per_family(self):
+        from relation_shards import ISOLATED_ACCOUNT_ROOTS, matrix
+        for profile in ('pr', 'native', 'full'):
+            pilots = [r for r in matrix(profile)['include'] if r.get('cache_family')]
+            families = ['linux-account-race'] + (['darwin-runtime-normal'] if profile == 'full' else [])
+            self.assertCountEqual([r['cache_family'] for r in pilots], families)
+            for row in pilots:
+                if row['cache_family'] == 'linux-account-race':
+                    self.assertEqual((row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode']), ('linux', 'arm64', 'race'))
+                    self.assertIn(ISOLATED_ACCOUNT_ROOTS.index('TestGeneratedAccountCatalogTransition')+1, row['parts'])
+                else:
+                    self.assertEqual((row['scope'],row['mode']), ('darwin-runtime','normal'))
+
     def test_discovery_uses_complete_binary_listing_and_ignores_only_benchmarks(self):
         self.assertEqual(discover_roots(self.discovery, CONSUMER), sorted(self.roots))
         listing = self.listing(self.roots)
