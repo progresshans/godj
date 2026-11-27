@@ -29,13 +29,13 @@ PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target�
 
 생성 계정 fixture 세 개의 프로그램 내부 계측을 합산하면 PostgreSQL race에서 준비는 1,072.792→1,061.816초, 시나리오 본문은 1,938.710→952.758초였다. 일반·CGO=0 본문은 각각 387.204→329.601초, 390.362→329.577초였다. 이 두 모드의 준비 시간은 각각 32.055초, 60.261초 늘었다. 준비는 생성 바이너리를 만드는 시간이고 본문은 DB별 자식 프로세스의 경과 시간이다. [변경 전 실행](https://github.com/progresshans/godj/actions/runs/46027695666) · [변경 후 실행](https://github.com/progresshans/godj/actions/runs/46041421514)
 
-| 모드 | 기존 배치의 최장 part 합 실측 | 같은 비용으로 계산한 새 배치 |
-|---|---:|---:|
-| 일반 | 13분 12초 | 12분 42초 |
-| race | 37분 32초 | 29분 00초 |
-| CGO=0 | 14분 59초 | 13분 04초 |
+| 모드 | 기존 배치 실측 `803b5f66` | 첫 재배치 예측 | 첫 재배치 실측 `2557f3cf` | 두 실행의 비용을 최종 배치에 대입한 값 |
+|---|---:|---:|---:|---:|
+| 일반 | 13분 12초 | 12분 42초 | 12분 08초 | 12분 42초 / 12분 08초 |
+| race | 37분 32초 | 29분 00초 | 37분 33초 | 29분 19초 / 30분 47초 |
+| CGO=0 | 14분 59초 | 13분 04초 | 15분 43초 | 13분 08초 / 12분 29초 |
 
-오른쪽 열은 `803b5f66`의 성공한 part 시간을 고정한 배치 시뮬레이션이다. 각 모드에서 모든 part가 한 번씩 배정되고 작업당 최대 세 개임을 대조했다. 새 part에는 해당 모드의 측정 중간값을 사용한다. [PostgreSQL 배정 코드](../../scripts/ci/postgres_shards.py)
+값은 모드별로 가장 긴 작업의 part 실행 합이다. 첫 재배치는 직전 실행의 시간만으로 계획했다. 다음 실행의 race 작업 하나에서 target-references·profiles·transition-through 세 구간이 각각 760→1,034초, 588→784초, 323→435초로 늘었다. 최종 배치는 각 구간에 대해 두 번째까지 관측한 값 중 긴 쪽을 사용한다. 마지막 열은 두 실행의 실제 시간을 각각 고정한 시뮬레이션이다. 각 모드의 13개 part 배정이 정확히 한 번이고 작업당 최대 세 개임을 대조했다. 새 part의 가중치는 해당 모드 측정값의 중간값이다. [실제 race 작업](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022463) · [PostgreSQL 배정 코드](../../scripts/ci/postgres_shards.py)
 
 공통 Go runner 이관 전 `346853c6`의 Linux/arm64와 Darwin/arm64 원본을 모드별로 대조했다. 세 모드 각각에서 같은 159개 root와 405개 root·child 통과 항목을 확인했다. Go 소스·테스트·embed 파일 선택이 갈리면 해당 Mac 작업이 직접 실행하도록 했다. 같은 파일에서 호스트별 동작이 달라질 가능성은 [현재 검증 범위](../TESTING.md#원격-ci-실행-범위)에 기록했다. [Linux race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15215117854) · [Darwin race 원본](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15216197862)
 

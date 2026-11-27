@@ -113,22 +113,22 @@ def partitions(mode):
     return RACE_PARTITIONS if mode == 'race' else BASE_PARTITIONS
 
 
-# PostgreSQL-only step seconds (normal, race, cgo0), measured in run 46041421514.
+# Maximum observed PostgreSQL-only step seconds (normal, race, cgo0) from runs 46041421514 and 46053077506.
 # These are scheduling hints. partitions(mode) still owns every executable part.
 ACCOUNT_PART_SECONDS = {
-    'catalog': (344, 1104, 343),
-    'catalog-creation': (411, 817, 447),
+    'catalog': (344, 1136, 365),
+    'catalog-creation': (411, 882, 447),
     'catalog-cycles': (154, 306, 184),
-    'catalog-fields': (280, 731, 249),
+    'catalog-fields': (287, 731, 294),
     'consumers': (267, 708, 292),
-    'profiles': (279, 588, 276),
-    'reset': (227, 417, 268),
-    'root-through': (224, 480, 305),
-    'shared-through': (203, 434, 140),
-    'target-references': (305, 760, 361),
-    'through': (559, 994, 374),
+    'profiles': (279, 784, 330),
+    'reset': (227, 442, 268),
+    'root-through': (224, 519, 305),
+    'shared-through': (203, 548, 140),
+    'target-references': (305, 1034, 361),
+    'through': (559, 994, 512),
     'transition': (155, 440, 178),
-    'transition-through': (165, 323, 165),
+    'transition-through': (165, 435, 193),
 }
 
 
