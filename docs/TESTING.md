@@ -43,17 +43,17 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 | 기존 검사와 책임 | full에서 실제 실행하는 곳 |
 |---|---|
 | ORM·계정·schema·negative compile, 생성 소비자의 모든 바이너리 발견 root와 필수 child, DB 전체 | Linux amd64·arm64의 일반·race·CGO=0 및 기존 PostgreSQL 분할 |
-| 프로젝트 두 버전 설치·기동·reload·외부 명령 | Linux 여섯 좌표와 Apple Silicon 세 좌표. 제품 기준·reload 원본 18개와 독립 Python 원본 한 개를 대조 |
+| scaffold·기동·reload·drain·외부 명령과 계측된 child | Linux 여섯 좌표와 Apple Silicon 세 좌표. 제품 기준·reload 원본 18개와 독립 Python 원본 한 개를 대조 |
+| 고정 모듈 두 버전의 설치·호환성 거부 | Linux 두 아키텍처의 세 모드와 Apple Silicon 일반 모드. Apple Silicon race·CGO=0의 이관 목록은 같은 모드 Linux/arm64의 실행에서 대조 |
+| 공통 Go conformance runner의 모든 발견 root·필수 child | Linux 두 아키텍처의 세 모드. 각 Mac 제품 좌표에서 같은 모드 Linux/arm64 결과를 참조 |
 | 관계 runtime 패키지·SQLite·compile·godjcheck·vet | Linux 전체와 Apple Silicon 일반 모드 전체 |
 | 외부 relation·mixed collection·앱 시작/정리, 실제 독립 SDK의 HTTP·DB, 첫 계정과 파일 수명 | Apple Silicon 일반·race·CGO=0. Custom 13개, Default 생성/재접속·잘못된 프로필, 실제 filesystem·SQLite·multipart·이미지·range/조건부 응답 |
 | PTY·FD·파일 공개·잠금·취소·다중 프로세스 SQLite | Apple Silicon의 기존 13개 root. 일반 PR의 race·CGO=0은 독립 작업이 전부 실행한다. native·full에서는 같은 모드의 project-check가 8개, reload가 5개를 맡고 제품 비교기가 두 봉인 원본의 합집합을 검증한다. Intel 일반 모드는 기존 집합과 파일 handle·pipe·잠금 경계를 실행 |
 | Intel 설치와 호환성 | 일반은 한 버전 공개 설치·첫 계정·HTTP 쓰기·재시작·reload 거부·정리, CGO=0은 CLI와 실제 생성 runner·server·command, SQLite 저장·재접속 |
 | Darwin 빌드 태그·타입·링크 | Linux 작업이 Darwin amd64·arm64 CGO=0 환경에서 각각 패키지를 발견하고 체크인된 코드와 패키지별 테스트 실행 파일을 컴파일 |
-| 고정 Python·SQLite·Django 관측 | 기존 macOS 15 Apple Silicon exact 환경 |
+| 고정 Python·SQLite·Django 관측 | macOS 15 Apple Silicon exact에서 oracle·고정 전용·호스트 민감·미분류 검사를 실행한다. 공통 case의 Linux 실행은 두 호스트의 실제 발견·실행 목록으로 대조 |
 
-ARM Mac normal은 현재 버전과 다음 고정 모듈 버전을 모두 실제 설치한다. ARM race·CGO=0에서 이 두 버전의 호환 오류 검사는 같은 모드의 Linux/arm64 project-check가 수행한다. 공통 Go conformance runner도 Linux 두 아키텍처의 각 모드에서 전체를 발견하고 실행한다.
-Mac에서 직접 실행하는 scaffold, linked child의 실제 빌드 정보, 서버 시작·reload·drain·cleanup과 command 제품은 세 모드 모두 유지한다. Darwin 고유 동작과 두 버전 거부의 race·CGO=0 교차 조합, 공통 runner의 Mac 고유 차이는 기본 full의 직접 범위에서 빠진다.
-제품 비교는 각 좌표의 실제 실행과 이관한 required 목록을 구분하며, 같은 run에서 지정 Linux owner의 발견 목록과 실행 증거를 대조한다.
+두 버전의 호환성 거부와 Darwin race·CGO=0가 겹칠 때만 나타나는 결함, 공통 runner의 Mac 고유 차이는 기본 full에서 직접 발견하기 어렵다. 제품 비교 결과의 `product_coverage`에 각 검사의 실제 담당 좌표·발견 root 또는 이관한 필수 목록을 남긴다.
 
 Darwin에서 SQLite의 세 경계 테스트만 실행할 때는 기존 테스트 파일과 모든 제품 소스를 그대로 컴파일한다. 제외할 테스트 소스의 검토된 지문이 바뀌거나 파일이 추가되면 해당 패키지의 테스트 소스를 전부 컴파일한다. 새 초기화 코드나 간접 의존성도 이 경로에서 보존된다.
 

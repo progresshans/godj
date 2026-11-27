@@ -125,7 +125,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                         values.append(self.event("skip" if root in batch["allowed_skips"] else "pass", Test=root))
                     values.append(self.event("pass"))
                     self.write_events(target / ("runserver-" + name + ".json"), values)
-                if owner=='reload' and coordinate[0]=='darwin' and coordinate[2]!='normal':
+                if owner == 'reload' and coordinate[0] == 'darwin' and coordinate[2] != 'normal':
                     self.reload_boundaries(target, coordinate[2])
                 seal(target)
 
@@ -148,22 +148,27 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         self.write_events(target / 'conformance-runner.json', events)
 
     def reload_boundaries(self, target, mode):
-        wanted = darwin_boundary.required('reload')
-        (target/'darwin-native-required.txt').write_text('\n'.join(wanted)+'\n')
+        required = darwin_boundary.required('reload')
+        (target / 'darwin-native-required.txt').write_text('\n'.join(required) + '\n')
         records = []
-        for pkg in sorted({v.split('|')[0] for v in wanted}):
-            names={v.split('|')[1] for v in wanted if v.startswith(pkg+'|')}
-            names.update(n.split('/')[0] for n in list(names))
-            records.append(self.event('start',Package=pkg))
-            for n in sorted(names):
-                records.extend(self.event(a,Package=pkg,Test=n) for a in ('run','pass'))
-            records.append(self.event('pass',Package=pkg))
-        self.write_events(target/'darwin-native-tests.json',records)
-        sqlite=ROOT/'db/sqlite'
-        self.write_json(target/'darwin-native-sqlite-inputs.json',{'package':darwin_boundary.SQLITE,'mode':mode,
-            'tests':{f:digest(sqlite/f) for f in darwin_boundary.SQLITE_TEST_FILES},
-            'inactive_go_files':[], 'product_go_files':sorted(f.name for f in sqlite.glob('*.go') if not f.name.endswith('_test.go')),
-            'other_test_files':sorted(f.name for f in sqlite.glob('*_test.go') if f.name not in darwin_boundary.SQLITE_TEST_FILES)})
+        for package in sorted({row.split('|')[0] for row in required}):
+            tests = {row.split('|')[1] for row in required if row.startswith(package + '|')}
+            roots = {test.split('/')[0] for test in tests}
+            records.append(self.event('start', Package=package))
+            for test in sorted(tests | roots):
+                records.extend(self.event(action, Package=package, Test=test) for action in ('run', 'pass'))
+            records.append(self.event('pass', Package=package))
+        self.write_events(target / 'darwin-native-tests.json', records)
+        sqlite = ROOT / 'db/sqlite'
+        tests = darwin_boundary.SQLITE_TEST_FILES
+        self.write_json(target / 'darwin-native-sqlite-inputs.json', {
+            'package': darwin_boundary.SQLITE,
+            'mode': mode,
+            'tests': {name: digest(sqlite / name) for name in tests},
+            'inactive_go_files': [],
+            'product_go_files': sorted(p.name for p in sqlite.glob('*.go') if not p.name.endswith('_test.go')),
+            'other_test_files': sorted(p.name for p in sqlite.glob('*_test.go') if p.name not in tests),
+        })
 
     def scaffold_fixture(self, target):
         other = 'github.com/progresshans/godj/project'
