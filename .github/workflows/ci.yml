@@ -666,11 +666,12 @@ jobs:
           cache: true
           cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
 
-      - name: Restore or save Darwin target build objects
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore Darwin target build objects
+        id: darwin_objects
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/go-darwin-cache
-          key: darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-${{ github.event.pull_request.head.sha || github.sha }}
+          key: darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-seed
           restore-keys: |
             darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-
 
@@ -691,6 +692,13 @@ jobs:
 
       - name: Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}
         run: test -n "${{ steps.platform_upload.outputs.artifact-id }}" && test -n "${{ steps.platform_upload.outputs.artifact-digest }}"
+
+      - name: Seed Darwin target build objects on a cold cache
+        if: success() && !steps.darwin_objects.outputs.cache-matched-key
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: ${{ steps.darwin_objects.outputs.cache-primary-key }}
+          path: ${{ runner.temp }}/go-darwin-cache
 
   product-project-check-matrix:
     needs: validation-plan
