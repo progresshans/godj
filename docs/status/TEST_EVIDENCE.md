@@ -13,6 +13,7 @@
 | [관찰 CLI·Darwin 빌드 캐시](https://github.com/progresshans/godj/actions/runs/46027695666) | `346853c6 / c2bd93b1 / 30013cf0` | v2 · 1 | 1:36:33 | 36:48:23 | 5:24:00 |
 | [PostgreSQL 검사·캡처 분리](https://github.com/progresshans/godj/actions/runs/46041421514) | `803b5f66 / 6ca803b0 / e64296ec` | v3 · 1 | 1:31:31 | 35:40:52 | 5:37:01 |
 | [모드별 첫 재배치·캐시 첫 저장](https://github.com/progresshans/godj/actions/runs/46053077506) | `2557f3cf / fc589c28 / fcd8de58` | v3 · 1 | 1:31:10 | 35:35:43 | 5:13:46 |
+| [네이티브 분담·SQLite 동시 실행](https://github.com/progresshans/godj/actions/runs/46063926120) | `34deae1c / 58810574 / 589ceec0` | v4 · 1 · 실패 | 1:27:25 | 34:53:08 | 3:23:27 |
 
 검토 기준과 관찰 CLI 변경은 각각 Linux 125개·macOS 16개 작업이 통과했다. 관찰 CLI 변경에서 마지막 Linux ARM64 race runtime은 준비 가능 시점부터 45분 8초 기다렸고, 50분 24초 실행됐다. 제품 원본 19개와 독립 플랫폼 원본 6개는 성공 job·실행 회차·archive ID·SHA-256을 다시 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46027695666/job/140648817947) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
 
@@ -52,6 +53,18 @@ Linux SQLite credential race는 첫 단계 case 191개를 등록하고, DB를 �
 |---|---:|---:|---:|---:|
 | [Linux ARM64 계정 race](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022898) | 32분 26초 | 33분 54초 | 125.5 / 600.8 MB | 17초 |
 | [Apple Silicon 일반 runtime](https://github.com/progresshans/godj/actions/runs/46053077506/job/140689022989) | 17분 07초 | 20분 25초 | 125.9 / 776.9 MB | 33초 |
+
+`34deae1c`의 같은 두 작업은 모듈과 빌드 객체를 복원했다. Linux ARM64는 복원 3초·18초, 실행 준비 4초, 검사 본문 970초, 전체 16분 52초였다. Apple Silicon은 복원 6초·23초, 실행 준비 5초, 본문 296초, 전체 6분 2초였다. 두 작업 모두 캐시 재업로드가 없었다. Linux 전체는 기존 공유 캐시보다 15분 34초, Mac 전체는 11분 5초 짧았다. [Linux ARM64](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724667477) · [Apple Silicon](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724667423)
+
+이 실행의 PostgreSQL 계정 작업 15개에서 각 모드의 13개 part가 통과했다. 가장 긴 작업의 part 시간 합은 일반 1,061초, race 1,477초, CGO=0 1,006초였다. 직전 실행은 각각 728초, 2,253초, 943초였다. 이번에 관측한 part 시간을 고정해 직전 배치에 대입하면 1,061·1,725·948초다. 마지막 세 값은 재배치 추정이며, 특히 CGO=0의 개선은 확인되지 않았다. [실행별 작업과 단계](https://github.com/progresshans/godj/actions/runs/46063926120)
+
+같은 제출에서 Linux와 Darwin의 Python 원본은 동일한 409개 case를 발견했다. Linux는 405개를 통과했고 고정 환경 전용 4개를 skip했다. Darwin exact는 이 4개를 포함한 166개를 실행해 전부 통과했다. 공통 243개는 Linux에서 실행됐다. Python 본문은 `2557f3cf`에서 1,018.976초, 이번 실행에서 577.409초였다. 고정 oracle도 별도로 재생했다. [Darwin exact](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724665470)
+
+Linux race의 SQLite credential 원본 두 개에서 case 191개·필수 run/pass 항목 2,219개와 60·63·68개 묶음의 합집합을 대조했다. 직전 실행 대비 x64 root는 1,603.79→764.71초, ARM64 root는 2,075.72→706.28초였다. 새 실행에서 세 묶음의 실측 경과는 x64 764.7·710.2·680.6초, ARM64 688.3·663.5·706.3초다. 각 묶음은 같은 러너의 같은 바이너리에서 동시에 실행됐다. [x64 runtime](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724667090) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724667083)
+
+Linux x64 race에서는 같은 21개 part를 일곱 작업에 배치했다. 가장 긴 작업의 part 시간 합은 직전 47분 42초에서 42분 51초로 줄었다. [최장 작업](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724667340)
+
+중간 제출 전체는 138개 성공, 제품 작업과 최종 집계 실패, 제품 비교 한 개 skip으로 종료됐다. 표의 시간에는 실패한 작업을 포함했다. Apple Silicon race의 외부 CLI 테스트는 `go mod tidy`가 `golang.org/x/tools@v0.49.0` 체크섬을 조회할 때 TLS handshake timeout으로 실패했다. 검증된 모듈 캐시와 접속이 닫힌 체크섬 서버를 사용한 로컬 Darwin ARM64 race에서 실패를 재현했다. 임시 프로젝트를 준비할 때마다 저장소 `go.sum`으로 시작하도록 고치자 같은 조건에서 실제 cross-app 생성·SQLite 이관·재기동 테스트가 통과했다. 임시 체크섬 한 개를 변조한 대조 실험은 원격 실패와 같은 두 번째 준비 단계에서 `checksum mismatch`로 실패했다. [원격 실패 로그](https://github.com/progresshans/godj/actions/runs/46063926120/job/140724665940)
 
 ## 플랫폼별 검증 의무
 
