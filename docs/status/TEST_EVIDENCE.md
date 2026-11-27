@@ -11,8 +11,9 @@
 |---|---|---|---:|---:|---:|
 | [검토 기준](https://github.com/progresshans/godj/actions/runs/45780889275) | `8452e9d4 / 5d0b541a / c8e85356` | v2 · 1 | 1:36:32 | 36:35:37 | 5:29:51 |
 | [관찰 CLI·Darwin 빌드 캐시](https://github.com/progresshans/godj/actions/runs/46027695666) | `346853c6 / c2bd93b1 / 30013cf0` | v2 · 1 | 1:36:33 | 36:48:23 | 5:24:00 |
+| [PostgreSQL 검사·캡처 분리](https://github.com/progresshans/godj/actions/runs/46041421514) | `803b5f66 / 6ca803b0 / e64296ec` | v3 · 1 | 1:31:31 | 35:40:52 | 5:37:01 |
 
-두 실행은 각각 Linux 125개·macOS 16개 작업이 통과했다. 두 번째 실행에서 마지막 Linux ARM64 race runtime은 준비 가능 시점부터 45분 8초 기다렸고, 50분 24초 실행됐다. 제품 원본 19개와 독립 플랫폼 원본 6개는 성공 job·실행 회차·archive ID·SHA-256을 다시 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46027695666/job/140648817947) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
+검토 기준과 관찰 CLI 변경은 각각 Linux 125개·macOS 16개 작업이 통과했다. 관찰 CLI 변경에서 마지막 Linux ARM64 race runtime은 준비 가능 시점부터 45분 8초 기다렸고, 50분 24초 실행됐다. 제품 원본 19개와 독립 플랫폼 원본 6개는 성공 job·실행 회차·archive ID·SHA-256을 다시 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46027695666/job/140648817947) · [ARM64 runtime](https://github.com/progresshans/godj/actions/runs/46027695666/job/140603307823)
 
 Apple Silicon 세 모드에서 FirstAccount 사용자 정의 fixture별로 관찰 CLI를 한 번 빌드하고 관찰 프로세스를 40회, 공개 명령을 14회 실행했다. 기본 fixture는 각각 1·6·2회다. 여섯 root의 합계는 1,111.37초에서 1,022.92초로 줄었다. 일반 모드 사용자 정의 root는 227.22→174.49초, 기본 root는 67.73→69.48초였다. CGO=0에서는 두 root 모두 늘었다. 로컬 ARM64 일반 모드의 기본 시나리오 두 개에서는 관찰 명령 준비 합이 6.275→3.374초, 실제 관찰 실행 합이 0.836→0.560초였다. [플랫폼 원본 선택](https://github.com/progresshans/godj/actions/runs/46027695666/artifacts/15220400773)
 
@@ -21,6 +22,8 @@ Darwin cross-compile의 첫 대상 캐시는 비어 있었다. 280개 패키지�
 다음 제출 `803b5f66`에서 같은 2.34GB를 복원하는 데 72초가 걸렸다. 두 대상의 280개 패키지에 대한 검사 단계는 1,494→203초, 설정·전송·업로드를 포함한 작업은 1,565→310초였다. amd64 빌드·링크 검증은 23.4·78.2초, arm64는 20.8·79.0초였다. 이 실행은 기존 캐시를 다시 저장하지 않았다. [캐시 복원과 실제 링크](https://github.com/progresshans/godj/actions/runs/46041421514/job/140649909688)
 
 PostgreSQL 37개 작업이 통과했다. normal/core와 normal/operator-target의 성공 회차·job ID·업로드 직후 archive ID·SHA-256과 두 원본의 내부 provenance를 재확인했다. 두 번째 증거가 준비된 뒤 1초 만에 참조 작업이 생성됐고 러너 대기는 16분 24초였다. 실제 conformance 시작은 마지막 PostgreSQL 작업 완료보다 10분 1초 빨랐다. [시스템 상태 원본](https://github.com/progresshans/godj/actions/runs/46041421514/artifacts/15220874937) · [운영자 원본](https://github.com/progresshans/godj/actions/runs/46041421514/artifacts/15221525609) · [소비 작업](https://github.com/progresshans/godj/actions/runs/46041421514/job/140661916393)
+
+이 소스의 full에서 Linux 125개·macOS 16개의 작업이 모두 성공했다. Linux 두 아키텍처의 세 모드마다 전체 생성 소비자 root 134개와 필수 항목 432개, 이관된 SQLite 56개의 실행을 원본에서 대조했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/46041421514/job/140687977521) · [독립 제품 비교](https://github.com/progresshans/godj/actions/runs/46041421514/artifacts/15224963058)
 
 각 모드의 PostgreSQL 계정 작업 5개에서 13개 part·19개 root·133개 필수 항목을 확인했다. 이관 전 189개 중 56개는 동일한 독립 fixture의 SQLite 경로였고, PostgreSQL counterpart 56개는 모두 실행됐다. 별도로 준비한 생성 바이너리 세 개의 실제 계정 시나리오 프로세스는 PostgreSQL 11회였으며 각 바이너리·PID·모드를 대조했다. [DB별 대응 목록](../../scripts/ci/account-database-owners.txt)
 
