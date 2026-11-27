@@ -5,7 +5,7 @@ import json
 import os
 import subprocess
 
-from postgres_shards import matrix as postgres_matrix
+from postgres_shards import workflow_matrices
 from worker_parts import verify_outcomes
 from relation_shards import matrix as relation_matrix
 from platform_policy import CONTRACT, PROFILES, event_profile, intel_matrix, product_matrix
@@ -25,6 +25,7 @@ JOBS = frozenset({
     'python-compatibility-matrix',
     'project-reference-comparison',
     'postgresql-product',
+    'postgresql-captures',
 })
 COMMAND_PRODUCTS = frozenset({'operator', 'targeted'})
 
@@ -41,7 +42,7 @@ def verify_results(results, required):
 
 def plan_outputs(profile):
     matrices = {'jobs': sorted(JOBS), 'relation_matrix': relation_matrix(profile), 'product_matrix': product_matrix(profile),
-                'intel_matrix': intel_matrix(profile), 'postgres_matrix': postgres_matrix()}
+                'intel_matrix': intel_matrix(profile), **workflow_matrices()}
     return {'profile': profile, 'validation_contract': CONTRACT, **{name: json.dumps(value, separators=(',', ':')) for name, value in matrices.items()}}
 
 

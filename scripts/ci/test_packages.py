@@ -276,8 +276,9 @@ class ExecutionOwnerTests(unittest.TestCase):
     def postgres_scheduled(self, workflow):
         from workflow import plan_outputs
         self.assertIn('matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}', workflow)
-        matrix = json.loads(plan_outputs('full')['postgres_matrix'])
-        return [(row['mode'], part) for row in matrix['include'] for part in row['parts']]
+        outputs = plan_outputs('full')
+        return [(row['mode'], part) for key in ('postgres_matrix', 'postgres_capture_matrix')
+                for row in json.loads(outputs[key])['include'] for part in row['parts']]
 
     def postgres_workflow_flags(self, root, workflow, mode, shard, **inventories):
         self.assertIn('run: bash scripts/ci/postgres-product.sh', workflow)

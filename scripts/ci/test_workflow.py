@@ -134,7 +134,7 @@ if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runse
         for wrong in ('full', '', 'unknown'):
             with self.assertRaises(ValueError):
                 verify(results, wrong)
-        for key in ('jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix', 'intel_matrix', 'validation_contract'):
+        for key in ('jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix', 'postgres_capture_matrix', 'intel_matrix', 'validation_contract'):
             with self.subTest(missing=key), self.assertRaises(ValueError):
                 results['validation-plan']['outputs'] = dict(plan_outputs('pr'), **{key: '[]'})
                 verify(results, 'pr')
@@ -148,7 +148,7 @@ if os.environ['SIMULATE_FAILURE'] == 'command' and sys.argv[-1].endswith('/runse
                                      capture_output=True, text=True, timeout=10)
             self.assertEqual(planned.returncode, 0, planned.stderr)
             values = dict(line.split('=', 1) for line in output.read_text().splitlines())
-            self.assertEqual(set(values), {'profile', 'jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix', 'intel_matrix', 'validation_contract'})
+            self.assertEqual(set(values), {'profile', 'jobs', 'relation_matrix', 'product_matrix', 'postgres_matrix', 'postgres_capture_matrix', 'intel_matrix', 'validation_contract'})
             self.assertEqual(json.loads(values['jobs']), sorted(JOBS))
             self.assertTrue(json.loads(values['relation_matrix'])['include'])
 

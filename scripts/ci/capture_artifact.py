@@ -13,7 +13,8 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import time
+from github_records import github_records
+from project_artifacts import resolve as resolve_producers
 
 
 CAPTURES = {
@@ -24,7 +25,7 @@ CAPTURES = {
 
 def producer(filename):
     prefix, shard = CAPTURES[filename]
-    return prefix, f'PostgreSQL 17.10 actual product (normal, {shard})'
+    return prefix, f'PostgreSQL 17.10 capture (normal, {shard})'
 
 
 def identity():
@@ -33,80 +34,24 @@ def identity():
     if not all(result.values()):
         raise ValueError('CI run identity is missing')
     result['checkout'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    result['event_head'] = os.environ['GODJ_SOURCE_HEAD']
+    result['tree'] = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
     return result
-
-
-def github_read(*arguments):
-    for attempt in range(3):
-        try:
-            return subprocess.run(["gh", "api", *arguments], check=True, capture_output=True, timeout=90).stdout
-        except subprocess.TimeoutExpired:
-            if attempt == 2:
-                raise
-        except subprocess.CalledProcessError as error:
-            if attempt == 2 or not re.search(rb"\bHTTP (429|500|502|503|504)\b", error.stderr or b""):
-                raise
-        time.sleep(2 ** attempt)
-
-
-def github_records(path, key):
-    separator = '&' if '?' in path else '?'
-    # Job records include every step, even for jobs retained on a retry.
-    # Retry a failed page without repeatedly downloading the preceding pages.
-    size = 30 if key == 'jobs' else 100
-    records = []
-    page = 1
-    while True:
-        response = json.loads(github_read(f"{path}{separator}per_page={size}&page={page}"))
-        batch, total = response[key], response['total_count']
-        if not isinstance(batch, list) or len(batch) > size or type(total) is not int or total < 0:
-            raise ValueError(f'invalid GitHub {key} page {page}')
-        records.extend(batch)
-        if len(records) == total:
-            return records
-        if len(records) > total or len(batch) < size:
-            raise ValueError(f'incomplete GitHub {key} page {page}')
-        page += 1
 
 
 def resolve(filename, run, fetch=github_records):
     prefix, job_name = producer(filename)
-    repository = run['GITHUB_REPOSITORY']
-    if not re.fullmatch(r'[\w.-]+/[\w.-]+', repository, re.ASCII):
-        raise ValueError('invalid repository identity')
-    run_id, repository_id, current_attempt = (
-        int(run[key]) for key in ('GITHUB_RUN_ID', 'GITHUB_REPOSITORY_ID', 'GITHUB_RUN_ATTEMPT'))
-    if min(run_id, repository_id, current_attempt) < 1:
-        raise ValueError('invalid run identity')
-    base = f'repos/{repository}/actions/runs/{run_id}'
-    candidates = []
-    for artifact in fetch(base + '/artifacts', 'artifacts'):
-        match = re.fullmatch(prefix + r'-postgres-([1-9][0-9]*)', artifact['name'])
-        if match:
-            candidates.append((int(match[1]), artifact))
-    if not candidates:
-        raise ValueError(f'{prefix} capture is missing')
-    attempt = max(attempt for attempt, _ in candidates)
-    artifacts = [artifact for candidate, artifact in candidates if candidate == attempt]
-    if len(artifacts) != 1 or attempt > current_attempt:
-        raise ValueError('capture attempt is ambiguous or newer than the consumer')
-    artifact = artifacts[0]
-    artifact_run = artifact['workflow_run']
-    if (artifact['expired'] or artifact['id'] < 1 or
-            artifact_run['id'] != run_id or artifact_run['repository_id'] != repository_id):
-        raise ValueError('capture is expired or belongs to a different run or repository')
-    jobs = [job for job in fetch(base + f'/attempts/{attempt}/jobs', 'jobs')
-            if job['name'] == job_name]
-    if len(jobs) != 1:
-        raise ValueError('capture producer identity is missing or ambiguous')
-    job = jobs[0]
-    # API head_sha identifies the event source; a PR checkout can be its merge
-    # commit. The envelope verifies the actual checkout separately below.
-    if (job['status'] != 'completed' or job['conclusion'] != 'success' or
-            job['run_id'] != run_id or job['run_attempt'] != attempt or
-            not job['head_sha'] or job['head_sha'] != artifact_run['head_sha']):
-        raise ValueError('capture producer did not succeed for this run, attempt and source')
-    return {'artifact_id': artifact['id'], 'producer_attempt': attempt, 'producer_job_id': job['id']}
+    source = {'repository': run['GITHUB_REPOSITORY'], 'run_id': run['GITHUB_RUN_ID'],
+              'run_attempt': run['GITHUB_RUN_ATTEMPT'], 'event_head': run['event_head'],
+              'checkout': run['checkout'], 'tree': run['tree']}
+    label = 'system-state' if prefix == 'systemstate' else 'operator'
+    stem = prefix + '-postgres'
+    selection = resolve_producers(source, int(run['GITHUB_REPOSITORY_ID']), 'postgres-capture', fetch,
+                                  expected={stem: (job_name, 'Publish ' + label + ' capture')},
+                                  receipt_prefix=label.capitalize() + ' capture artifact ')
+    record = selection['producers'][stem]
+    return {'artifact_id': record['artifact_id'], 'producer_attempt': record['producer_attempt'],
+            'producer_job_id': record['job_id'], 'archive_sha256': record['archive_sha256']}
 
 
 def capture_digest(directory, filename):

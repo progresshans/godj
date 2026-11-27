@@ -32,6 +32,7 @@ jobs:
       intel_matrix: ${{ steps.plan.outputs.intel_matrix }}
       jobs: ${{ steps.plan.outputs.jobs }}
       relation_matrix: ${{ steps.plan.outputs.relation_matrix }}
+      postgres_capture_matrix: ${{ steps.plan.outputs.postgres_capture_matrix }}
       postgres_matrix: ${{ steps.plan.outputs.postgres_matrix }}
       product_matrix: ${{ steps.plan.outputs.product_matrix }}
       profile: ${{ steps.plan.outputs.profile }}
@@ -47,7 +48,7 @@ jobs:
         run: python3 scripts/ci/workflow.py plan
 
   conformance-validation:
-    needs: [validation-plan, postgresql-product]
+    needs: [validation-plan, postgresql-captures]
     name: Validate references and current product captures
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -55,6 +56,7 @@ jobs:
       contents: read
       actions: read
     env:
+      GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       LC_ALL: C
       PYTHONHASHSEED: "0"
       TZ: UTC
@@ -1393,12 +1395,13 @@ jobs:
     name: PostgreSQL 17.10 actual product (${{ matrix.mode }}, ${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout_minutes }}
-    env:
+    env: &postgres-environment
+      GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       LC_ALL: C
       TZ: UTC
       MODE: ${{ matrix.mode }}
       PRIVATE_DATABASE: ${{ startsWith(matrix.shard, 'accounts-') }}
-    services:
+    services: &postgres-services
       postgres:
         image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
         env:
@@ -1416,7 +1419,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}
 
-    steps:
+    steps: &postgres-steps
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1622,6 +1625,7 @@ jobs:
           python3 scripts/ci/capture_artifact.py pack "$RUNNER_TEMP/published-capture" "$capture"
 
       - name: Publish system-state capture
+        id: systemstate_upload
         if: matrix.mode == 'normal' && matrix.shard == 'core'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1630,7 +1634,15 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: System-state capture artifact ${{ steps.systemstate_upload.outputs.artifact-id }} ${{ steps.systemstate_upload.outputs.artifact-digest }}
+        if: success() && steps.systemstate_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.systemstate_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.systemstate_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
+
       - name: Publish operator capture
+        id: operator_upload
         if: matrix.mode == 'normal' && matrix.shard == 'operator-target'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1638,6 +1650,13 @@ jobs:
           path: ${{ runner.temp }}/published-capture/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Operator capture artifact ${{ steps.operator_upload.outputs.artifact-id }} ${{ steps.operator_upload.outputs.artifact-digest }}
+        if: success() && steps.operator_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.operator_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.operator_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
 
       - name: Publish S3 service build and lifecycle receipts
         if: always() && (matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2'))
@@ -1687,6 +1706,18 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  postgresql-captures:
+    needs: validation-plan
+    name: PostgreSQL 17.10 capture (${{ matrix.mode }}, ${{ matrix.shard }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env: *postgres-environment
+    services: *postgres-services
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_capture_matrix) }}
+    steps: *postgres-steps
+
   required-ci:
     name: CI result
     if: ${{ always() }}
@@ -1705,6 +1736,7 @@ jobs:
       - python-compatibility-matrix
       - project-reference-comparison
       - postgresql-product
+      - postgresql-captures
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

@@ -314,8 +314,13 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_workflow_runs_every_partition_and_retains_canceled_logs(self):
         workflow = (self.root / '.github/workflows/ci.yml').read_text()
         from workflow import plan_outputs
-        rows = json.loads(plan_outputs('full')['postgres_matrix'])['include']
-        self.assertEqual(rows, matrix()['include'])
+        outputs = plan_outputs('full')
+        product = json.loads(outputs['postgres_matrix'])['include']
+        capture = json.loads(outputs['postgres_capture_matrix'])['include']
+        self.assertCountEqual([(r['mode'],r['shard']) for r in capture],[('normal','core'),('normal','operator-target')])
+        self.assertFalse({(r['mode'],r['shard']) for r in capture} & {(r['mode'],r['shard']) for r in product})
+        rows = product + capture
+        self.assertCountEqual(rows, matrix()['include'])
         for mode in ('normal', 'race', 'cgo0'):
             scheduled = [row for row in rows if row['mode'] == mode]
             self.assertCountEqual([part for row in scheduled for part in row['parts']], [*partitions(mode), 'operator-target'])

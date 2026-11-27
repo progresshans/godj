@@ -6,18 +6,19 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from capture_artifact import CAPTURES, github_read, github_records, pack, producer, resolve, verify
+from github_records import github_read, github_records
+from capture_artifact import CAPTURES, pack, producer, resolve, verify
 
 
 class CaptureArtifactTest(unittest.TestCase):
     def test_job_pages_keep_the_query_and_reject_an_incomplete_inventory(self):
         first = {"jobs": list(range(30)), "total_count": 31}
         last = {"jobs": [30], "total_count": 31}
-        with patch("capture_artifact.github_read", side_effect=[json.dumps(first), json.dumps(last)]) as read:
+        with patch("github_records.github_read", side_effect=[json.dumps(first), json.dumps(last)]) as read:
             self.assertEqual(github_records("run/jobs?filter=all", "jobs"), list(range(31)))
         self.assertEqual([c.args for c in read.call_args_list],
                          [("run/jobs?filter=all&per_page=30&page=1",), ("run/jobs?filter=all&per_page=30&page=2",)])
-        with patch("capture_artifact.github_read", return_value=json.dumps({"artifacts": [], "total_count": 1})):
+        with patch("github_records.github_read", return_value=json.dumps({"artifacts": [], "total_count": 1})):
             with self.assertRaisesRegex(ValueError, "incomplete GitHub artifacts"):
                 github_records("run/artifacts", "artifacts")
 
@@ -25,7 +26,7 @@ class CaptureArtifactTest(unittest.TestCase):
         transient = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Server Error (HTTP 502)")
         forbidden = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Forbidden (HTTP 403)")
         timeout = subprocess.TimeoutExpired("gh", 90)
-        with patch("capture_artifact.time.sleep") as sleep, patch("capture_artifact.subprocess.run") as call:
+        with patch("github_records.time.sleep") as sleep, patch("github_records.subprocess.run") as call:
             call.side_effect = [transient, timeout, subprocess.CompletedProcess([], 0, stdout=b"ok")]
             self.assertEqual(github_read("repos/example/path"), b"ok")
             self.assertEqual(call.call_count, 3)
@@ -44,7 +45,7 @@ class CaptureArtifactTest(unittest.TestCase):
     def setUp(self):
         self.filename = next(iter(CAPTURES))
         self.run = {
-            'checkout': 'a' * 40, 'GITHUB_RUN_ID': '1', 'GITHUB_RUN_ATTEMPT': '2',
+            'checkout': 'a' * 40, 'tree': 'c' * 40, 'event_head': 'b' * 40, 'GITHUB_RUN_ID': '1', 'GITHUB_RUN_ATTEMPT': '2',
             'GITHUB_REPOSITORY': 'org/repo', 'GITHUB_REPOSITORY_ID': '7',
         }
 
@@ -52,13 +53,18 @@ class CaptureArtifactTest(unittest.TestCase):
         prefix, job_name = producer(filename or self.filename)
         # The event SHA may differ from the PR's actual merge checkout.
         artifact = {
-            'id': 101, 'name': f'{prefix}-postgres-{attempt}', 'expired': False,
+            'id': 101, 'name': f'{prefix}-postgres-{attempt}', 'expired': False, 'digest': 'sha256:' + 'd' * 64,
             'workflow_run': {'id': 1, 'repository_id': 7, 'head_sha': 'b' * 40},
         }
         job = {
             'id': 201, 'name': job_name, 'status': 'completed', 'conclusion': 'success',
             'run_id': 1, 'run_attempt': attempt, 'head_sha': 'b' * 40,
         }
+        label = 'system-state' if prefix == 'systemstate' else 'operator'
+        job['steps'] = [
+            {'name':'Publish ' + label + ' capture','number':6,'status':'completed','conclusion':'success'},
+            {'name':label.capitalize()+' capture artifact 101 '+'d'*64,'number':7,'status':'completed','conclusion':'success'},
+        ]
         return artifact, job
 
     def fetch(self, artifact, job):
@@ -74,9 +80,9 @@ class CaptureArtifactTest(unittest.TestCase):
                 artifact, job = self.metadata(filename)
                 fetch = self.fetch(artifact, job)
                 selection = resolve(filename, self.run, fetch)
-                self.assertEqual(selection, {'artifact_id': 101, 'producer_attempt': 1, 'producer_job_id': 201})
-                self.assertEqual(fetch.call_args_list[1].args,
-                                 ('repos/org/repo/actions/runs/1/attempts/1/jobs', 'jobs'))
+                self.assertEqual(selection, {'artifact_id': 101, 'producer_attempt': 1, 'producer_job_id': 201, 'archive_sha256': 'd'*64})
+                self.assertEqual(fetch.call_args_list[0].args,
+                                 ('repos/org/repo/actions/runs/1/jobs?filter=all', 'jobs'))
                 verify(directory, filename, self.run, selection['producer_attempt'])
                 with self.assertRaises(ValueError):
                     verify(directory, filename, self.run)
@@ -124,10 +130,12 @@ class CaptureArtifactTest(unittest.TestCase):
             resolve(self.filename, self.run, self.fetch(dict(artifact, expired=True), job))
 
     def test_latest_artifact_requires_its_own_successful_attempt(self):
-        old, _ = self.metadata(attempt=1)
+        old, previous = self.metadata(attempt=1)
         latest, job = self.metadata(attempt=2)
         latest['id'] = 102
-        fetch = Mock(side_effect=lambda path, key: [old, latest] if key == 'artifacts' else [job])
+        job['steps'][1]['name'] = job['steps'][1]['name'].replace('101', '102')
+        job['id'] = 202
+        fetch = Mock(side_effect=lambda path, key: [old, latest] if key == 'artifacts' else [previous,job])
         self.assertEqual(resolve(self.filename, self.run, fetch)['artifact_id'], 102)
         # An older successful capture must not hide failure of its replacement.
         job['conclusion'] = 'failure'
@@ -144,6 +152,16 @@ class CaptureArtifactTest(unittest.TestCase):
         artifact, job = self.metadata(attempt=3)
         with self.assertRaises(ValueError):
             resolve(self.filename, self.run, self.fetch(artifact, job))
+
+    def test_capture_receipt_requires_exact_id_digest_current_job_and_attempt(self):
+        artifact, job = self.metadata()
+        resolve(self.filename,self.run,self.fetch(artifact,job))
+        for field, value in [('id',102), ('digest','sha256:'+'e'*64)]:
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError,'upload receipt differs'):
+                resolve(self.filename,self.run,self.fetch(dict(artifact,**{field:value}),job))
+        newer=dict(job,run_attempt=2,id=202,conclusion='failure')
+        with self.assertRaisesRegex(ValueError,'latest producer did not succeed'):
+            resolve(self.filename,self.run,lambda path,key:[artifact] if key=='artifacts' else [job,newer])
 
     def test_path_and_symlink_are_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:

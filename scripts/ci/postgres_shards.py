@@ -135,6 +135,14 @@ def matrix():
     return {'include': rows}
 
 
+def workflow_matrices():
+    products, captures = [], []
+    for row in matrix()['include']:
+        owner = captures if row['mode'] == 'normal' and row['shard'] in ('core', 'operator-target') else products
+        owner.append(row)
+    return {'postgres_matrix': {'include': products}, 'postgres_capture_matrix': {'include': captures}}
+
+
 def matches(package, pattern):
     relative = package.removeprefix(MODULE)
     path = pattern.removeprefix('./')

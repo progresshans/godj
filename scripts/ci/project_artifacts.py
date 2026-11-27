@@ -2,7 +2,7 @@
 from collections import defaultdict
 import re
 
-from capture_artifact import github_records
+from github_records import github_records
 from platform_policy import product_coordinates
 
 

@@ -74,6 +74,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"scripts/ci/darwin-native.sh",
 		"scripts/ci/darwin_compile.py",
 		"scripts/ci/project_artifacts.py",
+		"scripts/ci/github_records.py",
 		"scripts/ci/native_receipts.py",
 		"scripts/ci/project_reference.py",
 		"timezone/zone.go",

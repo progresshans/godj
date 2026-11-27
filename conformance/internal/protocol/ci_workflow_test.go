@@ -360,8 +360,15 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		}
 	}
 	seen := make(map[string]bool)
-	for _, row := range ciPlannedMatrix(t, ciJob(t, jobs, "postgresql-product"), "postgres_matrix") {
-		seen[row["shard"]+"/"+row["mode"]] = true
+	for key, owner := range map[string]string{"postgres_matrix": "postgresql-product", "postgres_capture_matrix": "postgresql-captures"} {
+		for _, row := range ciPlannedMatrix(t, ciJob(t, jobs, owner), key) {
+			coordinate := row["shard"] + "/" + row["mode"]
+			capture := coordinate == "core/normal" || coordinate == "operator-target/normal"
+			if seen[coordinate] || capture != (owner == "postgresql-captures") {
+				t.Fatalf("incorrect PostgreSQL owner %s for %s", owner, coordinate)
+			}
+			seen[coordinate] = true
+		}
 	}
 	for _, shard := range []string{"core", "operator-target"} {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
@@ -385,9 +392,11 @@ func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
 	ciRequire(t, "exact oracle validation", ciJob(t, jobs, "exact-darwin-validation"), "python-test-exact", "oracle-check")
 	postgres := ciJob(t, jobs, "postgresql-product")
 	reference := ciJob(t, jobs, "conformance-validation")
-	if !containsString(ciNeeds(t, reference), "postgresql-product") {
+	if !reflect.DeepEqual(ciNeeds(t, reference), []string{"postgresql-captures", "validation-plan"}) {
 		t.Fatal("reference comparison does not wait for current product captures")
 	}
+	ciRequire(t, "capture workflow", ciJob(t, jobs, "postgresql-captures"), "env: *postgres-environment", "services: *postgres-services", "steps: *postgres-steps")
+	ciRequire(t, "shared service execution", postgres, "env: &postgres-environment", "services: &postgres-services", "steps: &postgres-steps")
 	ciRequire(t, "PostgreSQL capture producer", postgres, "scripts/ci/capture_artifact.py pack", "actions/upload-artifact@", "if-no-files-found: error")
 	ciRequire(t, "current capture consumer", reference, "actions/download-artifact@", "scripts/ci/capture_artifact.py verify", "ATTESTATION_DIR:", "godj-conformance")
 	for _, artifact := range []string{"systemstate-postgres", "operator-postgres"} {
