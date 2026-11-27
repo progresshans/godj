@@ -879,19 +879,21 @@ jobs:
             exit "$status"
           fi
           python3 scripts/ci/go_test_events.py "$platform_log" --packages "$evidence_dir/platform-packages.txt" --required scripts/ci/first-account-platform-required.txt
-          # This complete runner execution also owns relation sentinels.
-          # Missing/skipped execution must fail.
-          runner_log="$evidence_dir/conformance-runner.json"
-          runner_stderr="$evidence_dir/conformance-runner.stderr"
-          status=0
-          go test "${test_flags[@]}" -json ./conformance/runners/godj > "$runner_log" 2> "$runner_stderr" || status=$?
-          if [ "$status" -ne 0 ]; then
-            python3 scripts/ci/go_test_events.py "$runner_log" --diagnostics --stderr "$runner_stderr" || true
-            exit "$status"
+          # Linux executes the common conformance runner in every mode and architecture.
+          if [ "${{ matrix.platform.expected_goos }}" = linux ]; then
+            runner_log="$evidence_dir/conformance-runner.json"
+            runner_stderr="$evidence_dir/conformance-runner.stderr"
+            go test "${test_flags[@]}" -json -list . ./conformance/runners/godj > "$evidence_dir/conformance-runner-discovery.json"
+            status=0
+            go test "${test_flags[@]}" -json ./conformance/runners/godj > "$runner_log" 2> "$runner_stderr" || status=$?
+            if [ "$status" -ne 0 ]; then
+              python3 scripts/ci/go_test_events.py "$runner_log" --diagnostics --stderr "$runner_stderr" || true
+              exit "$status"
+            fi
+            runner_required="$evidence_dir/conformance-runner-required.txt"
+            awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
+            python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
           fi
-          runner_required="$evidence_dir/conformance-runner-required.txt"
-          awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
-          python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
 
           required="$evidence_dir/runserver-required.txt"
           cp scripts/ci/runserver-required.txt "$required"
@@ -901,10 +903,10 @@ jobs:
           # preparation/cleanup limits. Discover/inventory every root.
           discovery="$evidence_dir/runserver-discovery.json"
           go test "${json_flags[@]}" -timeout=15m -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
-          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner baseline)
+          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner baseline --coordinate "${{ matrix.platform.expected_goos }}" "${{ matrix.platform.expected_goarch }}" "${{ matrix.mode }}")
           python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
           runserver_status=0
-          for batch in runtime scaffold fixed-module; do
+          while IFS= read -r batch; do
             batch_timeout=15m
             case "$batch" in
               scaffold) batch_timeout="${{ matrix.platform.flow_test_timeout }}" ;;
@@ -918,7 +920,7 @@ jobs:
               python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
               runserver_status=1
             fi
-          done
+          done < "$evidence_dir/runserver-batch-names.txt"
           python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
           test "$runserver_status" = 0
 
@@ -1067,10 +1069,10 @@ jobs:
           cp scripts/ci/runserver-required.txt "$required"
           discovery="$evidence_dir/runserver-discovery.json"
           go test "${flags[@]}" -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
-          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner reload)
+          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner reload --coordinate "${{ matrix.platform.expected_goos }}" "${{ matrix.platform.expected_goarch }}" "${{ matrix.mode }}")
           python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
           runserver_status=0
-          for batch in reload-notes reload-article; do
+          while IFS= read -r batch; do
             log="$evidence_dir/runserver-${batch}.json"
             stderr_log="$evidence_dir/runserver-${batch}.stderr"
             status=0
@@ -1079,7 +1081,7 @@ jobs:
               python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
               runserver_status=1
             fi
-          done
+          done < "$evidence_dir/runserver-batch-names.txt"
           python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
           test "$runserver_status" = 0
 

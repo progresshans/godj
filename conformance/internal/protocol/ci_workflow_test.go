@@ -298,7 +298,7 @@ func ciCheckFullPlatformRows(t *testing.T, jobName string, rows []map[string]str
 
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
-	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v3" {
+	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v4" {
 		t.Fatalf("unexpected full CI contract %q", contract)
 	}
 	product := make(map[string]int)

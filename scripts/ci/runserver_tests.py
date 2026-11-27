@@ -4,7 +4,8 @@
 Every native coordinate executes the baseline and reload owners. Each complete
 flow has its own cumulative package budget. All discovered roots and children
 have exactly one owner; only the PostgreSQL manifest's roots may skip here, with
-mandatory DB owners.
+mandatory DB owners. The two-version install on Darwin race/CGO=0 uses the
+verified Linux/arm64 owner of the same mode; Darwin normal still installs both.
 """
 import argparse
 from collections import Counter
@@ -13,6 +14,7 @@ import json
 from pathlib import Path
 import re
 
+from platform_policy import MODES
 from native_suites import INTEL_ROOTS
 from go_test_events import discover_roots, events, inspect
 
@@ -28,7 +30,11 @@ OWNERS = {'baseline': ('runtime', 'scaffold', 'fixed-module'),
           'reload': ('reload-notes', 'reload-article')}
 
 
-def plan(roots, required, postgres, owner='all'):
+def plan(roots, required, postgres, owner='all', coordinate=None):
+    if coordinate is not None:
+        system, arch, mode = coordinate
+        if (system, arch) not in (('linux', 'amd64'), ('linux', 'arm64'), ('darwin', 'arm64')) or mode not in MODES:
+            raise ValueError('unsupported product execution coordinate')
     if owner != 'all' and owner not in OWNERS:
         raise ValueError('unknown server execution owner')
     if Counter(name for names in OWNERS.values() for name in names) != Counter(BATCHES):
@@ -72,7 +78,12 @@ def plan(roots, required, postgres, owner='all'):
         raise ValueError('server roots do not have exactly one execution owner')
     if owner != 'all':
         batches = {name: batches[name] for name in OWNERS[owner]}
+    delegated_batches = {}
+    if coordinate and system == 'darwin' and mode in ('race', 'cgo0') and 'fixed-module' in batches:
+        fixed = batches.pop('fixed-module')
+        delegated_batches['fixed-module'] = {'coordinate': ['linux', arch, mode], 'required': fixed['required']}
     return {'package': PACKAGE, 'owner': owner, 'discovered_roots': len(roots),
+            'delegated_batches': delegated_batches,
             'delegated_native_roots': sorted(delegated),
             'owned_roots': sum(len(batch['roots']) for batch in batches.values()),
             'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots))+'\n').encode()).hexdigest(),
@@ -117,13 +128,15 @@ def main():
     parser.add_argument('--postgres', required=True)
     parser.add_argument('--directory', required=True)
     parser.add_argument('--owner', choices=('all', *OWNERS), default='all')
+    parser.add_argument('--coordinate', nargs=3, required=True, metavar=('OS', 'ARCH', 'MODE'))
     args = parser.parse_args()
     try:
         execution = plan(discover_roots(args.discovery, PACKAGE), Path(args.required).read_text().splitlines(),
-                         Path(args.postgres).read_text().splitlines(), args.owner)
+                         Path(args.postgres).read_text().splitlines(), args.owner, args.coordinate)
         directory = Path(args.directory)
         if args.action == 'plan':
             (directory / 'runserver-batches.json').write_text(json.dumps(execution, sort_keys=True) + '\n')
+            (directory / 'runserver-batch-names.txt').write_text('\n'.join(execution['batches']) + '\n')
             for name, batch in execution['batches'].items():
                 (directory / ('runserver-' + name + '-run.txt')).write_text(batch['run'] + '\n')
                 (directory / ('runserver-' + name + '-required.txt')).write_text('\n'.join(batch['required']) + '\n')

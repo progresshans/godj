@@ -38,7 +38,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
 일반 PR은 Apple Silicon 일반 모드의 프로젝트·reload·명령, Apple Silicon race·CGO=0의 네이티브 필수 검사, Intel 일반 호환성, 고정 Darwin 참조를 실행한다. 공용 `*_unix.go` 변경은 Apple Silicon 제품을 세 모드로 확대하고 Intel CGO=0 호환성을 추가한다. 이때 필수 네이티브 검사는 같은 모드의 Apple Silicon project-check와 reload가 나누어 실행한다.
 
-`platform-obligations-v3`의 full은 다음 실행을 요구한다. [실행 계획](../scripts/ci/workflow.py) · [네이티브 선택 목록](../scripts/ci/native_suites.py)
+`platform-obligations-v4`의 full은 다음 실행을 요구한다. [실행 계획](../scripts/ci/workflow.py) · [네이티브 선택 목록](../scripts/ci/native_suites.py)
 
 | 기존 검사와 책임 | full에서 실제 실행하는 곳 |
 |---|---|
@@ -50,6 +50,10 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 | Intel 설치와 호환성 | 일반은 한 버전 공개 설치·첫 계정·HTTP 쓰기·재시작·reload 거부·정리, CGO=0은 CLI와 실제 생성 runner·server·command, SQLite 저장·재접속 |
 | Darwin 빌드 태그·타입·링크 | Linux 작업이 Darwin amd64·arm64 CGO=0 환경에서 각각 패키지를 발견하고 체크인된 코드와 패키지별 테스트 실행 파일을 컴파일 |
 | 고정 Python·SQLite·Django 관측 | 기존 macOS 15 Apple Silicon exact 환경 |
+
+ARM Mac normal은 현재 버전과 다음 고정 모듈 버전을 모두 실제 설치한다. ARM race·CGO=0에서 이 두 버전의 호환 오류 검사는 같은 모드의 Linux/arm64 project-check가 수행한다. 공통 Go conformance runner도 Linux 두 아키텍처의 각 모드에서 전체를 발견하고 실행한다.
+Mac에서 직접 실행하는 scaffold, linked child의 실제 빌드 정보, 서버 시작·reload·drain·cleanup과 command 제품은 세 모드 모두 유지한다. Darwin 고유 동작과 두 버전 거부의 race·CGO=0 교차 조합, 공통 runner의 Mac 고유 차이는 기본 full의 직접 범위에서 빠진다.
+제품 비교는 각 좌표의 실제 실행과 이관한 required 목록을 구분하며, 같은 run에서 지정 Linux owner의 발견 목록과 실행 증거를 대조한다.
 
 PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태와 운영자 증거를 생성한다. conformance는 이 두 작업이 끝나면 원본을 대조한다. 나머지 PostgreSQL 작업은 최종 CI 집계에 모두 필수다. 각 비교는 업로드 바로 다음 단계의 artifact ID·SHA-256, 실제 성공한 job ID·회차, 제출 소스와 checkout에 묶인다.
 

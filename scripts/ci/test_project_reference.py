@@ -98,9 +98,12 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                     "go": {"GOOS": coordinate[0], "GOARCH": coordinate[1], "GOVERSION": "go1.26.5"}})
                 if owner == 'baseline':
                     self.scaffold_fixture(target)
+                    if coordinate[0] == "linux":
+                        self.common_runner_fixture(target)
                 (target / "runserver-required.txt").write_text("\n".join(required) + "\n")
                 self.write_events(target / "runserver-discovery.json", discovery)
-                execution = plan(roots, required, postgres, owner)
+                execution = plan(roots, required, postgres, owner, coordinate)
+                (target / "runserver-batch-names.txt").write_text("\n".join(execution["batches"]) + "\n")
                 self.write_json(target / "runserver-batches.json", execution)
                 for name, batch in execution["batches"].items():
                     values = [self.event("start")]
@@ -125,6 +128,24 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                 if owner=='reload' and coordinate[0]=='darwin' and coordinate[2]!='normal':
                     self.reload_boundaries(target, coordinate[2])
                 seal(target)
+
+    def common_runner_fixture(self, target):
+        package = 'github.com/progresshans/godj/conformance/runners/godj'
+        rows = [line for line in (ROOT / 'scripts/ci/relation-required.txt').read_text().splitlines()
+                if line.startswith(package + '|')]
+        (target / 'conformance-runner-required.txt').write_text('\n'.join(rows) + '\n')
+        names = {line.split('|')[1] for line in rows} | {'TestNewCommonRunner'}
+        roots = sorted({n.split('/')[0] for n in names})
+        discovery = [self.event('start', Package=package)]
+        discovery.extend(self.event('output', Package=package, Output=n+'\n') for n in roots)
+        discovery.extend([self.event('output', Package=package, Output='ok  \t'+package+'\t0.2s\n'),
+                          self.event('pass', Package=package)])
+        self.write_events(target / 'conformance-runner-discovery.json', discovery)
+        events = [self.event('start', Package=package)]
+        for name in sorted(names | set(roots)):
+            events.extend(self.event(action, Package=package, Test=name) for action in ('run', 'pass'))
+        events.append(self.event('pass', Package=package))
+        self.write_events(target / 'conformance-runner.json', events)
 
     def reload_boundaries(self, target, mode):
         wanted = darwin_boundary.required('reload')
@@ -169,6 +190,34 @@ class ProjectReferenceReaderTests(unittest.TestCase):
             execution.extend(self.event(a,Package=check,Test=test) for a in ('run','pass'))
         execution.append(self.event('pass',Package=check))
         self.write_events(target / 'platform.json', execution)
+
+    def test_delegated_product_requires_the_proven_same_mode_owner(self):
+        self.fixture()
+        summary = self.verify()
+        by = {tuple(row['coordinate']): row['product_coverage'] for row in summary['coordinates']}
+        fixed = by['darwin', 'arm64', 'race']['fixed_module']
+        self.assertEqual(fixed['owner'], ['linux', 'arm64', 'race'])
+        self.assertNotIn('executed_roots', fixed)
+        self.assertIn(SPECIAL['fixed-module'], by['linux', 'arm64', 'race']['fixed_module']['executed_roots'])
+        target = self.directory / 'project-check-linux-arm64-race-2'
+        for name in ('runserver-fixed-module.json', 'conformance-runner.json'):
+            log = target / name
+            old = log.read_bytes()
+            events = [json.loads(line) for line in old.splitlines()]
+            self.write_events(log, [event for event in events if 'Test' not in event])
+            (target / 'SHA256SUMS').unlink()
+            seal(target)
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self.verify()
+            log.write_bytes(old)
+            (target / 'SHA256SUMS').unlink()
+            seal(target)
+        mac = self.directory / 'project-check-darwin-arm64-race-2'
+        (mac / 'runserver-fixed-module.json').write_bytes(old)
+        (mac / 'SHA256SUMS').unlink()
+        seal(mac)
+        with self.assertRaisesRegex(ValueError, 'delegated fixed-module'):
+            self.verify()
 
     def test_native_boundary_requires_each_delegated_event_and_unchanged_sqlite_sources(self):
         self.fixture()

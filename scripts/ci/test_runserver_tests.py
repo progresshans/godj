@@ -100,6 +100,21 @@ class RunserverExecutionTests(unittest.TestCase):
             with self.assertRaises(ValueError): self.verify_logs(logs)
         with self.assertRaises(ValueError): plan(self.roots, self.required, self.postgres, 'unknown')
 
+    def test_darwin_install_delegates_complete_fixed_root_and_children_to_same_arm_mode(self):
+        required = self.required + [PACKAGE + '|' + SPECIAL['fixed-module'] + '/future-install-case']
+        for mode in ('normal', 'race', 'cgo0'):
+            linux = plan(self.roots, required, self.postgres, 'baseline', ('linux', 'arm64', mode))
+            mac = plan(self.roots, required, self.postgres, 'baseline', ('darwin', 'arm64', mode))
+            fixed = linux['batches']['fixed-module']
+            if mode == 'normal':
+                self.assertEqual(mac['batches']['fixed-module'], fixed)
+                self.assertFalse(mac['delegated_batches'])
+            else:
+                self.assertNotIn('fixed-module', mac['batches'])
+                self.assertEqual(mac['delegated_batches'], {'fixed-module': {
+                    'coordinate': ['linux', 'arm64', mode], 'required': fixed['required']}})
+                self.assertEqual(mac['owned_roots'] + len(fixed['roots']), linux['owned_roots'])
+
     def test_discovery_and_owner_manifest_fail_closed(self):
         for roots, required, postgres in (
             ([], self.required, self.postgres), (self.roots*2, self.required, self.postgres),
@@ -141,6 +156,11 @@ class RunserverExecutionTests(unittest.TestCase):
             setup = initialization.replace('${{ matrix.platform.cmd_test_timeout }}', cmd_timeout)
             body = textwrap.dedent(setup + loop).replace('${{ matrix.platform.flow_test_timeout }}', flow_timeout)
             body = body.replace('${{ matrix.platform.fixed_module_timeout }}', fields['fixed_module_timeout'])
+            coordinate = (fields['expected_goos'], fields['expected_goarch'], mode)
+            scheduled = plan(self.roots, self.required, self.postgres, 'baseline', coordinate)
+            batches = list(scheduled['batches'])
+            names = self.root / 'runserver-batch-names.txt'
+            names.write_text('\n'.join(batches) + '\n')
             for fail_scaffold in ('0', '1'):
                 with self.subTest(platform=platform, mode=mode, fail_scaffold=fail_scaffold):
                     calls = self.root / 'calls'
@@ -164,8 +184,8 @@ python3() { return 0; }
                     self.assertEqual('', result.stderr)
                     self.assertEqual(fail_scaffold == '0', result.returncode == 0, result.stderr)
                     invocations = [line.rstrip(b'\0').decode().split('\0') for line in calls.read_bytes().splitlines()]
-                    self.assertEqual(3, len(invocations), 'a failed flow must not suppress the other evidence owners')
-                    for batch, invocation in zip(('runtime', 'scaffold', 'fixed-module'), invocations):
+                    self.assertEqual(len(batches), len(invocations), 'a failed flow must not suppress the other evidence owners')
+                    for batch, invocation in zip(batches, invocations):
                         cgo, *arguments = invocation
                         self.assertEqual('0' if mode == 'cgo0' else '1', cgo)
                         self.assertEqual(['test'], arguments[:1])

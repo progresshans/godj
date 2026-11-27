@@ -45,7 +45,7 @@ case "$1" in
     expected_packages="$work/relation-packages.txt"
     go list "${expected[@]}" > "$expected_packages"
     required="$work/relation-required.txt"
-    # Project-check owns the complete runner on every coordinate.
+    # Linux project-check owns the complete runner on both architectures in each mode.
     awk -F'|' -v portable="$PORTABLE_COVERED" '$1 != "github.com/progresshans/godj/conformance/runners/godj" && (portable != "true" || $1 != "github.com/progresshans/godj/conformance/cmd/godjcheck")' scripts/ci/relation-required.txt > "$required"
     if [ "$mode" != race ]; then
       cat scripts/ci/compile-required.txt >> "$required"

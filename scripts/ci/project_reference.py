@@ -205,13 +205,38 @@ def compare_events(reference, consumer):
     return sorted(seen)
 
 
+def verify_common_runner(directory, system, arch, mode):
+    package = "github.com/progresshans/godj/conformance/runners/godj"
+    required = [line for line in (ROOT / "scripts/ci/relation-required.txt").read_text().splitlines()
+                if line.startswith(package + "|")]
+    require(required and len(required) == len(set(required)), "invalid common runner sentinel inventory")
+    if system == "darwin":
+        require(not list(directory.glob("conformance-runner*")), "delegated runner has unexpected local evidence")
+        return {"owner": ["linux", arch, mode], "required": required}
+    require((directory / "conformance-runner-required.txt").read_text().splitlines() == required,
+            "Linux common runner required inventory differs")
+    log = directory / "conformance-runner.json"
+    roots = discover_roots(directory / "conformance-runner-discovery.json", package)
+    inventory = inspect(log)
+    require(inventory.packages == {package} and not inventory.verify(
+        required=[(package, root) for root in roots] + [tuple(line.split("|", 1)) for line in required],
+        packages=[package], no_skips=True), "Linux common runner execution is incomplete")
+    counts = Counter((event["Test"], event["Action"]) for event in events(log) if event.get("Test"))
+    require({name for name, action in counts if action == "run" and "/" not in name} == set(roots)
+            and all(counts[name, "run"] == counts[name, "pass"] == 1 for name, _ in counts),
+            "Linux common runner test was missing or duplicated")
+    return {"owner": [system, arch, mode], "required": required, "executed_roots": roots}
+
+
 def verify_native(directory, owner, coordinate, expected_source):
     seal_hash = verify_seal(directory)
     source = document(directory / "source.json")
     system, arch, mode = coordinate
     require(source == {**expected_source, "mode": mode, "go": {"GOOS": system, "GOARCH": arch, "GOVERSION": "go1.26.5"}},
             "native evidence belongs to a different source/run/coordinate")
+    coverage = {}
     if owner == "baseline":
+        coverage["common_runner"] = verify_common_runner(directory, system, arch, mode)
         packages = (directory / "platform-packages.txt").read_text().splitlines()
         require(len(packages) == len(set(packages)) and SCAFFOLD_PACKAGE in packages,
                 "native platform inventory omitted or duplicated scaffold publication")
@@ -231,9 +256,19 @@ def verify_native(directory, owner, coordinate, expected_source):
     required = ROOT / "scripts/ci/runserver-required.txt"
     require((directory / "runserver-required.txt").read_bytes() == required.read_bytes(), "native required manifest differs")
     execution = plan(discover_roots(directory / "runserver-discovery.json", PACKAGE), required.read_text().splitlines(),
-                     (ROOT / "scripts/ci/postgres-core-required.txt").read_text().splitlines(), owner)
+                     (ROOT / "scripts/ci/postgres-core-required.txt").read_text().splitlines(), owner, coordinate)
     require(document(directory / "runserver-batches.json") == execution, "native execution ownership differs")
+    require((directory / "runserver-batch-names.txt").read_text().splitlines() == list(execution["batches"]),
+            "native batch order differs from its plan")
     verify_runserver(directory, execution)
+    if owner == "baseline":
+        if "fixed-module" in execution["delegated_batches"]:
+            require(not list(directory.glob("runserver-fixed-module*")), "delegated fixed-module has local evidence")
+            fixed = execution["delegated_batches"]["fixed-module"]
+            coverage["fixed_module"] = {"owner": fixed["coordinate"], "required": fixed["required"]}
+        else:
+            fixed = execution["batches"]["fixed-module"]
+            coverage["fixed_module"] = {"owner": list(coordinate), "required": fixed["required"], "executed_roots": fixed["roots"]}
     # The shared verifier binds roots. Also bind every mandatory child to one
     # actual run/pass so missing or duplicated phases cannot supply evidence.
     for name, batch in execution["batches"].items():
@@ -241,7 +276,7 @@ def verify_native(directory, owner, coordinate, expected_source):
         for entry in batch["required"]:
             test = entry.split("|", 1)[1]
             require(counts[test, "run"] == counts[test, "pass"] == 1, "mandatory consumer phase is missing or duplicated")
-    return seal_hash
+    return seal_hash, coverage
 
 
 def verify_all(directory, expected_source, selection, repository_id, profile):
@@ -275,8 +310,9 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
         suffix = "-".join(coordinate)
         baseline, baseline_source = producer_input("project-check-" + suffix)
         reload, reload_source = producer_input("project-reload-" + suffix)
-        seals = {"baseline": verify_native(baseline, "baseline", coordinate, baseline_source),
-                 "reload": verify_native(reload, "reload", coordinate, reload_source)}
+        baseline_seal, coverage = verify_native(baseline, "baseline", coordinate, baseline_source)
+        reload_seal, _ = verify_native(reload, "reload", coordinate, reload_source)
+        seals = {"baseline": baseline_seal, "reload": reload_seal}
         boundaries = {}
         if system == 'darwin' and mode != 'normal':
             boundaries = {'project-check': darwin_boundary.verify(baseline, 'project-check', mode),
@@ -289,10 +325,16 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
             "command": go_observation(baseline / "runserver-scaffold.json", COMMAND_TEST, "GODJ_DEVELOPMENT_OBSERVATION"),
         }
         event_observation = go_observation(baseline / "runserver-runtime.json", EVENT_TEST, "GODJ_EVENT_OBSERVATION")
-        outputs.append({"coordinate": coordinate, "seals": seals, "native_boundaries": boundaries,
+        outputs.append({"coordinate": coordinate, "seals": seals, "native_boundaries": boundaries, "product_coverage": coverage,
                         "development": compare_development(observed["development"], consumers),
                         "events": compare_events(observed["event"], event_observation)})
-    return {"kind": "project-reference-comparison-v4", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,
+    owners = {tuple(row["coordinate"]): row["product_coverage"] for row in outputs}
+    for row in outputs:
+        for family, obligation in row["product_coverage"].items():
+            actual = owners.get(tuple(obligation["owner"]), {}).get(family, {})
+            require(actual.get("executed_roots") and actual["required"] == obligation["required"],
+                    "delegated product obligation lacks its same-mode execution")
+    return {"kind": "project-reference-comparison-v5", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,
             "producers": selected, "python_seal": python_seal,
             "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
 
