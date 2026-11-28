@@ -10,8 +10,9 @@ import subprocess
 import tempfile
 import time
 
+from darwin_boundary import sqlite_overlay, verify_sqlite_inputs
 from go_test_events import events
-from native_suites import CHILDREN, INTEL_PHASES, MODULE, MODULE_CHILDREN, ROOT, SERVER, manifest
+from native_suites import CHILDREN, INTEL_PHASES, MODULE, MODULE_CHILDREN, ROOT, SERVER, SQLITE, manifest
 from platform_policy import CONTRACT
 from project_reference import digest, document, require, same, source_identity
 
@@ -261,6 +262,7 @@ def verify(directory, suite, mode, source):
             verify_module(directory / (name + '-child.json'), *spec)
         verify_sdk(directory, mode)
     else:
+        verify_sqlite_inputs(directory, mode, arch)
         index = next(i for i, row in enumerate(planned) if row['package'] == SERVER)
         log = directory / f'batch-{index}.json'
         root = (
@@ -324,6 +326,10 @@ def run(directory, suite, mode):
             binary = Path(tmp) / f'package-{i}.test'
             started = time.monotonic()
             flags = ['-race'] if mode == 'race' else []
+            if suite == 'intel-compatibility' and package == SQLITE:
+                overlay = Path(tmp) / 'sqlite-overlay.json'
+                sqlite_overlay(directory, mode, overlay, arch, env)
+                flags.extend(['-overlay', str(overlay)])
             subprocess.run(
                 ['go', 'test', '-p=1', '-trimpath', *flags, '-c', '-o', str(binary), package],
                 env=env,

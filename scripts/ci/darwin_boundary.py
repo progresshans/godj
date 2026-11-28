@@ -1,8 +1,10 @@
 """Assign Darwin boundary tests and compile their original SQLite test sources."""
 
 import argparse
+from functools import lru_cache
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 
@@ -72,33 +74,41 @@ def sqlite_test_inputs(package, active):
     return kept, omit
 
 
-def sqlite_overlay(directory, mode, overlay):
-    if mode not in ('race', 'cgo0'):
-        raise ValueError('unsupported Darwin boundary mode')
+def sqlite_listing(mode, env, overlay=None):
     flags = ['-race'] if mode == 'race' else []
+    if overlay is not None:
+        flags.extend(['-overlay', str(overlay)])
+    return json.loads(subprocess.check_output(['go', 'list', *flags, '-json', SQLITE], cwd=ROOT, env=env))
 
-    def listing(extra):
-        return json.loads(subprocess.check_output(['go', 'list', *flags, *extra, '-json', SQLITE], cwd=ROOT))
 
-    before = listing([])
-    package = Path(before['Dir'])
-    tests = set(before.get('TestGoFiles', []) + before.get('XTestGoFiles', []))
-    kept, omitted = sqlite_test_inputs(package, tests)
-    overlay.write_text(json.dumps({'Replace': {str(package / f): '' for f in omitted}}))
-    after = listing(['-overlay', str(overlay)])
-    if (
-        any(before.get(k, []) != after.get(k, []) for k in PRODUCTION)
-        or set(after.get('TestGoFiles', []) + after.get('XTestGoFiles', [])) != set(kept)
-    ):
-        raise ValueError('native SQLite overlay changed product inputs or its selected test units')
-    record = {
-        'package': SQLITE,
-        'mode': mode,
-        'product_go_files': sorted(before['GoFiles'] + before.get('CgoFiles', [])),
-        'inactive_go_files': sorted(before.get('IgnoredGoFiles', [])),
-        'tests': kept,
-        'other_test_files': omitted,
+def sqlite_inputs(listing, arch, mode):
+    tests = set(listing.get('TestGoFiles', []) + listing.get('XTestGoFiles', []))
+    kept, omitted = sqlite_test_inputs(Path(listing['Dir']), tests)
+    production = {k: sorted(listing.get(k, [])) for k in PRODUCTION}
+    return {
+        'package': SQLITE, 'goos': 'darwin', 'goarch': arch, 'mode': mode,
+        'cgo': '0' if mode == 'cgo0' else '1',
+        'product_go_files': sorted(production['GoFiles'] + production['CgoFiles']),
+        'production_sha256': hashlib.sha256(json.dumps(production, sort_keys=True).encode()).hexdigest(),
+        'inactive_go_files': sorted(listing.get('IgnoredGoFiles', [])),
+        'tests': kept, 'other_test_files': omitted,
     }
+
+
+def sqlite_overlay(directory, mode, overlay, arch='arm64', env=None):
+    if mode not in ('normal', 'race', 'cgo0') or arch not in ('amd64', 'arm64'):
+        raise ValueError('unsupported Darwin SQLite coordinate')
+    actual = subprocess.check_output(['go', 'env', 'GOOS', 'GOARCH', 'CGO_ENABLED'], env=env, text=True).splitlines()
+    if actual != ['darwin', arch, '0' if mode == 'cgo0' else '1']:
+        raise ValueError('native SQLite overlay target differs from the requested coordinate')
+    before = sqlite_listing(mode, env)
+    record = sqlite_inputs(before, arch, mode)
+    package = Path(before['Dir'])
+    overlay.write_text(json.dumps({'Replace': {str(package / f): '' for f in record['other_test_files']}}))
+    after = sqlite_listing(mode, env, overlay)
+    if (any(before.get(k, []) != after.get(k, []) for k in PRODUCTION)
+            or set(after.get('TestGoFiles', []) + after.get('XTestGoFiles', [])) != set(record['tests'])):
+        raise ValueError('native SQLite overlay changed product inputs or its selected test units')
     (directory / 'darwin-native-sqlite-inputs.json').write_text(json.dumps(record, sort_keys=True) + '\n')
 
 
@@ -132,38 +142,18 @@ def verify_execution(log, selected, complete_packages=False):
             raise ValueError('incomplete Darwin boundary package execution')
 
 
-def verify_sqlite_inputs(directory, mode):
+@lru_cache(maxsize=4)
+def expected_sqlite_inputs(arch, mode):
+    # The gate can enumerate Darwin build inputs on Linux without executing or
+    # linking a target binary. The build and test events come from the native host.
+    env = {**os.environ, 'GOOS': 'darwin', 'GOARCH': arch, 'CGO_ENABLED': '0' if mode == 'cgo0' else '1'}
+    return sqlite_inputs(sqlite_listing(mode, env), arch, mode)
+
+
+def verify_sqlite_inputs(directory, mode, arch='arm64'):
     record = json.loads((directory / 'darwin-native-sqlite-inputs.json').read_text())
-    package = ROOT / 'db/sqlite'
-    omitted = record['other_test_files']
-    expected, allowed_omissions = sqlite_test_inputs(package, set(record['tests']) | set(omitted))
-    sources = record['product_go_files']
-    inactive = record['inactive_go_files']
-    listed = [*sources, *omitted, *record['tests'], *inactive]
-    on_disk = {p.name for p in package.glob('*.go') if not p.name.startswith(('.', '_'))}
-    if len(listed) != len(set(listed)) or set(listed) != on_disk:
-        raise ValueError('incomplete or overlapping native SQLite source inventory')
-    if (
-        record['package'] != SQLITE
-        or record['mode'] != mode
-        or record['tests'] != expected
-        or omitted != allowed_omissions
-        or not sources
-        or len(sources) != len(set(sources))
-        or len(omitted) != len(set(omitted))
-        or set(omitted) & set(expected)
-        or any(
-            Path(f).name != f
-            or not f.endswith('.go')
-            or f.endswith('_test.go')
-            or not (package / f).is_file()
-            for f in sources
-        )
-        or any(
-            Path(f).name != f or not f.endswith('_test.go') or not (package / f).is_file() for f in omitted
-        )
-    ):
-        raise ValueError('native SQLite compilation record differs from its source')
+    if record != expected_sqlite_inputs(arch, mode):
+        raise ValueError('native SQLite compilation record differs from its target and source')
 
 
 def verify(directory, owner, mode):

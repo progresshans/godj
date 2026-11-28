@@ -164,6 +164,23 @@ class NativeObligationsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 sqlite_test_inputs(package, {'../outside_test.go'})
 
+    def test_intel_sqlite_requires_the_active_sources_for_its_own_coordinate(self):
+        from darwin_boundary import SQLITE_TEST_FILES, expected_sqlite_inputs, verify_sqlite_inputs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            path = directory / 'darwin-native-sqlite-inputs.json'
+            for mode in ('normal', 'cgo0'):
+                original = expected_sqlite_inputs('amd64', mode)
+                self.assertEqual(set(original['tests']), set(SQLITE_TEST_FILES))
+                path.write_text(json.dumps(original))
+                verify_sqlite_inputs(directory, mode, 'amd64')
+                for field, wrong in [('goarch', 'arm64'), ('goos', 'linux'), ('mode', 'race'),
+                                     ('production_sha256', '0' * 64), ('tests', {})]:
+                    path.write_text(json.dumps({**original, field: wrong}))
+                    with self.subTest(mode=mode, field=field), self.assertRaises(ValueError):
+                        verify_sqlite_inputs(directory, mode, 'amd64')
+
     def test_all_new_artifact_owners_use_the_same_pinned_upload_with_an_adjacent_receipt(self):
         import re
 

@@ -169,16 +169,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                 records.extend(self.event(action, Package=package, Test=test) for action in ('run', 'pass'))
             records.append(self.event('pass', Package=package))
         self.write_events(target / 'darwin-native-tests.json', records)
-        sqlite = ROOT / 'db/sqlite'
-        tests = darwin_boundary.SQLITE_TEST_FILES
-        self.write_json(target / 'darwin-native-sqlite-inputs.json', {
-            'package': darwin_boundary.SQLITE,
-            'mode': mode,
-            'tests': {name: digest(sqlite / name) for name in tests},
-            'inactive_go_files': [],
-            'product_go_files': sorted(p.name for p in sqlite.glob('*.go') if not p.name.endswith('_test.go')),
-            'other_test_files': sorted(p.name for p in sqlite.glob('*_test.go') if p.name not in tests),
-        })
+        self.write_json(target / 'darwin-native-sqlite-inputs.json', darwin_boundary.expected_sqlite_inputs('arm64', mode))
 
     def scaffold_fixture(self, target):
         other = 'github.com/progresshans/godj/project'
@@ -335,12 +326,16 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         target = self.directory / 'project-reload-darwin-arm64-race-2'
         path = target / 'darwin-native-sqlite-inputs.json'
         record = document(path)
-        for mutation in ('duplicate', 'missing', 'hash'):
+        for mutation in ('duplicate', 'missing', 'hash', 'arch', 'cgo'):
             changed = copy.deepcopy(record)
             if mutation == 'duplicate':
                 changed['inactive_go_files'].append(changed['product_go_files'][0])
             elif mutation == 'missing':
                 changed['other_test_files'].pop()
+            elif mutation == 'arch':
+                changed['goarch'] = 'amd64'
+            elif mutation == 'cgo':
+                changed['cgo'] = '0'
             else:
                 changed['tests'][darwin_boundary.SQLITE_TEST_FILES[0]] = '0' * 64
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
