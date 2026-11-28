@@ -46,17 +46,25 @@ generate-check:
 	python3 codegen/consumertest/testdata/calendarextraction/generate_expectations.py --check
 	python3 internal/unicode16/generate.py --check
 	python3 -m unittest discover -s internal/unicode16 -p 'test_*.py'
-	go run ./cmd/godj generate --check --project ./identity/godj.toml
-	go run ./cmd/godj generate --check --project ./account/domain/godj.toml
-	go run ./cmd/godj generate --check --project ./account/audit/godj.toml
-	go run ./cmd/godj generate --check --project ./sessions/database/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/identityfixture/godj.toml
-	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
-	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/relationfixture/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/onetoonefixture/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/cascadefixture/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/accountdeletefixture/godj.toml
+	@set -euo pipefail; \
+	generator_dir="$$(mktemp -d)"; \
+	trap 'rm -rf "$$generator_dir"' EXIT; \
+	go build -o "$$generator_dir/godj" ./cmd/godj; \
+	for project in \
+		./identity/godj.toml \
+		./account/domain/godj.toml \
+		./account/audit/godj.toml \
+		./sessions/database/godj.toml \
+		./conformance/identityfixture/godj.toml \
+		./examples/helpdesk/godj.toml \
+		./examples/article/godj.toml \
+		./conformance/relationfixture/godj.toml \
+		./conformance/onetoonefixture/godj.toml \
+		./conformance/cascadefixture/godj.toml \
+		./conformance/accountdeletefixture/godj.toml; do \
+		printf 'Checking generated files for %s\n' "$$project"; \
+		"$$generator_dir/godj" generate --check --project "$$project"; \
+	done
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:
