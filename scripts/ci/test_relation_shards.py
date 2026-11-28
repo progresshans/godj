@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 
+from account_database import account_database_pairs
 from go_test_events import discover_roots
 from relation_shards import CONSUMER, runtime_plan, verify_runtime, ISOLATED_ACCOUNT_ROOTS, matrix, partition, plan, verify
 
@@ -35,9 +36,24 @@ class RelationShardTest(unittest.TestCase):
     def execution(self, roots):
         result = [self.event('start')]
         for root in roots:
-            result.extend([self.event('run', Test=root), self.event('run', Test=root + '/child'),
-                           self.event('pass', Test=root + '/child'), self.event('pass', Test=root)])
+            result.append(self.event('run', Test=root))
+            branches = [v.split('|', 1)[1] for v in account_database_pairs().values() if v.startswith(CONSUMER + '|' + root + '/')]
+            for child in [root + '/child', *branches]:
+                result.extend([self.event('run', Test=child), self.event('pass', Test=child)])
+            result.append(self.event('pass', Test=root))
         return result + [self.event('pass')]
+
+    def test_linux_first_account_rejects_missing_repeated_and_wrong_backend(self):
+        root = 'TestGeneratedFirstAccountUsesRequiredProfiles'
+        good = self.execution([root])
+        name = root + '/default/sqlite'
+        log = self.write('account.json', good)
+        verify(log, [root], 1, 1, [CONSUMER])
+        for bad in ([e for e in good if e.get('Test') != name],
+                    good[:-1] + [self.event('pass', Test=name), good[-1]],
+                    good[:-1] + [self.event('run', Test=root + '/default/postgres'), good[-1]]):
+            with self.assertRaises(ValueError):
+                verify(self.write('account.json', bad), [root], 1, 1, [CONSUMER])
 
     def test_amd64_race_costs_only_place_complete_parts_on_existing_workers(self):
         from unittest.mock import patch

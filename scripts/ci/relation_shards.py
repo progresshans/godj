@@ -12,12 +12,12 @@ import json
 from pathlib import Path
 import re
 
-from go_test_events import discover_roots, events, inspect
+from account_database import AccountBackendRuns, CONSUMER_PACKAGE as CONSUMER, account_database_pairs
+from go_test_events import Inventory, discover_roots, events, inspect
 from worker_parts import pack
 from platform_policy import NATIVE_STEP_MINUTES, PLATFORMS, PROFILES
 
 
-CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
 # These complete account consumers own hundreds of seconds of generated
 # builds and native/race work. Each has its own Go process on Linux.
 ISOLATED_ACCOUNT_ROOTS = (
@@ -251,20 +251,25 @@ def plan(roots, required, packages, shard, count, layout='round-robin'):
 def verify(path, roots, shard, count, packages, layout='round-robin'):
     expected = Counter(partition(roots, shard, count, layout))
     runs, passes = Counter(), Counter()
-    inventory = inspect(path)
-    errors = inventory.verify(packages=packages, no_skips=True)
-    if inventory.packages != set(packages):
-        errors.append('executed packages differ from this partition owner')
-    consumer_expected = shard != 0
-    if (CONSUMER in inventory.packages) != consumer_expected:
-        errors.append('consumer package ran under the wrong partition owner')
+    selected = [entry.partition('|')[2] for entry in account_database_pairs().values()]
+    account = AccountBackendRuns([name for name in selected if name.partition('/')[0] in expected], 'sqlite')
+    inventory = Inventory()
     for event in events(path):
+        inventory.add(event)
+        account.observe(event)
         test = event.get('Test', '')
         if event.get('Package') == CONSUMER and test and '/' not in test:
             if event['Action'] == 'run':
                 runs[test] += 1
             elif event['Action'] == 'pass':
                 passes[test] += 1
+    account.verify()
+    errors = inventory.verify(packages=packages, no_skips=True)
+    if inventory.packages != set(packages):
+        errors.append('executed packages differ from this partition owner')
+    consumer_expected = shard != 0
+    if (CONSUMER in inventory.packages) != consumer_expected:
+        errors.append('consumer package ran under the wrong partition owner')
     if runs != expected or passes != expected:
         errors.append('consumer roots did not run and pass exactly once in their declared shard')
     if errors:

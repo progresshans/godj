@@ -8,13 +8,13 @@ The required manifest stays authoritative for tests, including child-only roots.
 """
 import argparse
 from collections import Counter
-from functools import cache
 import hashlib
 import json
 from pathlib import Path
 import re
 from statistics import median
 
+from account_database import AccountBackendRuns, CONSUMER_PACKAGE, account_database_pairs
 from go_test_events import events
 from worker_parts import pack
 
@@ -36,7 +36,6 @@ HELPDESK_POSTGRES_ROOTS = frozenset({
     'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance',
     'TestSelectedAccountHelpdeskPostgresScopeLifecycle',
 })
-CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedAccountCreationInputPolicy',
@@ -184,23 +183,6 @@ def required_entries(path):
     return entries
 
 
-@cache
-def account_database_pairs():
-    rows = (Path(__file__).with_name('account-database-owners.txt')).read_text().splitlines()
-    if not rows or len(rows) != len(set(rows)):
-        raise ValueError('empty or duplicate account database coverage')
-    pairs = {}
-    for entry in rows:
-        package, _, path = entry.partition('|')
-        root = path.partition('/')[0]
-        if (package != CONSUMER_PACKAGE
-                or not (root.startswith('TestGeneratedAccount') or root == 'TestGeneratedFirstAccountUsesRequiredProfiles')
-                or path.split('/').count('{backend}') != 1):
-            raise ValueError('invalid account database coverage: ' + entry)
-        pairs[entry.replace('{backend}', 'postgres')] = entry.replace('{backend}', 'sqlite')
-    return pairs
-
-
 def audit_database_owners(pg_entries, linux_entries, pairs):
     pg, linux = set(pg_entries), set(linux_entries)
     if not pairs or not set(pairs) <= pg or not set(pairs.values()) <= linux or set(pairs.values()) & pg:
@@ -215,21 +197,13 @@ def audit_database_owners(pg_entries, linux_entries, pairs):
 
 def verify_account_backends(log, required, roots):
     wanted = {e.partition('|')[2] for e in required if e in account_database_pairs()}
-    starts, passes = Counter(), Counter()
-    for event in events(log):
-        name = event.get('Test', '')
-        parts = name.split('/')
-        if event.get('Package') != CONSUMER_PACKAGE or parts[0] not in roots:
-            continue
-        if 'sqlite' in parts or event['Action'] in ('skip', 'fail'):
-            raise ValueError('wrong backend or incomplete PostgreSQL account execution: ' + name)
-        if name in wanted:
-            if event['Action'] == 'run':
-                starts[name] += 1
-            elif event['Action'] == 'pass':
-                passes[name] += 1
-    if starts != Counter(wanted) or passes != Counter(wanted):
-        raise ValueError('PostgreSQL account sentinel missing or duplicated')
+    account = AccountBackendRuns(wanted, 'postgres')
+    if account.roots != set(roots):
+        raise ValueError('PostgreSQL account owner differs from the required sentinels')
+    if account.expected:
+        for event in events(log):
+            account.observe(event)
+    account.verify()
 
 
 def plan(mode, shard, entries):
