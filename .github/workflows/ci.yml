@@ -813,8 +813,17 @@ jobs:
         with:
           go-version: "1.26.5"
           check-latest: false
-          cache: true
-          cache-dependency-path: ${{ env.GODJ_GO_CACHE_INPUTS }}
+          cache: false
+
+      - name: Locate the host module cache
+        id: host_modules
+        run: echo "modules=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore or save Darwin compiler modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.host_modules.outputs.modules }}
+          key: godj-mod-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-${{ hashFiles('go.sum', 'go.mod', 'api/openapi/consumertest/testdata/client/go.sum', 'api/openapi/consumertest/testdata/client/go.mod') }}
 
       - name: Restore Darwin target build objects
         id: darwin_objects
