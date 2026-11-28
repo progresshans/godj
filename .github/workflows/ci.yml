@@ -670,11 +670,20 @@ jobs:
           key: godj-mod-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-${{ hashFiles('go.sum', 'go.mod', 'api/openapi/consumertest/testdata/client/go.sum', 'api/openapi/consumertest/testdata/client/go.mod') }}
 
       - name: Restore or save pilot Go build objects
+        id: object_seed
         if: matrix.cache_family
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pilot_paths.outputs.objects }}
           key: godj-build-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-${{ matrix.cache_family }}-${{ hashFiles('go.sum', 'go.mod', 'api/openapi/consumertest/testdata/client/go.sum', 'api/openapi/consumertest/testdata/client/go.mod') }}
+
+      - name: Restore bounded Go object updates
+        id: object_update
+        if: matrix.cache_family && steps.object_seed.outputs.cache-hit == 'true'
+        uses: ./.github/actions/go-object-update
+        with:
+          family: ${{ matrix.cache_family }}
+          objects: ${{ steps.pilot_paths.outputs.objects }}
 
       - name: Assert runner coordinate
         run: |
@@ -749,6 +758,14 @@ jobs:
         run: |
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
+
+      - name: Save new objects from this successful owner
+        if: success() && steps.object_update.outputs.key != '' && steps.object_update.outputs.hit != 'true'
+        uses: ./.github/actions/go-object-update
+        with:
+          family: ${{ matrix.cache_family }}
+          objects: ${{ steps.pilot_paths.outputs.objects }}
+          save-key: ${{ steps.object_update.outputs.key }}
 
   intel-compatibility:
     needs: validation-plan
@@ -834,6 +851,14 @@ jobs:
           restore-keys: |
             darwin-cross-v1-${{ runner.os }}-${{ runner.arch }}-go1.26.5-
 
+      - name: Restore bounded Go object updates
+        id: object_update
+        if: steps.darwin_objects.outputs.cache-matched-key != ''
+        uses: ./.github/actions/go-object-update
+        with:
+          family: darwin-cross
+          objects: ${{ runner.temp }}/go-darwin-cache
+
       - name: Compile the checked-in packages and test binaries for each target
         env:
           GOCACHE: ${{ runner.temp }}/go-darwin-cache
@@ -858,6 +883,14 @@ jobs:
         with:
           key: ${{ steps.darwin_objects.outputs.cache-primary-key }}
           path: ${{ runner.temp }}/go-darwin-cache
+
+      - name: Save new objects from this successful owner
+        if: success() && steps.object_update.outputs.key != '' && steps.object_update.outputs.hit != 'true'
+        uses: ./.github/actions/go-object-update
+        with:
+          family: darwin-cross
+          objects: ${{ runner.temp }}/go-darwin-cache
+          save-key: ${{ steps.object_update.outputs.key }}
 
   product-project-check-matrix:
     needs: validation-plan
