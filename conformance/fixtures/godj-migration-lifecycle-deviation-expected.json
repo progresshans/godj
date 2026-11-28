@@ -1,0 +1,156 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0002",
+  "contracts": [
+    {
+      "id": "MIG-052",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "plan[0]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "beta"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0001_initial"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0003_third"}}
+            ]
+          }
+        },
+        {
+          "dimension": "result",
+          "path": "plan[1]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0003_third"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0002_second"}}
+            ]
+          }
+        },
+        {
+          "dimension": "result",
+          "path": "plan[2]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0002_second"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "beta"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0001_initial"}}
+            ]
+          }
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[0]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "beta"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0001_initial"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0003_third"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          }
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0003_third"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0002_second"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          }
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[2]",
+          "operation": "replace",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "alpha"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0002_second"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "app", "value": {"type": "string", "value": "beta"}},
+              {"name": "direction", "value": {"type": "string", "value": "backward"}},
+              {"name": "name", "value": {"type": "string", "value": "0001_initial"}},
+              {"name": "outcome", "value": {"type": "string", "value": "committed"}},
+              {"name": "recorder_outcome", "value": {"type": "string", "value": "unapplied"}},
+              {"name": "schema_outcome", "value": {"type": "string", "value": "reversed"}}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

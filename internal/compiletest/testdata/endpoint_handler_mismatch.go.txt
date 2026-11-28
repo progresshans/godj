@@ -1,0 +1,15 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/web"
+)
+
+type row struct{ Value int64 }
+type other struct{ Value int64 }
+
+var invalid = endpoint.Config[row, string]{Handle: func(*web.Request, auth.Principal, other) (output.Prepared[string], error) {
+	return output.Prepared[string]{}, nil
+}}

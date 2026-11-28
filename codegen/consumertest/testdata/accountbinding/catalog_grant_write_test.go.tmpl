@@ -1,0 +1,719 @@
+package consumer
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"example.com/godj-project-bundle/project"
+	@@FORM_IMPORT@@
+	@@IMPORTS@@
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/api"
+	apisession "github.com/progresshans/godj/api/sessionauth"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	identityadmin "github.com/progresshans/godj/identity/admin"
+	identityapi "github.com/progresshans/godj/identity/api"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/sessions"
+	sessionmodels "github.com/progresshans/godj/sessions/database/models"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+	websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+type grantHTTPClient struct {
+	server  *httptest.Server
+	client  *http.Client
+	handler sync.Mutex
+}
+
+func grantTestSite(t *testing.T, runtime *accountmodel.Runtime[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@], overlay auth.Authorizer, clock func() time.Time) *grantHTTPClient {
+	t.Helper()
+	check := func(err error) { t.Helper(); rootThroughCheck(t, err) }
+	cfg, err := settings.New(settings.Definition{ProjectName: "grant_test", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "granttest"})})
+	check(err)
+	builder := admin.NewBuilder(cfg.Apps())
+	check(identityadmin.RegisterCatalog(builder, runtime.Catalog(), identityadmin.CatalogRegistration{Groups: identityadmin.CatalogPresentation{Slug: "groups"}, Permissions: identityadmin.CatalogPresentation{Slug: "permissions"}}))
+	registry, err := builder.Build()
+	check(err)
+	next, err := admin.SiteAllowedNextPaths(registry, "/admin")
+	check(err)
+	cookie := websession.CookieConfig{Path: "/", AllowInsecure: true}
+	login, err := websession.New(websession.Config{Sessions: runtime.Sessions(), Authenticator: runtime.Authenticator(), Authorizer: overlay, LoginPersistence: runtime.LoginPersistence(), Clock: clock,
+		SessionCookie: cookie, CSRFCookie: cookie, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: next})
+	check(err)
+	site, err := admin.NewSite(admin.SiteConfig{Apps: cfg.Apps(), Namespace: "granttest", Registry: registry, Auth: login})
+	check(err)
+	authn, err := apisession.New(login, apisession.WithReadOnlyResolution())
+	check(err)
+	management, err := identityapi.NewManagement(runtime.Accounts(), runtime.Catalog(), identityapi.ManagementConfig{Namespace: "granttest", Authentication: authn})
+	check(err)
+	app, err := web.NewApplication(web.Config{Settings: cfg, Routes: append(site.Routes(), management.Routes()...), Middleware: management.Middleware()})
+	check(err)
+	h := &grantHTTPClient{}
+	h.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.handler.Lock()
+		defer h.handler.Unlock()
+		app.ServeHTTP(w, r)
+	}))
+	t.Cleanup(h.server.Close)
+	jar, err := cookiejar.New(nil)
+	check(err)
+	h.client = &http.Client{Transport: h.server.Client().Transport, Jar: jar, Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return h
+}
+
+func (h *grantHTTPClient) send(t *testing.T, method, path, body, contentType, token, revision string) (int, http.Header, []byte) {
+	t.Helper()
+	check := func(err error) { t.Helper(); rootThroughCheck(t, err) }
+	req, err := http.NewRequestWithContext(t.Context(), method, h.server.URL+path, strings.NewReader(body))
+	check(err)
+	if method != "GET" {
+		req.Header.Set("Origin", h.server.URL)
+		req.Header.Set("Content-Type", contentType)
+	}
+	if token != "" {
+		req.Header.Set(websession.DefaultCSRFHeader, token)
+	}
+	if revision != "" {
+		req.Header.Set("If-Revision", revision)
+	}
+	// Order this test's failure hooks and counters with the real HTTP handler.
+	h.handler.Lock()
+	h.handler.Unlock()
+	resp, err := h.client.Do(req)
+	check(err)
+	defer func() { h.handler.Lock(); h.handler.Unlock() }()
+	b, err := io.ReadAll(resp.Body)
+	check(err)
+	check(resp.Body.Close())
+	return resp.StatusCode, resp.Header, b
+}
+
+func (h *grantHTTPClient) token(t *testing.T, path string) string {
+	t.Helper()
+	code, _, body := h.send(t, "GET", path, "", "", "", "")
+	token := regexp.MustCompile("name=\"csrfmiddlewaretoken\" value=\"([A-Za-z0-9_-]{128})\"").FindSubmatch(body)
+	if code != 200 || len(token) != 2 {
+		t.Fatalf("GET %s did not render a CSRF form (%d)", path, code)
+	}
+	return string(token[1])
+}
+
+func (h *grantHTTPClient) form(t *testing.T, path string, data url.Values) int {
+	t.Helper()
+	data.Set("csrfmiddlewaretoken", h.token(t, path))
+	code, _, _ := h.send(t, "POST", path, data.Encode(), "application/x-www-form-urlencoded", "", "")
+	return code
+}
+
+type grantStoredState struct {
+	accounts    []@@ACCOUNT@@
+	groups      []@@GROUP@@
+	permissions []@@PERMISSION@@
+	audit       []auditmodels.Event
+	sessions    []sessionmodels.Session
+	domains     []domainmodels.Transition
+}
+
+func TestCatalogGrantWrite(t *testing.T) {
+	check := func(err error) { t.Helper(); rootThroughCheck(t, err) }
+	binding, err := project.BindAccount()
+	check(err)
+	role, err := binding.Role()
+	check(err)
+	objects, err := binding.Objects()
+	check(err)
+	groups := orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{})
+	permissions := orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
+	through := orm.NewManager[@@THROUGH@@](@@THROUGH@@Descriptor{})
+	native, selected := openAccountDatabase(t)
+	migrateAccountDefinitions(t, native, @@MIGRATIONS@@)
+	reader, err := database.Open(t.Context(), selected)
+	check(err)
+	t.Cleanup(func() { reader.Close() })
+	backend := &rootThroughBackend{Backend: native}
+	baseHasher, _ := accountPassword(t)
+	hasher := &rootThroughHasher{PasswordHasher: baseHasher, backend: backend}
+	overlay := &rootThroughOverlay{}
+	clock := func() time.Time { return time.Date(2026, 10, 12, 14, 0, 0, 0, time.UTC) }
+	related := accountmodel.RelatedRowPermissions{Account: accountmodel.DeletionPermissions{Change: "account.change", Delete: "account.delete"}, Group: accountmodel.DeletionPermissions{Change: "catalog.change_group", Delete: "catalog.delete_group"}, Permission: accountmodel.DeletionPermissions{Change: "catalog.change_permission", Delete: "catalog.delete_permission"}}
+	nestedRelated := related
+	nestedRelated.Group.Additional = []auth.Permission{"nested.approve"}
+	profile := []string{role.Login, "@@PROFILE@@"}
+	bootstrap, err := project.NewFirstAccount(backend, hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: profile, RelatedPermissions: related}, EvidenceSHA256: strings.Repeat("f", 64)})
+	check(err)
+	const operator = "operator@example.test"
+	initial, err := objects.Input(map[string]query.Value{role.Login: query.String(operator), "@@PROFILE@@": query.String("KR")})
+	check(err)
+	prepared, err := bootstrap.Prepare(t.Context(), initial, accountPasswordText)
+	check(err)
+	_, err = bootstrap.Commit(t.Context(), prepared)
+	check(err)
+	var targets []int64
+	for i := 0; i < 6; i++ {
+		p, err := permissions.PrepareValues(nil, map[string]query.Value{role.Catalog.PermissionName: query.String(fmt.Sprintf("Target %d", i)), role.Catalog.PermissionCode: query.String(fmt.Sprintf("sample.p%d", i)), role.Catalog.PermissionRevision: query.Integer(1)})
+		check(err)
+		row, err := p.Model()
+		check(err)
+		check(p.Save(t.Context(), native, &row))
+		targets = append(targets, rootThroughKey(t, permissions, row))
+	}
+	childIdentity, natural, code := role.Catalog.Group, role.Catalog.GroupName, ""
+	switch "@@KIND@@" {
+	case "account":
+		childIdentity, natural = role.Model, role.Login
+	case "permission":
+		childIdentity, natural, code = role.Catalog.Permission, role.Catalog.PermissionName, role.Catalog.PermissionCode
+	}
+	childFields := []string{natural}
+	if code != "" {
+		childFields = append(childFields, code)
+	}
+	if "@@KIND@@" == "account" {
+		childFields = append(childFields, "@@PROFILE@@")
+	}
+	var parents []bool
+	var knownSources []int64
+	var lateRefusal, lateMutation bool
+	prepareNested := func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
+		source, known := pair.SourceKey()
+		target, found := pair.TargetKey()
+		if !found || pair.SourceField() != "catalog_owner" || pair.TargetField() != "catalog_permission" || backend.reading != 1 || backend.writing != 0 {
+			return orm.ModelInput[@@THROUGH@@]{}, errors.New("invalid grant preparation scope or endpoints")
+		}
+		parents = append(parents, known)
+		if known {
+			knownSources = append(knownSources, source)
+		}
+		label := fmt.Sprintf("grant-%d@example.test", target)
+		values := map[string]query.Value{natural: query.String(label)}
+		if code != "" {
+			values[code] = query.String(fmt.Sprintf("nested.p%x", uint64(target)))
+		}
+		if "@@KIND@@" == "account" {
+			values["@@PROFILE@@"] = query.String("NZ")
+		}
+		return through.Input(values)
+	}
+	validateNested := func(ctx context.Context, _ db.Queryer, _ *@@THROUGH@@, row @@THROUGH@@) (validation.Errors, error) {
+		_, stored, err := through.PrimaryKey(row)
+		if err != nil || !stored {
+			return validation.Errors{}, err
+		}
+		if lateRefusal {
+			return validation.NewErrors(validation.New(validation.Field(natural), "late_refusal")), nil
+		}
+		if lateMutation {
+			p, err := through.PrepareValues(&row, map[string]query.Value{natural: query.String("changed@example.test")})
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			changed, err := p.Model()
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			return validation.Errors{}, p.Save(ctx, backend.scope, &changed)
+		}
+		return validation.Errors{}, nil
+	}
+	@@POLICY@@
+	groupFields := []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}
+	permFields := []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}
+	cfg := accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{
+		Group:              accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: groupFields, WriteFields: groupFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: related.Group.Change, Delete: related.Group.Delete}},
+		Permission:         accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: permFields, WriteFields: permFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: related.Permission.Change, Delete: related.Permission.Delete}},
+		AccountPermissions: related.Account, GroupThroughCreations: map[string]accountmodel.ThroughCreation{role.Catalog.GroupPermissions: policy}, ThroughCreationLimit: 2, Now: clock,
+	}
+	accountFields := append(slices.Clone(profile), role.Groups)
+	runtimeConfig := accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{
+		Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{
+			ReadFields: accountFields, CreateFields: accountFields, EditFields: []string{"@@PROFILE@@"},
+			Permissions: accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"},
+			GroupPermissions: related.Group, PermissionPermissions: related.Permission,
+		},
+		Catalog: cfg, Sessions: sessions.Config{Clock: clock},
+	}
+	runtime, err := project.NewAccountRuntime(t.Context(), backend, hasher, overlay, runtimeConfig)
+	check(err)
+	snapshot := func(b database.Backend) grantStoredState {
+		result, err := db.ReadSnapshotResult(t.Context(), b, func(_ context.Context, scope db.Queryer) (grantStoredState, error) {
+			return grantStoredState{rootThroughRows(t, scope, objects), rootThroughRows(t, scope, groups), rootThroughRows(t, scope, permissions),
+				rootThroughRows(t, scope, orm.NewManager[auditmodels.Event](auditmodels.EventDescriptor{})), rootThroughRows(t, scope, orm.NewManager[sessionmodels.Session](sessionmodels.SessionDescriptor{})),
+				rootThroughRows(t, scope, orm.NewManager[domainmodels.Transition](domainmodels.TransitionDescriptor{}))}, nil
+		})
+		check(err)
+		return result
+	}
+	t.Run("configuration", func(t *testing.T) {
+		before := snapshot(reader)
+		for _, alter := range []func(*accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]){
+			func(c *accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]) {
+				c.GroupThroughCreations = nil
+				c.ThroughCreationLimit = 0
+			},
+			func(c *accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]) {
+				c.ThroughCreationLimit = 0
+			},
+			func(c *accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]) {
+				c.ThroughCreationLimit = accountmodel.MaximumThroughCreations + 1
+			},
+			func(c *accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]) {
+				c.Group.WriteFields = []string{role.Catalog.GroupName}
+			},
+			func(c *accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]) {
+				c.GroupThroughCreations = map[string]accountmodel.ThroughCreation{role.Catalog.GroupName: policy}
+			},
+		} {
+			bad := cfg
+			alter(&bad)
+			value, err := project.NewAccountCatalog(runtime.SessionStore(), overlay, bad)
+			if err == nil || value != nil {
+				t.Fatal("invalid grant through configuration accepted")
+			}
+		}
+		readOnly := cfg
+		readOnly.Group.WriteFields = []string{role.Catalog.GroupName}
+		readOnly.GroupThroughCreations = nil
+		readOnly.ThroughCreationLimit = 0
+		_, err := project.NewAccountCatalog(runtime.SessionStore(), overlay, readOnly)
+		check(err)
+		if !reflect.DeepEqual(before, snapshot(reader)) || len(parents) != 0 {
+			t.Fatal("building a catalog changed stored state")
+		}
+	})
+	site := grantTestSite(t, runtime, overlay, clock)
+	if status := site.form(t, "/admin/login/", url.Values{"username": {operator}, "password": {accountPasswordText}, "next": {"/admin/"}}); status != 302 {
+		t.Fatalf("staff login status %d", status)
+	}
+	cred, err := runtime.Authenticator().Authenticate(t.Context(), operator, accountPasswordText)
+	check(err)
+	actor := cred.Principal()
+	rootName := "grant test group"
+	var id, revision int64
+	findRoot := func(b database.Backend) (int64, int64) {
+		for _, row := range rootThroughRows(t, b, groups) {
+			v, err := groups.ModelValues(row)
+			check(err)
+			if name, _ := v[role.Catalog.GroupName].String(); name == rootName {
+				rev, ok := v[role.Catalog.GroupRevision].Integer()
+				if !ok {
+					t.Fatal("group revision absent")
+				}
+				return rootThroughKey(t, groups, row), rev
+			}
+		}
+		t.Fatal("stored grant group missing")
+		return 0, 0
+	}
+	links := func(b database.Backend) map[int64]int64 {
+		result := map[int64]int64{}
+		for _, row := range rootThroughRows(t, b, through) {
+			v, err := through.ModelValues(row)
+			check(err)
+			owner, present := v["catalog_owner"].Integer()
+			if !present || owner != id {
+				continue
+			}
+			target, ok := v["catalog_permission"].Integer()
+			if !ok {
+				t.Fatal("missing grant endpoint")
+			}
+			if _, dup := result[target]; dup {
+				t.Fatal("duplicate physical grant")
+			}
+			result[target] = rootThroughKey(t, through, row)
+		}
+		return result
+	}
+	input := func(keys []int64) orm.ModelInput[@@GROUP@@] {
+		v, err := groups.Input(nil)
+		check(err)
+		v, err = v.WithCollections(map[string][]int64{role.Catalog.GroupPermissions: keys})
+		check(err)
+		return v
+	}
+	patchGroup := func(t *testing.T, keys []int64, rev int64) (int, http.Header, []byte) {
+		t.Helper()
+		body, err := json.Marshal(map[string]any{"fields": map[string]any{role.Catalog.GroupPermissions: keys}})
+		rootThroughCheck(t, err)
+		token := site.token(t, "/admin/groups/add/")
+		return site.send(t, http.MethodPatch, fmt.Sprintf("/api/identity/groups/%d/", id), string(body), api.JSONContentType, token, strconv.FormatInt(rev, 10))
+	}
+	hasher.calls = 0
+	var childSession sessions.Record
+	const grantee = "reader@example.test"
+	checkMember := func(t *testing.T, verifier *accountmodel.Authenticator[@@ACCOUNT@@], want ...auth.Permission) {
+		t.Helper()
+		credential, err := verifier.Authenticate(t.Context(), grantee, accountPasswordText)
+		rootThroughCheck(t, err)
+		grants := credential.Principal().Permissions()
+		slices.Sort(grants)
+		if !slices.Equal(grants, want) || credential.Principal().Has("unrelated.admin") {
+			t.Fatal("member credential did not resolve the current group grant set")
+		}
+	}
+	t.Run("admin_create", func(t *testing.T) {
+		if status := site.form(t, "/admin/groups/add/", url.Values{role.Catalog.GroupName: {rootName}, role.Catalog.GroupPermissions: {strconv.FormatInt(targets[0], 10), strconv.FormatInt(targets[1], 10)}}); status != 302 {
+			t.Fatalf("Admin group add status %d", status)
+		}
+		id, revision = findRoot(reader)
+		stored := links(reader)
+		if revision != 1 || len(stored) != 2 || !slices.Equal(parents, []bool{false, false}) {
+			t.Fatal("new group did not bind two deferred physical links", revision, len(stored), parents)
+		}
+		for _, key := range targets[:2] {
+			child, ok := stored[key]
+			if !ok {
+				t.Fatal("missing grant")
+			}
+			matches := 0
+			for _, event := range snapshot(reader).audit {
+				if event.Model == childIdentity.AppLabel+"."+childIdentity.ModelName && event.ObjectID == child && event.Action == string(admin.ActionAdd) && event.ActorID == actor.ID() {
+					matches++
+				}
+			}
+			if matches != 1 {
+				t.Fatal("missing or duplicate child add audit")
+			}
+		}
+		want := 0
+		if "@@KIND@@" == "account" {
+			want = 2
+			credential, err := runtime.Authenticator().Authenticate(t.Context(), fmt.Sprintf("grant-%d@example.test", targets[0]), accountPasswordText)
+			check(err)
+			childSession, err = auth.EstablishSession(t.Context(), runtime.Sessions(), credential, sessions.Record{})
+			check(err)
+		}
+		if hasher.calls != want {
+			t.Fatal("unexpected child hash count", hasher.calls)
+		}
+	})
+	if t.Failed() {
+		return
+	}
+	t.Run("group_member", func(t *testing.T) {
+		values, err := objects.Input(map[string]query.Value{role.Login: query.String(grantee), "@@PROFILE@@": query.String("KR")})
+		check(err)
+		values, err = values.WithCollections(map[string][]int64{role.Groups: {id}})
+		check(err)
+		creator := runtime.Accounts().Creator()
+		pending, err := creator.Prepare(t.Context(), actor, values, accountPasswordText)
+		check(err)
+		_, err = creator.Commit(t.Context(), actor, pending)
+		check(err)
+		checkMember(t, runtime.Authenticator(), "sample.p0", "sample.p1")
+	})
+	t.Run("api_replace", func(t *testing.T) {
+		old := links(reader)
+		status, header, body := patchGroup(t, targets[1:3], revision)
+		var receipt struct{ ID, Revision int64 }
+		check(json.Unmarshal(body, &receipt))
+		if status != 200 || header.Get("Revision") != "2" || receipt.ID != id || receipt.Revision != 2 {
+			t.Fatal("group patch receipt", status, receipt)
+		}
+		_, revision = findRoot(reader)
+		stored := links(reader)
+		_, added := stored[targets[2]]
+		_, removed := stored[targets[0]]
+		if len(stored) != 2 || stored[targets[1]] != old[targets[1]] || !added || removed || !slices.Equal(parents, []bool{false, false, true}) {
+			t.Fatal("group patch lost retained identity or created the wrong row")
+		}
+		checkMember(t, runtime.Authenticator(), "sample.p1", "sample.p2")
+		if "@@KIND@@" == "account" {
+			_, found, err := runtime.SessionStore().Load(t.Context(), childSession.ID())
+			check(err)
+			if found {
+				t.Fatal("removed grant account retained its authenticated session")
+			}
+		}
+	})
+	if t.Failed() {
+		return
+	}
+	t.Run("retained", func(t *testing.T) {
+		before := snapshot(reader)
+		factories, hashes := len(parents), hasher.calls
+		status, _, _ := patchGroup(t, []int64{targets[2], targets[1], targets[2]}, revision)
+		if status != 200 || len(parents) != factories || hasher.calls != hashes || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("retained grants ran creation or advanced group state", status)
+		}
+	})
+	t.Run("denied_add", func(t *testing.T) {
+		path := fmt.Sprintf("/admin/groups/change/?id=%d", id)
+		fields := url.Values{role.Catalog.GroupName: {rootName}, role.Catalog.GroupPermissions: {strconv.FormatInt(targets[3], 10)}, "expected_revision": {strconv.FormatInt(revision, 10)}}
+		before := snapshot(reader)
+		hashes := hasher.calls
+		overlay.deny = "nested.add"
+		defer func() { overlay.deny = "" }()
+		if status := site.form(t, path, fields); status != 403 || hasher.calls != hashes || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("Admin granted child creation", status)
+		}
+	})
+	t.Run("denied_related", func(t *testing.T) {
+		before := snapshot(reader)
+		hashes := hasher.calls
+		overlay.deny = "nested.approve"
+		defer func() { overlay.deny = "" }()
+		status, _, _ := patchGroup(t, targets[1:4], revision)
+		if status != 403 || hasher.calls != hashes || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("API lost the insertion policy's independent grant", status)
+		}
+	})
+	t.Run("stale", func(t *testing.T) {
+		before := snapshot(reader)
+		factories := len(parents)
+		status, _, _ := patchGroup(t, targets[1:4], revision-1)
+		if status != 412 || len(parents) != factories || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("stale update evaluated a grant", status)
+		}
+	})
+	attempt := func(t *testing.T, keys []int64) error {
+		t.Helper()
+		receipt, err := runtime.Catalog().Groups().Update(t.Context(), actor, id, revision, input(keys))
+		if err == nil || !reflect.DeepEqual(receipt, accountmodel.CatalogChange{}) {
+			t.Fatal("failed update returned confirmed state", err)
+		}
+		return err
+	}
+	t.Run("limit", func(t *testing.T) {
+		before := snapshot(reader)
+		hashes := hasher.calls
+		attempt(t, targets[3:6])
+		if hasher.calls != hashes || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("over-limit update hashed or wrote")
+		}
+	})
+	t.Run("snapshot_cleanup", func(t *testing.T) {
+		before := snapshot(reader)
+		hashes := hasher.calls
+		writes := backend.starts
+		backend.cleanup = true
+		attempt(t, targets[1:4])
+		if backend.starts != writes || hasher.calls != hashes || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("failed read cleanup published grant intents")
+		}
+	})
+	t.Run("create_rollback", func(t *testing.T) {
+		before := snapshot(reader)
+		starts := backend.starts
+		values, err := groups.Input(map[string]query.Value{role.Catalog.GroupName: query.String("rolled back grant group")})
+		check(err)
+		values, err = values.WithCollections(map[string][]int64{role.Catalog.GroupPermissions: targets[4:5]})
+		check(err)
+		lateRefusal = true
+		defer func() { lateRefusal = false }()
+		change, err := runtime.Catalog().Groups().Create(t.Context(), actor, values)
+		if err == nil || !reflect.DeepEqual(change, accountmodel.CatalogChange{}) || backend.starts != starts+1 || !reflect.DeepEqual(before, snapshot(reader)) {
+			t.Fatal("late validation retained a provisional group, child or audit", err)
+		}
+	})
+	for _, name := range []string{"late_child_validation", "late_child_payload", "rollback"} {
+		t.Run(name, func(t *testing.T) {
+			before := snapshot(reader)
+			lateRefusal, lateMutation, backend.rollback = name == "late_child_validation", name == "late_child_payload", name == "rollback"
+			defer func() { lateRefusal, lateMutation, backend.rollback = false, false, false }()
+			attempt(t, targets[2:4])
+			if !reflect.DeepEqual(before, snapshot(reader)) {
+				t.Fatal("group grant failure left partial data or audit")
+			}
+		})
+	}
+	if "@@KIND@@" == "account" {
+		setActive := func(ctx context.Context, active bool) error {
+			for _, row := range rootThroughRows(t, reader, objects) {
+				values, e := objects.ModelValues(row)
+				if e != nil {
+					return e
+				}
+				name, _ := values[role.Login].String()
+				if name != operator {
+					continue
+				}
+				rev, ok := values[role.Revision].Integer()
+				if !ok || role.Active.Field == "" {
+					return errors.New("operator has no mutable active role")
+				}
+				p, e := objects.PrepareValues(&row, map[string]query.Value{role.Active.Field: query.Boolean(active), role.Revision: query.Integer(rev + 1)})
+				if e != nil {
+					return e
+				}
+				updated, e := p.Model()
+				if e != nil {
+					return e
+				}
+				return p.Save(ctx, reader, &updated)
+			}
+			return errors.New("operator missing")
+		}
+		t.Run("revoked_during_hash", func(t *testing.T) {
+			var independent grantStoredState
+			hasher.after = func(ctx context.Context) error {
+				if err := setActive(ctx, false); err != nil {
+					return err
+				}
+				independent = snapshot(reader)
+				return nil
+			}
+			err := attempt(t, targets[1:4])
+			var failure *accountmodel.Error
+			if !errors.As(err, &failure) || failure.Code != accountmodel.CodePermission || !reflect.DeepEqual(independent, snapshot(reader)) {
+				t.Fatal("revoked operator committed group grants", err)
+			}
+			check(setActive(t.Context(), true))
+		})
+		t.Run("replaced_link_during_hash", func(t *testing.T) {
+			alter := func(ctx context.Context, old, next int64) error {
+				for _, row := range rootThroughRows(t, reader, through) {
+					values, err := through.ModelValues(row)
+					if err != nil {
+						return err
+					}
+					owner, belongs := values["catalog_owner"].Integer()
+					target, found := values["catalog_permission"].Integer()
+					if !belongs || owner != id || !found || target != old {
+						continue
+					}
+					p, err := through.PrepareValues(&row, map[string]query.Value{"catalog_permission": query.Integer(next)})
+					if err != nil {
+						return err
+					}
+					updated, err := p.Model()
+					if err != nil {
+						return err
+					}
+					return p.Save(ctx, reader, &updated)
+				}
+				return errors.New("expected existing physical grant")
+			}
+			var independent grantStoredState
+			hasher.after = func(ctx context.Context) error {
+				if err := alter(ctx, targets[1], targets[4]); err != nil {
+					return err
+				}
+				independent = snapshot(reader)
+				return nil
+			}
+			err := attempt(t, targets[1:4])
+			var failure *accountmodel.Error
+			if !errors.As(err, &failure) || failure.Code != accountmodel.CodeConflict || !reflect.DeepEqual(independent, snapshot(reader)) {
+				t.Fatal("group update adopted changed physical links", err)
+			}
+			check(alter(t.Context(), targets[4], targets[1]))
+		})
+	}
+	t.Run("unknown_restart", func(t *testing.T) {
+		backend.unknown = true
+		err := attempt(t, targets[2:4])
+		backend.unknown = false
+		var failure *accountmodel.Error
+		if !errors.As(err, &failure) || failure.Code != accountmodel.CodeOutcomeUnknown {
+			t.Fatal("lost group commit was reported as a known outcome", err)
+		}
+		fresh, err := database.Open(t.Context(), selected)
+		check(err)
+		defer fresh.Close()
+		persisted, rev := findRoot(fresh)
+		stored := links(fresh)
+		a, one := stored[targets[2]]
+		b, two := stored[targets[3]]
+		if persisted != id || rev != revision+1 || len(stored) != 2 || !one || !two || a == b {
+			t.Fatal("reopened group differs from the committed grant set")
+		}
+		composed, err := project.NewAccountRuntime(t.Context(), fresh, baseHasher, overlay, runtimeConfig)
+		check(err)
+		current, err := composed.Authenticator().Authenticate(t.Context(), operator, accountPasswordText)
+		check(err)
+		row, err := composed.Catalog().Groups().Get(t.Context(), current.Principal(), id)
+		check(err)
+		keys, loaded := row.View().Collection(role.Catalog.GroupPermissions)
+		if !loaded || !slices.Equal(keys, targets[2:4]) || row.Revision() != rev {
+			t.Fatal("fresh runtime grant view differs from native rows")
+		}
+		checkMember(t, composed.Authenticator(), "sample.p2", "sample.p3")
+		revision = rev
+	})
+	t.Run("clear", func(t *testing.T) {
+		factories, hashes := len(parents), hasher.calls
+		change, err := runtime.Catalog().Groups().Update(t.Context(), actor, id, revision, input(nil))
+		check(err)
+		if change.ID != id || change.Revision != revision+1 || len(links(reader)) != 0 || len(parents) != factories || hasher.calls != hashes {
+			t.Fatal("clearing existing grants created identities or retained links")
+		}
+		checkMember(t, runtime.Authenticator())
+	})
+	t.Run("signed_endpoints", func(t *testing.T) {
+		// Install unreferenced fixture rows with signed keys. The subsequent
+		// update and the actual child inserts use the public catalog.
+		groupMeta, err := groups.Metadata()
+		check(err)
+		groupKey, err := groups.PrimaryKeyField()
+		check(err)
+		newGroup, err := groups.PrepareValues(nil, map[string]query.Value{role.Catalog.GroupName: query.String("signed group"), role.Catalog.GroupRevision: query.Integer(1)})
+		check(err)
+		signedGroup, err := newGroup.Model()
+		check(err)
+		check(newGroup.Save(t.Context(), native, &signedGroup))
+		accountStoredKey(t, native, selected, groupMeta.DBTable, groupKey.Column, rootThroughKey(t, groups, signedGroup), 0)
+		permMeta, err := permissions.Metadata()
+		check(err)
+		permKey, err := permissions.PrimaryKeyField()
+		check(err)
+		keys := []int64{-7, 0}
+		for i, signed := range keys {
+			p, err := permissions.PrepareValues(nil, map[string]query.Value{role.Catalog.PermissionName: query.String(fmt.Sprintf("signed %d", i)), role.Catalog.PermissionCode: query.String(fmt.Sprintf("sample.signed%d", i)), role.Catalog.PermissionRevision: query.Integer(1)})
+			check(err)
+			row, err := p.Model()
+			check(err)
+			check(p.Save(t.Context(), native, &row))
+			accountStoredKey(t, native, selected, permMeta.DBTable, permKey.Column, rootThroughKey(t, permissions, row), signed)
+		}
+		start := len(knownSources)
+		change, err := runtime.Catalog().Groups().Update(t.Context(), actor, 0, 1, input(keys))
+		check(err)
+		if change.ID != 0 || change.Revision != 2 || !slices.Equal(knownSources[start:], []int64{0, 0}) {
+			t.Fatal("stored group zero was treated as a pending key", change)
+		}
+		var actual []int64
+		for _, row := range rootThroughRows(t, reader, through) {
+			values, err := through.ModelValues(row)
+			check(err)
+			owner, belongs := values["catalog_owner"].Integer()
+			target, exists := values["catalog_permission"].Integer()
+			if belongs && owner == 0 {
+				if !exists {
+					t.Fatal("signed grant missing target")
+				}
+				actual = append(actual, target)
+			}
+		}
+		slices.Sort(actual)
+		if !slices.Equal(actual, keys) {
+			t.Fatal("actual signed group grants differ", actual)
+		}
+	})
+}

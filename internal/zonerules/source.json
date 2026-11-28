@@ -1,0 +1,14 @@
+{
+  "kind": "godj-pinned-iana-timezone-data-v1",
+  "iana_version": "2025c",
+  "license": "IANA timezone database public domain",
+  "distribution": "Go 1.26.5 lib/time/zoneinfo.zip",
+  "source_commit": "c19862e5f8415b4f24b189d065ed739517c548ba",
+  "source_url": "https://github.com/golang/go/blob/c19862e5f8415b4f24b189d065ed739517c548ba/lib/time/zoneinfo.zip",
+  "update_source": "https://github.com/golang/go/blob/c19862e5f8415b4f24b189d065ed739517c548ba/lib/time/update.bash",
+  "git_blob": "3e781165ca055c52b1df8576e910c263bb77e91d",
+  "sha256": "8f55634d05f8bca1f7bc7c69c5933428c69357e0bdf565e5ba224e3f88ff12e8",
+  "bytes": 408125,
+  "zones": 598,
+  "names_sha256": "8725722643bf1f4ff4fc4b22268ade98b6fae047a86897219c3a13d4c4ced93d"
+}

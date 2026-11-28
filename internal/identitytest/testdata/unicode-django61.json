@@ -1,0 +1,125 @@
+{
+  "base_user_sha256": "8f0851c891464b42def6cdf433e09cc70dc52351279eee8303a1c6076a888da0",
+  "cases": [
+    {
+      "codes": {},
+      "email": "Mixed@ᲊ.example",
+      "form_username": "Alpha",
+      "form_valid": true,
+      "name": "outlined_latin",
+      "username": "Alpha"
+    },
+    {
+      "codes": {},
+      "email": "Mixed@ɤ.test",
+      "form_username": "𐗀𐗁",
+      "form_valid": true,
+      "name": "todhri",
+      "username": "𐗀𐗁"
+    },
+    {
+      "codes": {},
+      "email": "Mixed@οσ.σος",
+      "form_username": "num𐵀",
+      "form_valid": true,
+      "name": "new_digit",
+      "username": "num𐵀"
+    },
+    {
+      "codes": {},
+      "email": "abc@example.test",
+      "form_username": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한",
+      "form_valid": true,
+      "name": "korean150",
+      "username": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+    },
+    {
+      "codes": {},
+      "email": "",
+      "form_username": "𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀",
+      "form_valid": true,
+      "name": "astral150",
+      "username": "𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀"
+    },
+    {
+      "codes": {
+        "username": [
+          "max_length"
+        ]
+      },
+      "email": "x@example.test",
+      "form_username": null,
+      "form_valid": false,
+      "name": "astral256",
+      "username": "𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀"
+    },
+    {
+      "codes": {
+        "username": [
+          "max_length"
+        ]
+      },
+      "email": "unchanged without at ",
+      "form_username": null,
+      "form_valid": false,
+      "name": "ascii256",
+      "username": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "codes": {
+        "username": [
+          "invalid"
+        ]
+      },
+      "email": "Mixed@aςͅ",
+      "form_username": null,
+      "form_valid": false,
+      "name": "nonstarter31",
+      "username": "á́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́"
+    },
+    {
+      "codes": {
+        "username": [
+          "invalid"
+        ]
+      },
+      "email": "Mixed@ᲊ.example",
+      "form_username": null,
+      "form_valid": false,
+      "name": "reorder",
+      "username": "Ḍ̇"
+    },
+    {
+      "codes": {},
+      "email": "x@i̇.test",
+      "form_username": "각",
+      "form_valid": true,
+      "name": "hangul",
+      "username": "각"
+    },
+    {
+      "codes": {},
+      "email": "Mixed@example.com",
+      "form_username": "Fred",
+      "form_valid": true,
+      "name": "fullwidth",
+      "username": "Fred"
+    },
+    {
+      "codes": {
+        "username": [
+          "max_length"
+        ]
+      },
+      "email": "",
+      "form_username": null,
+      "form_valid": false,
+      "name": "compatibility_expansion",
+      "username": "ffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffiffi"
+    }
+  ],
+  "django": "6.1",
+  "input_sha256": "4739dfe607b3d1a83d0edb736b294373a5da4b9cd731f1a182f86b0fb9f0eaf3",
+  "python": "3.14.3",
+  "unicode": "16.0.0"
+}

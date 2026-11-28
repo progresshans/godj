@@ -1,0 +1,179 @@
+//go:build darwin || linux
+
+package main
+
+import (
+	"context"
+	"io"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/progresshans/godj/internal/projectcheck"
+)
+
+func main() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	interrupt := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-signals:
+			close(interrupt)
+		case <-done:
+		}
+	}()
+	exit := execute(context.Background(), "", os.Args[1:], os.Environ(), os.Stdin, os.Stdout, os.Stderr, interrupt)
+	close(done)
+	signal.Stop(signals)
+	os.Exit(exit)
+}
+
+func execute(
+	ctx context.Context,
+	cwd string,
+	args, environment []string,
+	stdin *os.File,
+	stdout, stderr io.Writer,
+	interrupt <-chan struct{},
+) int {
+	if len(args) > 0 && (args[0] == "commands" || args[0] == "command" || args[0] == "check" || args[0] == "help" || args[0] == "--help") {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		if handled, exit := runHelp(ctx, args, stdout, stderr, interrupt); handled {
+			return exit
+		}
+		return projectcheck.RunManagement(projectcheck.ManagementInvocation{
+			Context: ctx, CWD: cwd, Args: args, Environment: environment, Stdin: stdin,
+			Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+		}).ExitCode
+	}
+	if len(args) != 0 && (args[0] == "startproject" || args[0] == "startapp") {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		if args[0] == "startapp" {
+			return projectcheck.RunStartApp(projectcheck.StartAppInvocation{
+				Context: ctx, CWD: cwd, Args: args, Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+			}).ExitCode
+		}
+		return projectcheck.RunStartProject(projectcheck.StartProjectInvocation{
+			Context: ctx, CWD: cwd, Args: args, Environment: environment,
+			Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+		}).ExitCode
+	}
+	if len(args) != 0 && args[0] == "version" {
+		// Preserve the explicit output-failure exit for a closed stdout pipe.
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		return runVersion(ctx, args, stdout, stderr, interrupt)
+	}
+	if len(args) != 0 && args[0] == "createsuperuser" {
+		// The public result is written to process fd 1 or fd 2. Keep Unix's
+		// default SIGPIPE action from terminating the global owner before a
+		// failed write can become the stable no-retry exit. This receiver is
+		// scoped to createsuperuser and never participates in cancellation.
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		report := projectcheck.RunFirstAccount(projectcheck.FirstAccountInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdin:       stdin,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "runserver" {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		report := projectcheck.RunServer(projectcheck.RunServerInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "generate" {
+		report := projectcheck.RunGenerate(projectcheck.GenerationInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "migrate" {
+		report := projectcheck.RunMigrate(projectcheck.MigrateInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "makemigrations" {
+		report := projectcheck.RunMakemigrations(projectcheck.MakemigrationsInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "showmigrations" {
+		report := projectcheck.RunShowMigrations(projectcheck.ShowMigrationsInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "sqlmigrate" {
+		report := projectcheck.RunSQLMigrate(projectcheck.SQLMigrateInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	report := projectcheck.Run(projectcheck.Invocation{
+		Context:     ctx,
+		CWD:         cwd,
+		Args:        args,
+		Environment: environment,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Interrupt:   interrupt,
+	})
+	return report.ExitCode
+}

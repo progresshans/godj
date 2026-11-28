@@ -1,0 +1,2616 @@
+{
+  "backend": "sqlite",
+  "cases": [
+    {
+      "name": "scalar_model_and_projection",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "amount": {
+            "text": "5",
+            "type": "int"
+          },
+          "code": "a",
+          "doubled": {
+            "text": "10",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "amount": {
+            "text": "-7",
+            "type": "int"
+          },
+          "code": "b",
+          "doubled": {
+            "text": "-14",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "amount": {
+            "text": "3",
+            "type": "int"
+          },
+          "code": "c",
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "amount": {
+            "text": "5",
+            "type": "int"
+          },
+          "code": "d",
+          "doubled": {
+            "text": "10",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "1",
+            "type": "int"
+          },
+          "amount": {
+            "text": "0",
+            "type": "int"
+          },
+          "code": "e",
+          "doubled": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", (\"gdj_annotation_measure\".\"amount\" * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_values_keyword",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "code": "b"
+        },
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "code": "c"
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "d"
+        },
+        {
+          "adjusted": {
+            "text": "1",
+            "type": "int"
+          },
+          "code": "e"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "same_call_dependency",
+      "result": [
+        {
+          "code": "a",
+          "first": {
+            "text": "6",
+            "type": "int"
+          },
+          "second": {
+            "text": "12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "first": {
+            "text": "-6",
+            "type": "int"
+          },
+          "second": {
+            "text": "-12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "first": {
+            "text": "4",
+            "type": "int"
+          },
+          "second": {
+            "text": "8",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "first": {
+            "text": "6",
+            "type": "int"
+          },
+          "second": {
+            "text": "12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "first": {
+            "text": "1",
+            "type": "int"
+          },
+          "second": {
+            "text": "2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"first\", ((\"gdj_annotation_measure\".\"amount\" + 1) * 2) AS \"second\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot resolve keyword 'first' into field. Choices are: amount, category, category_id, code, document, elapsed, enabled, group_key, id, other, price, score, tags",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "same_call_forward_reference",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "rebind_prior_alias",
+      "result": [
+        {
+          "adjusted": {
+            "text": "7",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "adjusted": {
+            "text": "-5",
+            "type": "int"
+          },
+          "code": "b"
+        },
+        {
+          "adjusted": {
+            "text": "5",
+            "type": "int"
+          },
+          "code": "c"
+        },
+        {
+          "adjusted": {
+            "text": "7",
+            "type": "int"
+          },
+          "code": "d"
+        },
+        {
+          "adjusted": {
+            "text": "2",
+            "type": "int"
+          },
+          "code": "e"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", ((\"gdj_annotation_measure\".\"amount\" + 1) + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "dependent_alias_before_rebind",
+      "result": [
+        {
+          "code": "a",
+          "first": {
+            "text": "100",
+            "type": "int"
+          },
+          "second": {
+            "text": "12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "first": {
+            "text": "100",
+            "type": "int"
+          },
+          "second": {
+            "text": "-12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "first": {
+            "text": "100",
+            "type": "int"
+          },
+          "second": {
+            "text": "8",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "first": {
+            "text": "100",
+            "type": "int"
+          },
+          "second": {
+            "text": "12",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "first": {
+            "text": "100",
+            "type": "int"
+          },
+          "second": {
+            "text": "2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", 100 AS \"first\", ((\"gdj_annotation_measure\".\"amount\" + 1) * 2) AS \"second\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "The annotation 'amount' conflicts with a field on the model.",
+        "sqlstate": null,
+        "type": "ValueError"
+      },
+      "name": "field_shadow",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "The annotation 'category_id' conflicts with a field on the model.",
+        "sqlstate": null,
+        "type": "ValueError"
+      },
+      "name": "fk_attname_shadow",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "projection_excluded_field_shadow",
+      "result": [
+        {
+          "amount": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "amount": {
+            "text": "-6",
+            "type": "int"
+          },
+          "code": "b"
+        },
+        {
+          "amount": {
+            "text": "4",
+            "type": "int"
+          },
+          "code": "c"
+        },
+        {
+          "amount": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "d"
+        },
+        {
+          "amount": {
+            "text": "1",
+            "type": "int"
+          },
+          "code": "e"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"amount\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot resolve keyword 'absent' into field. Choices are: amount, category, category_id, code, document, elapsed, enabled, group_key, id, other, price, score, tags",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "unknown_reference",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot resolve keyword 'second' into field. Choices are: amount, category, category_id, code, document, elapsed, enabled, group_key, id, other, price, score, tags",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "cycle_reference",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot resolve expression type, unknown output_field",
+        "sqlstate": null,
+        "type": "OutputFieldIsNoneError"
+      },
+      "name": "missing_output_null",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "typed_output_null",
+      "result": [
+        {
+          "code": "a",
+          "derived": null
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": null
+        },
+        {
+          "code": "e",
+          "derived": null
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", NULL AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "nullable_arithmetic",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_divide_by_zero",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" / \"gdj_annotation_measure\".\"other\") AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_remainder_by_zero",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" %% \"gdj_annotation_measure\".\"other\") AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_negative_division",
+      "result": [
+        {
+          "code": "b",
+          "derived": {
+            "text": "-3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" / 2) AS \"derived\" FROM \"gdj_annotation_measure\" WHERE \"gdj_annotation_measure\".\"code\" = 'b' ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_negative_remainder",
+      "result": [
+        {
+          "code": "b",
+          "derived": {
+            "text": "-1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" % 2) AS \"derived\" FROM \"gdj_annotation_measure\" WHERE \"gdj_annotation_measure\".\"code\" = 'b' ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_constant_overflow",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "9223372036854775808",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "9223372036854775808",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "9223372036854775808",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "9223372036854775808",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "9223372036854775808",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (9223372036854775807 + 1) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_overflow_empty_native",
+      "result": [],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (9223372036854775807 + 1) AS \"derived\" FROM \"gdj_annotation_measure\" WHERE \"gdj_annotation_measure\".\"id\" < 0 ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "integer_overflow_empty_folded",
+      "result": [],
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "mixed_integer_float",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "hex": "0x1.a000000000000p+2",
+            "text": "6.5",
+            "type": "float"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "hex": "-0x1.2000000000000p+2",
+            "text": "-4.5",
+            "type": "float"
+          }
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "hex": "0x1.a000000000000p+2",
+            "text": "6.5",
+            "type": "float"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "hex": "0x0.0p+0",
+            "text": "0.0",
+            "type": "float"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"score\") AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "decimal_arithmetic",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "2.46000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "0.0600000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "2.46000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "Decimal"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (CAST((\"gdj_annotation_measure\".\"price\" * 2) AS NUMERIC)) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "duration_arithmetic",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "microseconds": "4",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "microseconds": "5",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "microseconds": "4",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "microseconds": "1",
+            "type": "timedelta"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"elapsed\" + 1) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "field_copy_domains",
+      "result": [
+        {
+          "code": "a",
+          "exact": {
+            "text": "1.23",
+            "type": "Decimal"
+          },
+          "payload": {
+            "n": {
+              "text": "1",
+              "type": "int"
+            }
+          },
+          "span": {
+            "microseconds": "3",
+            "type": "timedelta"
+          },
+          "text": "a",
+          "truth": true
+        },
+        {
+          "code": "b",
+          "exact": {
+            "text": "0.03",
+            "type": "Decimal"
+          },
+          "payload": {
+            "n": {
+              "text": "2",
+              "type": "int"
+            }
+          },
+          "span": {
+            "microseconds": "4",
+            "type": "timedelta"
+          },
+          "text": "b",
+          "truth": false
+        },
+        {
+          "code": "c",
+          "exact": null,
+          "payload": null,
+          "span": null,
+          "text": "c",
+          "truth": true
+        },
+        {
+          "code": "d",
+          "exact": {
+            "text": "1.23",
+            "type": "Decimal"
+          },
+          "payload": {
+            "n": {
+              "text": "1",
+              "type": "int"
+            }
+          },
+          "span": {
+            "microseconds": "3",
+            "type": "timedelta"
+          },
+          "text": "d",
+          "truth": true
+        },
+        {
+          "code": "e",
+          "exact": {
+            "text": "0.00",
+            "type": "Decimal"
+          },
+          "payload": {},
+          "span": {
+            "microseconds": "0",
+            "type": "timedelta"
+          },
+          "text": "e",
+          "truth": false
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", \"gdj_annotation_measure\".\"code\" AS \"text\", \"gdj_annotation_measure\".\"enabled\" AS \"truth\", \"gdj_annotation_measure\".\"price\" AS \"exact\", \"gdj_annotation_measure\".\"elapsed\" AS \"span\", \"gdj_annotation_measure\".\"document\" AS \"payload\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "forward_optional_field",
+      "result": [
+        {
+          "category_name": "alpha",
+          "code": "a"
+        },
+        {
+          "category_name": "alpha",
+          "code": "b"
+        },
+        {
+          "category_name": "beta",
+          "code": "c"
+        },
+        {
+          "category_name": null,
+          "code": "d"
+        },
+        {
+          "category_name": "beta",
+          "code": "e"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", \"gdj_annotation_category\".\"name\" AS \"category_name\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_category\" ON (\"gdj_annotation_measure\".\"category_id\" = \"gdj_annotation_category\".\"id\") ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_filter",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "code": "c"
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "d"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" WHERE (\"gdj_annotation_measure\".\"amount\" + 1) >= 4 ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_not_nullable_filter",
+      "result": [
+        {
+          "code": "c",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"other\" + 1) AS \"derived\" FROM \"gdj_annotation_measure\" WHERE NOT ((\"gdj_annotation_measure\".\"other\" + 1) > 1) ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_compare_aliases",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a",
+          "doubled": {
+            "text": "10",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "code": "c",
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "d",
+          "doubled": {
+            "text": "10",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", (\"gdj_annotation_measure\".\"amount\" * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" WHERE (\"gdj_annotation_measure\".\"amount\" + 1) < (\"gdj_annotation_measure\".\"amount\" * 2) ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_order_nulls_first",
+      "result": [
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "a",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"other\" + 1) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY 2 DESC NULLS FIRST, \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "scalar_order_nulls_last",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"other\" + 1) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY 2 DESC NULLS LAST, \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "annotate_before_slice",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "code": "b"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 2",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "annotate_after_slice",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "code": "b"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 2",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot filter a query once a slice has been taken.",
+        "sqlstate": null,
+        "type": "TypeError"
+      },
+      "name": "filter_after_slice",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot reorder a query once a slice has been taken.",
+        "sqlstate": null,
+        "type": "TypeError"
+      },
+      "name": "order_after_slice",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "count_scalar_annotation",
+      "result": {
+        "text": "5",
+        "type": "int"
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT COUNT(*) AS \"__count\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "exists_scalar_annotation",
+      "result": true,
+      "sql": [
+        "BEGIN",
+        "SELECT 1 AS \"a\" FROM \"gdj_annotation_measure\" WHERE (\"gdj_annotation_measure\".\"amount\" + 1) > 0 LIMIT 1",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "alias_filter_not_selected",
+      "result": [
+        {
+          "code": "a"
+        },
+        {
+          "code": "d"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\" FROM \"gdj_annotation_measure\" WHERE (\"gdj_annotation_measure\".\"amount\" + 1) > 4 ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot select the 'hidden' alias. Use annotate() to promote it.",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "alias_select_rejected",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "alias_promoted_to_annotation",
+      "result": [
+        {
+          "code": "a",
+          "visible": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "visible": {
+            "text": "-6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "visible": {
+            "text": "4",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "visible": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "visible": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"visible\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "sum_computed_operand",
+      "result": {
+        "value": {
+          "text": "12",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM((\"gdj_annotation_measure\".\"amount\" * 2)) AS \"value\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "avg_computed_operand",
+      "result": {
+        "value": {
+          "hex": "0x1.3333333333333p+1",
+          "text": "2.4",
+          "type": "float"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT AVG((\"gdj_annotation_measure\".\"amount\" * 2)) AS \"value\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "sum_distinct_computed_operand",
+      "result": {
+        "value": {
+          "text": "2",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM(DISTINCT (\"gdj_annotation_measure\".\"amount\" * 2)) AS \"value\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "sum_filtered_computed_operand",
+      "result": {
+        "value": {
+          "text": "26",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM((\"gdj_annotation_measure\".\"amount\" * 2)) FILTER (WHERE \"gdj_annotation_measure\".\"enabled\" = 1) AS \"value\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "aggregate_annotation_alias",
+      "result": {
+        "value": {
+          "text": "11",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM((\"gdj_annotation_measure\".\"amount\" + 1)) AS \"value\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "aggregate_sliced_annotation_alias",
+      "result": {
+        "value": {
+          "text": "0",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM(\"adjusted\") FROM (SELECT (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", (\"gdj_annotation_measure\".\"amount\" * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 2) subquery",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "distinct_projection_with_annotation",
+      "result": [
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "group_key": null
+        },
+        {
+          "adjusted": {
+            "text": "1",
+            "type": "int"
+          },
+          "group_key": ""
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "group_key": "x"
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": "x"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT DISTINCT \"gdj_annotation_measure\".\"group_key\" AS \"group_key\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY 1 ASC, 2 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "distinct_projection_order_expands_selection",
+      "result": [
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": "x"
+        },
+        {
+          "adjusted": {
+            "text": "-6",
+            "type": "int"
+          },
+          "group_key": "x"
+        },
+        {
+          "adjusted": {
+            "text": "4",
+            "type": "int"
+          },
+          "group_key": null
+        },
+        {
+          "adjusted": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": "x"
+        },
+        {
+          "adjusted": {
+            "text": "1",
+            "type": "int"
+          },
+          "group_key": ""
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT DISTINCT \"gdj_annotation_measure\".\"group_key\" AS \"group_key\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", \"gdj_annotation_measure\".\"id\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "group_then_computed_aggregate",
+      "result": [
+        {
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": null,
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "doubled": {
+            "text": "0",
+            "type": "int"
+          },
+          "group_key": "",
+          "total": {
+            "text": "0",
+            "type": "int"
+          }
+        },
+        {
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": "x",
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"group_key\" AS \"group_key\", SUM(\"gdj_annotation_measure\".\"amount\") AS \"total\", (SUM(\"gdj_annotation_measure\".\"amount\") * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" GROUP BY 1 ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "group_then_computed_having",
+      "result": [
+        {
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": null,
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "doubled": {
+            "text": "6",
+            "type": "int"
+          },
+          "group_key": "x",
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"group_key\" AS \"group_key\", SUM(\"gdj_annotation_measure\".\"amount\") AS \"total\", (SUM(\"gdj_annotation_measure\".\"amount\") * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" GROUP BY 1 HAVING (SUM(\"gdj_annotation_measure\".\"amount\") * 2) >= 6 ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "computed_key_then_group",
+      "result": [
+        {
+          "key": {
+            "text": "-1",
+            "type": "int"
+          },
+          "total": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "key": {
+            "text": "0",
+            "type": "int"
+          },
+          "total": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "key": {
+            "text": "1",
+            "type": "int"
+          },
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT (\"gdj_annotation_measure\".\"amount\" % 2) AS \"key\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"total\" FROM \"gdj_annotation_measure\" GROUP BY 1 ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "group_key_retained_when_hidden",
+      "result": [
+        {
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "total": {
+            "text": "0",
+            "type": "int"
+          }
+        },
+        {
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT SUM(\"gdj_annotation_measure\".\"amount\") AS \"total\" FROM \"gdj_annotation_measure\" GROUP BY \"gdj_annotation_measure\".\"group_key\" ORDER BY \"gdj_annotation_measure\".\"group_key\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "row_aggregate_annotation",
+      "result": [
+        {
+          "code": "a",
+          "mean": {
+            "hex": "0x1.4000000000000p+2",
+            "text": "5.0",
+            "type": "float"
+          },
+          "total": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "mean": {
+            "hex": "-0x1.c000000000000p+2",
+            "text": "-7.0",
+            "type": "float"
+          },
+          "total": {
+            "text": "-7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "mean": {
+            "hex": "0x1.8000000000000p+1",
+            "text": "3.0",
+            "type": "float"
+          },
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "mean": {
+            "hex": "0x1.4000000000000p+2",
+            "text": "5.0",
+            "type": "float"
+          },
+          "total": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "mean": {
+            "hex": "0x0.0p+0",
+            "text": "0.0",
+            "type": "float"
+          },
+          "total": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\", SUM(\"gdj_annotation_measure\".\"amount\") AS \"total\", AVG(\"gdj_annotation_measure\".\"amount\") AS \"mean\" FROM \"gdj_annotation_measure\" GROUP BY \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_count_annotation",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "tag_count": {
+            "text": "0",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_count_having",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" HAVING COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") >= 2 ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_count_mixed_or",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "tag_count": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" HAVING (COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") >= 2 OR \"gdj_annotation_measure\".\"code\" = 'd') ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "filter_then_related_annotation",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" INNER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") INNER JOIN \"gdj_annotation_tag\" ON (\"gdj_annotation_measure_tags\".\"tag_id\" = \"gdj_annotation_tag\".\"id\") WHERE \"gdj_annotation_tag\".\"name\" = 'red' GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_annotation_then_filter",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") INNER JOIN \"gdj_annotation_measure_tags\" \"T4\" ON (\"gdj_annotation_measure\".\"id\" = \"T4\".\"measure_id\") INNER JOIN \"gdj_annotation_tag\" \"T5\" ON (\"T4\".\"tag_id\" = \"T5\".\"id\") WHERE \"T5\".\"name\" = 'red' GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_annotate_then_slice",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 2",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "related_slice_then_annotate",
+      "result": [
+        {
+          "code": "a",
+          "tag_count": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "tag_count": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\", 1, \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 2",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "terminal_average_of_annotation",
+      "result": {
+        "value": {
+          "hex": "0x1.0000000000000p+0",
+          "text": "1.0",
+          "type": "float"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT AVG(\"tag_count\") FROM (SELECT COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tag_count\" FROM \"gdj_annotation_measure\" LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_measure\".\"id\") subquery",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Cannot compute Avg('tag_count'): 'tag_count' is an aggregate",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "nested_aggregate_annotation_rejected",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "reverse_count_and_sum",
+      "result": [
+        {
+          "cost": {
+            "text": "1.26000000000000",
+            "type": "Decimal"
+          },
+          "name": "alpha",
+          "total": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "cost": {
+            "text": "0",
+            "type": "Decimal"
+          },
+          "name": "beta",
+          "total": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "cost": null,
+          "name": "empty",
+          "total": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"total\", (CAST(SUM(\"gdj_annotation_measure\".\"price\") AS NUMERIC)) AS \"cost\" FROM \"gdj_annotation_category\" LEFT OUTER JOIN \"gdj_annotation_measure\" ON (\"gdj_annotation_category\".\"id\" = \"gdj_annotation_measure\".\"category_id\") GROUP BY \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\" ORDER BY \"gdj_annotation_category\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "multi_join_count_multiplicity",
+      "result": [
+        {
+          "items": {
+            "text": "3",
+            "type": "int"
+          },
+          "name": "alpha",
+          "tags": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "items": {
+            "text": "2",
+            "type": "int"
+          },
+          "name": "beta",
+          "tags": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "items": {
+            "text": "0",
+            "type": "int"
+          },
+          "name": "empty",
+          "tags": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"items\", COUNT(\"gdj_annotation_measure_tags\".\"tag_id\") AS \"tags\" FROM \"gdj_annotation_category\" LEFT OUTER JOIN \"gdj_annotation_measure\" ON (\"gdj_annotation_category\".\"id\" = \"gdj_annotation_measure\".\"category_id\") LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\" ORDER BY \"gdj_annotation_category\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "multi_join_distinct_count",
+      "result": [
+        {
+          "items": {
+            "text": "2",
+            "type": "int"
+          },
+          "name": "alpha",
+          "tags": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "items": {
+            "text": "2",
+            "type": "int"
+          },
+          "name": "beta",
+          "tags": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "items": {
+            "text": "0",
+            "type": "int"
+          },
+          "name": "empty",
+          "tags": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\", COUNT(DISTINCT \"gdj_annotation_measure\".\"id\") AS \"items\", COUNT(DISTINCT \"gdj_annotation_measure_tags\".\"tag_id\") AS \"tags\" FROM \"gdj_annotation_category\" LEFT OUTER JOIN \"gdj_annotation_measure\" ON (\"gdj_annotation_category\".\"id\" = \"gdj_annotation_measure\".\"category_id\") LEFT OUTER JOIN \"gdj_annotation_measure_tags\" ON (\"gdj_annotation_measure\".\"id\" = \"gdj_annotation_measure_tags\".\"measure_id\") GROUP BY \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\" ORDER BY \"gdj_annotation_category\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "reverse_count_filter_before",
+      "result": [
+        {
+          "name": "alpha",
+          "total": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "name": "beta",
+          "total": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"total\" FROM \"gdj_annotation_category\" INNER JOIN \"gdj_annotation_measure\" ON (\"gdj_annotation_category\".\"id\" = \"gdj_annotation_measure\".\"category_id\") WHERE \"gdj_annotation_measure\".\"enabled\" = 1 GROUP BY \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\" ORDER BY \"gdj_annotation_category\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "reverse_count_filter_after",
+      "result": [
+        {
+          "name": "alpha",
+          "total": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "name": "beta",
+          "total": {
+            "text": "2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"total\" FROM \"gdj_annotation_category\" LEFT OUTER JOIN \"gdj_annotation_measure\" ON (\"gdj_annotation_category\".\"id\" = \"gdj_annotation_measure\".\"category_id\") INNER JOIN \"gdj_annotation_measure\" \"T3\" ON (\"gdj_annotation_category\".\"id\" = \"T3\".\"category_id\") WHERE \"T3\".\"enabled\" = 1 GROUP BY \"gdj_annotation_category\".\"id\", \"gdj_annotation_category\".\"name\" ORDER BY \"gdj_annotation_category\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "aggregate_empty_default",
+      "result": {
+        "value": {
+          "text": "0",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "empty_annotation",
+      "result": [],
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "annotation_expression_sql_literals",
+      "result": [
+        {
+          "code": "a",
+          "derived": "quote ' ; and %"
+        },
+        {
+          "code": "b",
+          "derived": "quote ' ; and %"
+        },
+        {
+          "code": "c",
+          "derived": "quote ' ; and %"
+        },
+        {
+          "code": "d",
+          "derived": "quote ' ; and %"
+        },
+        {
+          "code": "e",
+          "derived": "quote ' ; and %"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", 'quote '' ; and %' AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Column aliases cannot contain whitespace characters, hashes, control characters, quotation marks, semicolons, or SQL comments.",
+        "sqlstate": null,
+        "type": "ValueError"
+      },
+      "name": "alias_name_bad name",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Column aliases cannot contain whitespace characters, hashes, control characters, quotation marks, semicolons, or SQL comments.",
+        "sqlstate": null,
+        "type": "ValueError"
+      },
+      "name": "alias_name_quote\"name",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Column aliases cannot contain whitespace characters, hashes, control characters, quotation marks, semicolons, or SQL comments.",
+        "sqlstate": null,
+        "type": "ValueError"
+      },
+      "name": "alias_name_comment--name",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "alias_name_1",
+      "result": [
+        {
+          "1": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "a"
+        },
+        {
+          "1": {
+            "text": "-6",
+            "type": "int"
+          },
+          "code": "b"
+        },
+        {
+          "1": {
+            "text": "4",
+            "type": "int"
+          },
+          "code": "c"
+        },
+        {
+          "1": {
+            "text": "6",
+            "type": "int"
+          },
+          "code": "d"
+        },
+        {
+          "1": {
+            "text": "1",
+            "type": "int"
+          },
+          "code": "e"
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"1\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "alias_name_part__name",
+      "result": [
+        {
+          "code": "a",
+          "part__name": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "part__name": {
+            "text": "-6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "part__name": {
+            "text": "4",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "part__name": {
+            "text": "6",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "part__name": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"part__name\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "cache_owned_by_annotation_query",
+      "result": {
+        "cached": [
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "-6",
+              "type": "int"
+            },
+            "code": "b"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "1",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ],
+        "first": [
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "-6",
+              "type": "int"
+            },
+            "code": "b"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "1",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ],
+        "fresh": [
+          {
+            "adjusted": {
+              "text": "101",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "-6",
+              "type": "int"
+            },
+            "code": "b"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "1",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ]
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", (\"gdj_annotation_measure\".\"amount\" * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "UPDATE \"gdj_annotation_measure\" SET \"amount\" = 100 WHERE \"gdj_annotation_measure\".\"code\" = 'a'",
+        "SELECT \"gdj_annotation_measure\".\"id\", \"gdj_annotation_measure\".\"code\", \"gdj_annotation_measure\".\"group_key\", \"gdj_annotation_measure\".\"enabled\", \"gdj_annotation_measure\".\"amount\", \"gdj_annotation_measure\".\"other\", \"gdj_annotation_measure\".\"score\", \"gdj_annotation_measure\".\"price\", \"gdj_annotation_measure\".\"elapsed\", \"gdj_annotation_measure\".\"document\", \"gdj_annotation_measure\".\"category_id\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\", (\"gdj_annotation_measure\".\"amount\" * 2) AS \"doubled\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "immutable_annotation_branches",
+      "result": {
+        "filtered": [
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "1",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ],
+        "original": [
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "-6",
+              "type": "int"
+            },
+            "code": "b"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "6",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "1",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ],
+        "rebound": [
+          {
+            "adjusted": {
+              "text": "16",
+              "type": "int"
+            },
+            "code": "a"
+          },
+          {
+            "adjusted": {
+              "text": "4",
+              "type": "int"
+            },
+            "code": "b"
+          },
+          {
+            "adjusted": {
+              "text": "14",
+              "type": "int"
+            },
+            "code": "c"
+          },
+          {
+            "adjusted": {
+              "text": "16",
+              "type": "int"
+            },
+            "code": "d"
+          },
+          {
+            "adjusted": {
+              "text": "11",
+              "type": "int"
+            },
+            "code": "e"
+          }
+        ]
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + 1) AS \"adjusted\" FROM \"gdj_annotation_measure\" WHERE (\"gdj_annotation_measure\".\"amount\" + 1) > 0 ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", ((\"gdj_annotation_measure\".\"amount\" + 1) + 10) AS \"adjusted\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    }
+  ],
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "input": [
+    {
+      "amount": {
+        "text": "5",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "1",
+        "type": "int"
+      },
+      "code": "a",
+      "document": {
+        "n": {
+          "text": "1",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "3",
+        "type": "timedelta"
+      },
+      "enabled": true,
+      "group_key": "x",
+      "other": {
+        "text": "2",
+        "type": "int"
+      },
+      "price": {
+        "text": "1.23",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.8000000000000p+0",
+        "text": "1.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "-7",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "1",
+        "type": "int"
+      },
+      "code": "b",
+      "document": {
+        "n": {
+          "text": "2",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "4",
+        "type": "timedelta"
+      },
+      "enabled": false,
+      "group_key": "x",
+      "other": null,
+      "price": {
+        "text": "0.03",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.4000000000000p+1",
+        "text": "2.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "3",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "2",
+        "type": "int"
+      },
+      "code": "c",
+      "document": null,
+      "elapsed": null,
+      "enabled": true,
+      "group_key": null,
+      "other": {
+        "text": "0",
+        "type": "int"
+      },
+      "price": null,
+      "score": null
+    },
+    {
+      "amount": {
+        "text": "5",
+        "type": "int"
+      },
+      "category_id": null,
+      "code": "d",
+      "document": {
+        "n": {
+          "text": "1",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "3",
+        "type": "timedelta"
+      },
+      "enabled": true,
+      "group_key": "x",
+      "other": {
+        "text": "2",
+        "type": "int"
+      },
+      "price": {
+        "text": "1.23",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.8000000000000p+0",
+        "text": "1.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "0",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "2",
+        "type": "int"
+      },
+      "code": "e",
+      "document": {},
+      "elapsed": {
+        "microseconds": "0",
+        "type": "timedelta"
+      },
+      "enabled": false,
+      "group_key": "",
+      "other": {
+        "text": "-2",
+        "type": "int"
+      },
+      "price": {
+        "text": "0.00",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x0.0p+0",
+        "text": "0.0",
+        "type": "float"
+      }
+    }
+  ],
+  "kind": "django-annotation-expression-exploratory-reference-v1",
+  "observer_sha256": "671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297",
+  "runtime": {
+    "django": "6.1",
+    "python": "3.14.3",
+    "sqlite": "3.50.4"
+  },
+  "source_verification_sha256": "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87",
+  "storage_unchanged": true
+}

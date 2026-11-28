@@ -1,0 +1,12 @@
+{
+  "sqlite": {
+    "text": {"outcome": "applied", "nullable": false, "default": null, "values": ["", "한'글"]},
+    "binary": {"outcome": "applied", "nullable": false, "default": null, "values": ["", "00ff"]},
+    "integer": {"outcome": "IntegrityError", "nullable": true, "default": null, "values": [null, 7]}
+  },
+  "postgresql": {
+    "text": {"outcome": "IntegrityError", "nullable": true, "default": null, "values": [null, "한'글"]},
+    "binary": {"outcome": "IntegrityError", "nullable": true, "default": null, "values": [null, "00ff"]},
+    "integer": {"outcome": "IntegrityError", "nullable": true, "default": null, "values": [null, 7]}
+  }
+}

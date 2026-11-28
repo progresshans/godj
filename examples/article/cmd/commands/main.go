@@ -1,0 +1,50 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/progresshans/godj/examples/article/internal/commands"
+	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/project/compatibility"
+	"github.com/progresshans/godj/settings"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	brokenPipe := make(chan os.Signal, 1)
+	signal.Notify(brokenPipe, syscall.SIGPIPE)
+	defer signal.Stop(brokenPipe)
+	if handled, err := compatibility.Serve(ctx, os.Args[1:], os.Stdout); handled {
+		if err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	err := run(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, command.Diagnostic(err))
+		os.Exit(command.ExitCode(err))
+	}
+}
+
+func run(ctx context.Context) error {
+	environment, err := settings.NewEnvironment(os.Environ())
+	if err != nil {
+		var invalid *settings.Error
+		if errors.As(err, &invalid) && invalid != nil {
+			return &command.CheckError{Field: invalid.Field, Cause: err}
+		}
+		return err
+	}
+	registry, err := commands.Registry(environment)
+	if err != nil {
+		return err
+	}
+	return registry.Serve(ctx, os.Args[1:], command.Streams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr})
+}

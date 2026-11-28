@@ -1,0 +1,11 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/parameters"
+)
+
+func wrong() endpoint.Input[int64] {
+	header, _ := parameters.NewHeader("X-Count", parameters.Optional(parameters.CanonicalInt64(1, 9)), 1, "")
+	return endpoint.Header(header)
+}

@@ -1,0 +1,138 @@
+{
+  "format_version": 2,
+  "profile_id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "AUT-009",
+      "title": "A fail-closed API authentication boundary resolves one explicit Principal before publishing protected routes",
+      "scenario": "godj.api_authentication.common_authentication_boundary",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "AUT-010",
+      "title": "Bearer extraction accepts one bounded header grammar and rejects duplicate or alternate credential channels before verification",
+      "scenario": "godj.api_authentication.bounded_bearer_header",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://datatracker.ietf.org/doc/html/rfc6750#section-2.1", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "AUT-011",
+      "title": "Missing or unsupported authentication returns a challenge without redirect cookie or credential disclosure",
+      "scenario": "drf.api_authentication.missing_and_unsupported",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://datatracker.ietf.org/doc/html/rfc6750#section-3", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/authentication/#tokenauthentication", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/authentication.py::TokenAuthentication", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "AUT-012",
+      "title": "A syntactically valid active token resolves a principal while unknown or inactive tokens are denied uniformly",
+      "scenario": "drf.api_authentication.invalid_and_valid_token",
+      "phase": "evaluation",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://datatracker.ietf.org/doc/html/rfc6750#section-3.1", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/authentication.py::TokenAuthentication", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0009", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "AUT-013",
+      "title": "An authenticated principal without the required permission is denied before application mutation",
+      "scenario": "drf.api_authentication.permission_denial",
+      "phase": "evaluation",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://datatracker.ietf.org/doc/html/rfc6750#section-3.1", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/permissions/", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0009", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "AUT-014",
+      "title": "A valid unsafe Bearer request succeeds without session CSRF cookie or masked-token behavior",
+      "scenario": "drf.api_authentication.unsafe_without_csrf",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/authentication/#tokenauthentication", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/authentication.py::TokenAuthentication", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "AUT-015",
+      "title": "Bearer authentication does not fall back to a valid session cookie or query and body credentials",
+      "scenario": "drf.api_authentication.profile_isolation",
+      "phase": "evaluation",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "https://datatracker.ietf.org/doc/html/rfc6750#section-2", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/authentication.py::TokenAuthentication", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0009", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "AUT-016",
+      "title": "Token formatting failure and cancellation boundaries remain bounded redacted and free of framework retry",
+      "scenario": "godj.api_authentication.secret_and_failure_boundary",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "API-011",
+      "title": "A Bearer principal reuses the existing Article routes handlers representations and backend-independent persistence flow",
+      "scenario": "godj.api_authentication.article_route_reuse",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-012",
+      "title": "Rejected Bearer and cross-profile fallback attempts preserve Article state and reveal no token material",
+      "scenario": "godj.api_authentication.denial_mutation_boundary",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0049", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

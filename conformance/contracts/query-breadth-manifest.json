@@ -1,0 +1,330 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "QRY-022",
+      "title": "Projection preserves declared scalar field order and exact nullable row values",
+      "scenario": "django.query.breadth.ordered_projection",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#values-list",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_values_list_filter_and_no_fields",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-023",
+      "title": "Filtering and ordering may use source fields absent from the projection",
+      "scenario": "django.query.breadth.source_fields_outside_projection",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#values",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_values_list_flat_order_by",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-024",
+      "title": "Empty and nonempty projections evaluate independently from the model result cache",
+      "scenario": "django.query.breadth.projection_cache_independence",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#caching-and-querysets",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/query.py::QuerySet._values",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-025",
+      "title": "Distinct scalar projection eliminates duplicate result rows",
+      "scenario": "django.query.breadth.distinct_projection",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#distinct",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/queries/tests.py::Queries1Tests.test_tickets_1878_2939",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-026",
+      "title": "Total ordering makes offset and limit stable and an out-of-range page empty",
+      "scenario": "django.query.breadth.stable_offset_limit",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#limiting-querysets",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/queries/tests.py::QuerySetSupportsPythonIdioms.test_can_get_items_using_index_and_slice_notation",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-027",
+      "title": "Negative and product-overflow offsets fail before database I/O",
+      "scenario": "django.query.breadth.invalid_offset_pre_io",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#limiting-querysets",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/query.py::QuerySet.__getitem__",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-028",
+      "title": "Cold count executes an aggregate while warm count reuses the model cache",
+      "scenario": "django.query.breadth.cold_count_and_warm_cache",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#count",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/query.py::QuerySet.count",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-029",
+      "title": "Count applies after filter, distinct, stable offset, and limit",
+      "scenario": "django.query.breadth.sliced_distinct_count",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_count",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/query.py::Query.get_aggregation",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-030",
+      "title": "An empty source counts as zero and nullable max remains absent",
+      "scenario": "django.query.breadth.empty_count_and_nullable_max",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#cheat-sheet",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/aggregation/tests.py::AggregateTestCase.test_empty_aggregate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-031",
+      "title": "Filtered count and max return one ordered scalar aggregate row",
+      "scenario": "django.query.breadth.filtered_count_and_max",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/aggregation/tests.py::AggregateTestCase.test_multiple_aggregates",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-032",
+      "title": "Consumer stop and decode, iteration, and close failures preserve rows ownership",
+      "scenario": "django.query.breadth.terminal_failure_ownership",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#iterator",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/compiler.py::cursor_iter",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-033",
+      "title": "Pinned SQLite projection and aggregate results anchor separately gated backend parity",
+      "scenario": "django.query.breadth.backend_parity_reference",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0039",
+          "derived": false
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/query.py::Query.get_aggregation",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

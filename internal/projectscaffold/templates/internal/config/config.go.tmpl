@@ -1,0 +1,43 @@
+// Package config owns this project's defaults and explicit environment policy.
+// No function here reads process globals or opens a resource.
+package config
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"io"
+	"log/slog"
+
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+)
+
+// Logger is opt-in: GODJ_LOG_LEVEL=debug|info|warn|error enables JSON records.
+// The process entrypoint owns the sink; configuration never opens a log file or
+// changes the global logger. Each invocation gets its own correlation identity.
+func Logger(environment settings.Environment, sink io.Writer, runtime string) (*slog.Logger, error) {
+	value, present := environment.Lookup("GODJ_LOG_LEVEL")
+	if !present || value == "off" {
+		return nil, nil
+	}
+	levels := map[string]slog.Level{"debug": slog.LevelDebug, "info": slog.LevelInfo, "warn": slog.LevelWarn, "error": slog.LevelError}
+	level, valid := levels[value]
+	if !valid || sink == nil {
+		return nil, &settings.Error{Field: "GODJ_LOG_LEVEL", Detail: "expected debug, info, warn, error or off and an explicit sink"}
+	}
+	var identity [16]byte
+	if _, err := rand.Read(identity[:]); err != nil {
+		return nil, &settings.Error{Field: "logging", Detail: "cannot create invocation identity", Cause: err}
+	}
+	return slog.New(slog.NewJSONHandler(sink, &slog.HandlerOptions{Level: level})).With(
+		"project", "[[.Module]]", "runtime", runtime, "invocation", hex.EncodeToString(identity[:]),
+	), nil
+}
+
+func Database(environment settings.Environment) (database.Config, error) {
+	defaultDatabase, err := database.SQLite("site.sqlite3")
+	if err != nil {
+		return database.Config{}, err
+	}
+	return database.FromEnvironment(environment.Lookup, database.Options{Default: defaultDatabase})
+}

@@ -1,0 +1,85 @@
+package site
+
+import (
+	"context"
+	"slices"
+
+	"[[.Module]]/internal/accounts"
+	"[[.Module]]/project"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/identity"
+	identityaccount "github.com/progresshans/godj/identity/account"
+	identityadmin "github.com/progresshans/godj/identity/admin"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/mail"
+)
+
+type passwordResetSettings struct {
+	Tokens      accountmodel.RuntimeResetConfig
+	Sender      mail.Sender
+	Mail        identity.PasswordResetMailConfig
+	ReportError identityaccount.PasswordResetErrorReporter
+}
+
+func bindPasswordReset(ctx context.Context, runtime *accounts.Runtime) (auth.PasswordResetPersistence, *identityaccount.PasswordResetConfig, error) {
+	settings, err := projectPasswordReset(ctx)
+	if err != nil || settings == nil {
+		return nil, nil, err
+	}
+	persistence, err := runtime.PasswordResetter(settings.Tokens)
+	if err != nil {
+		return nil, nil, err
+	}
+	mailer, err := identity.NewPasswordResetMailer(persistence, settings.Sender, settings.Mail)
+	if err != nil {
+		return nil, nil, err
+	}
+	return persistence, &identityaccount.PasswordResetConfig{Mailer: mailer, ReportError: settings.ReportError}, nil
+}
+
+func registerIdentityModels(builder *admin.Builder, runtime *accounts.Runtime) error {
+	binding, err := project.BindAccount()
+	if err != nil {
+		return err
+	}
+	role, err := binding.Role()
+	if err != nil {
+		return err
+	}
+	account, err := runtime.Accounts().Description()
+	if err != nil {
+		return err
+	}
+	groups, permissions := runtime.Catalog().Groups(), runtime.Catalog().Permissions()
+	group, err := groups.Description()
+	if err != nil {
+		return err
+	}
+	permission, err := permissions.Description()
+	if err != nil {
+		return err
+	}
+
+	columns := identityListFields(account.KeyField, runtime.Accounts().Reader().ListFields(),
+		role.Login, role.Email, role.Active.Field, role.Staff.Field, role.Superuser.Field)
+	if err := identityadmin.RegisterAccount(builder, runtime.Accounts(), accounts.AdminAccountRegistration(columns)); err != nil {
+		return err
+	}
+	return identityadmin.RegisterCatalog(builder, runtime.Catalog(), identityadmin.CatalogRegistration{
+		Groups:      identityadmin.CatalogPresentation{Slug: "groups", ListFields: identityListFields(group.KeyField, groups.ListFields(), group.LabelField)},
+		Permissions: identityadmin.CatalogPresentation{Slug: "permissions", ListFields: identityListFields(permission.KeyField, permissions.ListFields(), role.Catalog.PermissionCode, permission.LabelField)},
+	})
+}
+
+// Keep the row key and explicitly readable role columns in display order.
+// A role can be absent, constant, or share a field with another role.
+func identityListFields(key string, readable []string, roles ...string) []string {
+	fields := []string{key}
+	for _, field := range roles {
+		if slices.Contains(readable, field) && !slices.Contains(fields, field) {
+			fields = append(fields, field)
+		}
+	}
+	return fields
+}

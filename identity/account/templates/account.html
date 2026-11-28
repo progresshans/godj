@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title></head>
+<body data-account-view="{{ kind }}"><main><h1>{{ title }}</h1>
+{% if done %}<p>{{ message }}</p>{% if signed_in %}<p><a href="{{ password_path }}">Change password</a></p>{% else %}<p><a href="{{ login_path }}">Sign in</a></p>{% endif %}
+{% else %}
+{% for error in errors %}<p role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
+<form method="post" action="{{ action }}">{% csrf_token %}
+{% if login %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+{% for field in fields %}<p><label for="id_{{ field.name }}">{{ field.label }}</label>
+{% if field.password %}<input type="password" id="id_{{ field.name }}" name="{{ field.name }}" autocomplete="{{ field.autocomplete }}"{% if field.required %} required{% endif %}>
+{% else %}<input{% if field.email %} type="email"{% endif %} id="id_{{ field.name }}" name="{{ field.name }}" value="{{ field.value }}" autocomplete="{{ field.autocomplete }}"{% if field.required %} required{% endif %}>{% endif %}
+{% for error in field.errors %}<span role="alert" data-error-field="{{ error.field }}" data-error-code="{{ error.code }}">{{ error.message }}</span>{% endfor %}</p>{% endfor %}
+<button type="submit">{{ submit }}</button></form>
+{% endif %}
+{% if signed_in %}<form method="post" action="{{ logout_path }}">{% csrf_token %}<button type="submit">Sign out</button></form>{% endif %}
+{% if reset_enabled %}<p><a href="{{ reset_path }}">Request a password reset</a></p>{% endif %}
+</main></body></html>

@@ -1,0 +1,8 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/web"
+)
+
+var invalid = output.Prepared[string]{response: web.Response{}}

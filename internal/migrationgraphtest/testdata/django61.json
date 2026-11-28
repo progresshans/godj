@@ -1,0 +1,491 @@
+{
+  "django": "6.1",
+  "python": "3.14.7",
+  "observations": [
+    {
+      "phase": "base",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b"
+        ]
+      },
+      "choices": {},
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2
+          ],
+          [
+            2,
+            "second",
+            1
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base"
+      ]
+    },
+    {
+      "phase": "links",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b"
+        ]
+      },
+      "choices": {},
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2,
+            1,
+            1
+          ],
+          [
+            2,
+            "second",
+            1,
+            1,
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base",
+        "0002_links"
+      ]
+    },
+    {
+      "phase": "self",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b",
+          "loop"
+        ]
+      },
+      "choices": {},
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2,
+            1,
+            1
+          ],
+          [
+            2,
+            "second",
+            1,
+            1,
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1,
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base",
+        "0002_links",
+        "0003_self"
+      ]
+    },
+    {
+      "phase": "choices",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b",
+          "loop"
+        ]
+      },
+      "choices": {
+        "b.label": [
+          [
+            "beta",
+            "Beta"
+          ]
+        ]
+      },
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2,
+            1,
+            1
+          ],
+          [
+            2,
+            "second",
+            1,
+            1,
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1,
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base",
+        "0002_links",
+        "0003_self",
+        "0004_choices"
+      ]
+    },
+    {
+      "phase": "reopen",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b",
+          "loop"
+        ]
+      },
+      "choices": {
+        "b.label": [
+          [
+            "beta",
+            "Beta"
+          ]
+        ]
+      },
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2,
+            1,
+            1
+          ],
+          [
+            2,
+            "second",
+            1,
+            1,
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1,
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base",
+        "0002_links",
+        "0003_self",
+        "0004_choices"
+      ]
+    },
+    {
+      "phase": "reverse_self",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b"
+        ]
+      },
+      "choices": {},
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2,
+            1,
+            1
+          ],
+          [
+            2,
+            "second",
+            1,
+            1,
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base",
+        "0002_links"
+      ]
+    },
+    {
+      "phase": "reverse_links",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b"
+        ]
+      },
+      "choices": {},
+      "rows": {
+        "a": [
+          [
+            1,
+            "alpha",
+            2
+          ],
+          [
+            2,
+            "second",
+            1
+          ],
+          [
+            3,
+            "next",
+            null
+          ]
+        ],
+        "b": [
+          [
+            1,
+            "beta",
+            2
+          ]
+        ],
+        "c": [
+          [
+            1,
+            "gamma",
+            1
+          ]
+        ]
+      },
+      "applied": [
+        "0001_base"
+      ]
+    },
+    {
+      "phase": "zero",
+      "fields": {},
+      "choices": {},
+      "rows": {},
+      "applied": []
+    },
+    {
+      "phase": "reapply",
+      "fields": {
+        "a": [
+          "id",
+          "label",
+          "parent",
+          "peer",
+          "tertiary"
+        ],
+        "b": [
+          "id",
+          "label",
+          "a"
+        ],
+        "c": [
+          "id",
+          "label",
+          "b",
+          "loop"
+        ]
+      },
+      "choices": {
+        "b.label": [
+          [
+            "beta",
+            "Beta"
+          ]
+        ]
+      },
+      "rows": {
+        "a": [],
+        "b": [],
+        "c": []
+      },
+      "applied": [
+        "0001_base",
+        "0002_links",
+        "0003_self",
+        "0004_choices"
+      ]
+    },
+    {
+      "phase": "second_zero",
+      "fields": {},
+      "choices": {},
+      "rows": {},
+      "applied": []
+    }
+  ]
+}

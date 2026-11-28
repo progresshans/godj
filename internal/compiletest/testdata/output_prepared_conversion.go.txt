@@ -1,0 +1,8 @@
+package consumer
+
+import "github.com/progresshans/godj/api/output"
+
+type row struct{ Value int64 }
+type other struct{ Value int64 }
+
+func misuse(value output.Prepared[row]) output.Prepared[other] { return output.Prepared[other](value) }

@@ -1,0 +1,173 @@
+package postgres
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"unicode/utf8"
+
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
+)
+
+// MigrationSQLConfig is the complete immutable PostgreSQL SQL projection
+// profile. It deliberately contains no URL, credential, or database handle.
+type MigrationSQLConfig struct {
+	Schema string
+}
+
+type migrationSQLRenderer struct {
+	schema string
+	valid  bool
+}
+
+var _ migrationbackend.MigrationSQLRenderer = migrationSQLRenderer{}
+
+// NewMigrationSQLRenderer snapshots a schema-only PostgreSQL projection
+// profile. Invalid configuration is retained as a closed renderer value so a
+// later complete-load/target failure keeps precedence over renderer failure.
+func NewMigrationSQLRenderer(config MigrationSQLConfig) migrationbackend.MigrationSQLRenderer {
+	if err := validateSchemaIdentifier(config.Schema); err != nil {
+		return migrationSQLRenderer{}
+	}
+	return migrationSQLRenderer{schema: strings.Clone(config.Schema), valid: true}
+}
+
+func (renderer migrationSQLRenderer) RenderMigrationSQL(
+	ctx context.Context,
+	request migrationbackend.MigrationSQLRequest,
+) ([][]string, error) {
+	if ctx == nil {
+		return nil, errors.New("render PostgreSQL migration SQL: context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !renderer.valid {
+		return nil, errors.New("render PostgreSQL migration SQL: renderer configuration is invalid")
+	}
+	if !validPostgresMigrationSQLApp(request.App) || !validPostgresMigrationSQLName(request.Name) {
+		return nil, errors.New("render PostgreSQL migration SQL: migration identity is invalid")
+	}
+	if request.Intent.Operations == nil {
+		return nil, errors.New("render PostgreSQL migration SQL: migration intent is missing")
+	}
+	for _, operation := range request.Intent.Operations {
+		switch operation.Kind {
+		case migrationbackend.MigrationRunData, migrationbackend.MigrationRenameField, migrationbackend.MigrationRenameModel, migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel,
+			migrationbackend.MigrationAddField, migrationbackend.MigrationRemoveField, migrationbackend.MigrationAlterField,
+			migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint, migrationbackend.MigrationAlterManyToMany:
+			continue
+		}
+		return nil, migrationbackend.NewCapabilityError("postgres_migration_sql", "unsupported operation for this SQL direction", nil)
+	}
+	transition := request.Transition()
+	prepared, err := preparePostgresMigrationIntent(transition, request.Intent)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	groups := make([][]string, len(prepared.intent.Operations))
+	for index := range prepared.intent.Operations {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		operation := prepared.intent.Operations[index]
+		var statement string
+		switch operation.Kind {
+		case migrationbackend.MigrationRunData:
+			groups[index] = []string{migrationbackend.RunDataSQLComment}
+			continue
+		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany, migrationbackend.MigrationRenameModel:
+			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+			constraint, deltaErr := operation.ChangedConstraint()
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid constraint delta", deltaErr)
+			}
+			statement, err = compilePostgresNamedUniqueAlter(renderer.schema, operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
+		case migrationbackend.MigrationRenameField:
+			before, after, deltaErr := operation.RenamedField(request.App)
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid field rename", deltaErr)
+			}
+			groups[index], err = compilePostgresFieldRename(renderer.schema, operation.Before, before, after)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		case migrationbackend.MigrationAlterField:
+			before, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
+			}
+			groups[index], err = compilePostgresFieldAlter(renderer.schema, operation.After, before, field, kind)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		case migrationbackend.MigrationRemoveField:
+			field, deltaErr := operation.ChangedField()
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid RemoveField delta", deltaErr)
+			}
+			statement, err = compilePostgresMigrationRemoveField(renderer.schema, operation.Before, field)
+		case migrationbackend.MigrationAddField:
+			field, deltaErr := operation.ChangedField()
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid AddField delta", deltaErr)
+			}
+			target, targetErr := postgresMigrationAddFieldTarget(operation, field)
+			if targetErr != nil {
+				return nil, targetErr
+			}
+			groups[index], err = compilePostgresMigrationAddFieldStatements(
+				renderer.schema,
+				operation.Before,
+				field,
+				target,
+			)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		default:
+			return nil, migrationbackend.NewCapabilityError(
+				"postgres_migration_sql",
+				"validated SQL projection contains an unsupported operation",
+				nil,
+			)
+		}
+		if err != nil {
+			return nil, err
+		}
+		groups[index] = []string{statement}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
+func validPostgresMigrationSQLApp(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index, character := range value {
+		if character == '_' || character >= 'a' && character <= 'z' ||
+			index > 0 && character >= '0' && character <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validPostgresMigrationSQLName(value string) bool {
+	return value != "" && utf8.ValidString(value)
+}

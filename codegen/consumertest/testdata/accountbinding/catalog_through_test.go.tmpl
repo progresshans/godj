@@ -1,0 +1,512 @@
+package consumer
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	@@IMPORTS@@
+	accountaudit "github.com/progresshans/godj/account/audit"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+type catalogThroughBackend struct {
+	database.Backend
+	reading, writing, starts, snapshots int
+	cleanup, rollback, unknown          bool
+	scope                               db.RelationSession
+}
+
+func (b *catalogThroughBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	b.reading++
+	b.snapshots++
+	defer func() { b.reading-- }()
+	err := b.Backend.ReadSnapshot(ctx, read)
+	if b.cleanup {
+		b.cleanup = false
+		return errors.Join(err, errors.New("catalog through snapshot cleanup"))
+	}
+	return err
+}
+func (b *catalogThroughBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	b.starts++
+	b.writing++
+	defer func() { b.writing--; b.scope = nil }()
+	err := b.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		b.scope = scope
+		if err := write(scope); err != nil {
+			return err
+		}
+		if b.rollback {
+			return errors.New("catalog through rollback")
+		}
+		return nil
+	})
+	if err == nil && b.unknown {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
+	}
+	return err
+}
+
+type catalogThroughOverlay struct{ deny auth.Permission }
+
+func (o *catalogThroughOverlay) Allowed(_ context.Context, actor auth.Principal, p auth.Permission) (bool, error) {
+	return actor.Has(p) && p != o.deny, nil
+}
+
+func catalogThroughCheck(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func catalogThroughKey[M any](t *testing.T, objects orm.Manager[M], row M) int64 {
+	t.Helper()
+	key, present, err := objects.PrimaryKey(row)
+	id, valid := key.Integer()
+	if err != nil || !present || !valid {
+		t.Fatal("missing actual typed key", err)
+	}
+	return id
+}
+func catalogThroughInsert[M any](t *testing.T, scope db.Session, objects orm.Manager[M], values map[string]query.Value) M {
+	t.Helper()
+	prepared, err := objects.PrepareValues(nil, values)
+	catalogThroughCheck(t, err)
+	row, err := prepared.Model()
+	catalogThroughCheck(t, err)
+	catalogThroughCheck(t, prepared.Save(t.Context(), scope, &row))
+	return row
+}
+func catalogThroughRows[M any](t *testing.T, reader db.Queryer, objects orm.Manager[M]) []M {
+	t.Helper()
+	field, err := objects.PrimaryKeyField()
+	catalogThroughCheck(t, err)
+	rows, err := objects.Using(reader).OrderBy(orm.NewAutoField[M](field).Asc()).All(t.Context())
+	catalogThroughCheck(t, err)
+	return rows
+}
+
+func TestCatalogThroughCreation(t *testing.T) {
+	for _, mode := range []string{"create", "no_op", "clear", "replace", "reuse_deleted_identity", "cascade_account", "clear_rollback", "denied_add", "denied_related", "limit", "duplicate", "target_key", "endpoint", "revision", "nested", "invalid_code", "snapshot_cleanup", "late_validator", "late_payload", "late_owned_link", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
+		t.Run(mode, func(t *testing.T) {
+			check := func(err error) { t.Helper(); catalogThroughCheck(t, err) }
+			binding, err := project.BindAccount()
+			check(err)
+			role, err := binding.Role()
+			check(err)
+			objects, err := binding.Objects()
+			check(err)
+			groups := orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{})
+			permissions := orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
+			through := orm.NewManager[@@THROUGH@@](@@THROUGH@@Descriptor{})
+			extras := orm.NewManager[@@EXTRA@@](@@EXTRA@@Descriptor{})
+			audits := orm.NewManager[auditmodels.Event](auditmodels.EventDescriptor{})
+			modelIdentity, name, code, revision := role.Catalog.Group, role.Catalog.GroupName, "", role.Catalog.GroupRevision
+			if "@@KIND@@" == "permission" {
+				modelIdentity, name, code, revision = role.Catalog.Permission, role.Catalog.PermissionName, role.Catalog.PermissionCode, role.Catalog.PermissionRevision
+			}
+			natural := name
+			if code != "" {
+				natural = code
+			}
+			native, selected := openAccountDatabase(t)
+			migrateAccountDefinitions(t, native, @@MIGRATIONS@@)
+			backend := &catalogThroughBackend{Backend: native}
+			hasher, _ := accountPassword(t)
+			var targets []int64
+			for i := 0; i < 3; i++ {
+				row := catalogThroughInsert(t, native, permissions, map[string]query.Value{role.Catalog.PermissionName: query.String(fmt.Sprintf("Target %d", i)), role.Catalog.PermissionCode: query.String(fmt.Sprintf("target.grant%d", i)), role.Catalog.PermissionRevision: query.Integer(1)})
+				targets = append(targets, catalogThroughKey(t, permissions, row))
+			}
+			if mode == "zero_target" || mode == "negative_target" {
+				metadata, e := permissions.Metadata()
+				check(e)
+				field, e := permissions.PrimaryKeyField()
+				check(e)
+				next := int64(0)
+				if mode == "negative_target" {
+					next = -9
+				}
+				accountStoredKey(t, native, selected, metadata.DBTable, field.Column, targets[0], next)
+				targets[0] = next
+			}
+			fields := []string{role.Login, "@@PROFILE@@"}
+			first, err := project.NewFirstAccount(backend, hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: fields}, EvidenceSHA256: strings.Repeat("a", 64)})
+			check(err)
+			firstInput, err := objects.Input(map[string]query.Value{role.Login: query.String("operator@example.test"), "@@PROFILE@@": query.String("KR")})
+			check(err)
+			preparedFirst, err := first.Prepare(t.Context(), firstInput, accountPasswordText)
+			check(err)
+			boot, err := first.Commit(t.Context(), preparedFirst)
+			check(err)
+			collections, err := project.BindCollections()
+			check(err)
+			choices, err := accountmodel.NewProfileCollection(binding, "catalog_links", collections.@@PREFIX@@CatalogLinks, permissions, accountmodel.ProfileCollectionConfig[@@PERMISSION@@]{MaximumItems: 4, Choices: formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label: func(@@PERMISSION@@) (string, error) { return "Target", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@PERMISSION@@], error) {
+				return nil, nil
+			}})
+			check(err)
+			related := accountmodel.RelatedRowPermissions{Account: accountmodel.DeletionPermissions{Change: "account.change", Delete: "account.delete"}, Group: accountmodel.DeletionPermissions{Change: "catalog.change_group", Delete: "catalog.delete_group"}, Permission: accountmodel.DeletionPermissions{Change: "catalog.change_permission", Delete: "catalog.delete_permission"}}
+			overlay := &catalogThroughOverlay{}
+			preparedCount, validated := 0, 0
+			lateMutation := false
+			reuseIdentity := ""
+			selectedFields := []string{name}
+			if code != "" {
+				selectedFields = append(selectedFields, code)
+			}
+			config := accountmodel.CatalogThroughConfig[@@THROUGH@@]{Creation: accountmodel.CatalogModelConfig[@@THROUGH@@]{ReadFields: selectedFields, WriteFields: selectedFields, Permissions: accountmodel.CatalogPermissions{View: "through.view", Add: "through.add", Change: "through.change", Delete: "through.delete"},
+				Validate: func(ctx context.Context, _ db.Queryer, current *@@THROUGH@@, candidate @@THROUGH@@) (validation.Errors, error) {
+					validated++
+					key, present, e := through.PrimaryKey(candidate)
+					id, valid := key.Integer()
+					if e != nil || !present || !valid || current != nil || backend.writing != 1 {
+						return validation.Errors{}, errors.New("catalog validator lost actual inserted candidate")
+					}
+					if mode == "late_validator" {
+						return validation.NewErrors(validation.New(validation.Field(name), "late_refusal")), nil
+					}
+					if !lateMutation && (mode == "late_payload" || mode == "late_owned_link") {
+						lateMutation = true
+						if mode == "late_owned_link" {
+							catalogThroughInsert(t, backend.scope, extras, map[string]query.Value{"owner": query.Integer(id), "target": query.Null()})
+							return validation.Errors{}, nil
+						}
+						prepared, e := through.PrepareValues(&candidate, map[string]query.Value{name: query.String("tampered")})
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						row, e := prepared.Model()
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						return validation.Errors{}, prepared.Save(ctx, backend.scope, &row)
+					}
+					return validation.Errors{}, nil
+				}}, RelatedPermissions: related,
+				Prepare: func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
+					preparedCount++
+					sourceKey, sourcePresent := pair.SourceKey()
+					targetKey, targetPresent := pair.TargetKey()
+					if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_owner" || pair.TargetField() != "link_target" || !sourcePresent || !targetPresent || sourceKey != boot.Account.ID {
+						return orm.ModelInput[@@THROUGH@@]{}, errors.New("catalog factory lost actual read endpoints")
+					}
+					identity := fmt.Sprintf("created.grant%d", targetKey)
+					if mode == "duplicate" {
+						identity = "created.same"
+					}
+					if reuseIdentity != "" {
+						identity = reuseIdentity
+					}
+					values := map[string]query.Value{name: query.String(identity)}
+					if code != "" {
+						values[code] = query.String(identity)
+					}
+					switch mode {
+					case "endpoint":
+						values["link_owner"] = query.Integer(sourceKey)
+					case "revision":
+						values[revision] = query.Integer(99)
+					case "invalid_code":
+						values[natural] = query.String("")
+					}
+					input, e := through.Input(values)
+					if e != nil {
+						return orm.ModelInput[@@THROUGH@@]{}, e
+					}
+					if mode == "target_key" {
+						return input.WithTargetKey(query.Integer(0))
+					}
+					if mode == "nested" {
+						return input.WithCollections(map[string][]int64{"extras": {}})
+					}
+					return input, nil
+				},
+			}
+			config.RelatedPermissions.Account.Additional = []auth.Permission{"through.approve_account"}
+			policy, err := accountmodel.@@FACTORY@@(binding, @@THROUGH@@Descriptor{}, overlay, config)
+			check(err)
+			runtimeConfig := accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{
+				Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields: append(slices.Clone(fields), "catalog_links"), CreateFields: fields, EditFields: []string{"@@PROFILE@@", "catalog_links"}, Collections: []accountmodel.ProfileCollection[@@ACCOUNT@@]{choices}, Permissions: accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}, GroupPermissions: related.Group, PermissionPermissions: related.Permission, EditThroughCreations: map[string]accountmodel.ThroughCreation{"catalog_links": policy}, EditThroughCreationLimit: 2},
+				Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{AccountPermissions: related.Account,
+					Group:      accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}, WriteFields: []string{role.Catalog.GroupName}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: related.Group.Change, Delete: related.Group.Delete}},
+					Permission: accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, WriteFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: related.Permission.Change, Delete: related.Permission.Delete}}},
+			}
+			runtime, err := project.NewAccountRuntime(t.Context(), backend, hasher, overlay, runtimeConfig)
+			check(err)
+			credential, err := runtime.Authenticator().Authenticate(t.Context(), "operator@example.test", accountPasswordText)
+			check(err)
+			actor := credential.Principal()
+			backend.starts, backend.snapshots = 0, 0
+			history := func(reader db.SnapshotReader, model string, id int64) []accountaudit.Entry {
+				t.Helper()
+				namespace, _ := actor.CredentialDomain()
+				result, e := db.ReadSnapshotResult(t.Context(), reader, func(ctx context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+					return accountaudit.HistoryIn(ctx, scope, namespace, model, id, 20)
+				})
+				check(e)
+				return result
+			}
+			modelName, accountName := modelIdentity.AppLabel+"."+modelIdentity.ModelName, role.Model.AppLabel+"."+role.Model.ModelName
+			initialRows, initialGroups, initialPermissions, initialAudits := catalogThroughRows(t, native, objects), catalogThroughRows(t, native, groups), catalogThroughRows(t, native, permissions), catalogThroughRows(t, native, audits)
+			if mode == "configuration" {
+				if _, e := accountmodel.@@FACTORY@@(accountmodel.Binding[@@ACCOUNT@@]{}, @@THROUGH@@Descriptor{}, overlay, config); e == nil {
+					t.Fatal("catalog through declaration accepted an absent source")
+				}
+				if _, e := accountmodel.@@FACTORY@@(binding, @@THROUGH@@Descriptor{}, nil, config); e == nil {
+					t.Fatal("catalog through declaration accepted an absent authorizer")
+				}
+				for _, change := range []func(*accountmodel.CatalogThroughConfig[@@THROUGH@@]){func(c *accountmodel.CatalogThroughConfig[@@THROUGH@@]) { c.Prepare = nil }, func(c *accountmodel.CatalogThroughConfig[@@THROUGH@@]) {
+					c.Creation.WriteFields = append(slices.Clone(c.Creation.WriteFields), "link_owner")
+				}, func(c *accountmodel.CatalogThroughConfig[@@THROUGH@@]) {
+					c.RelatedPermissions.Account.Additional = []auth.Permission{""}
+				}} {
+					invalid := config
+					change(&invalid)
+					if _, e := accountmodel.@@FACTORY@@(binding, @@THROUGH@@Descriptor{}, overlay, invalid); e == nil {
+						t.Fatal("invalid catalog through declaration accepted")
+					}
+				}
+				if _, e := accountmodel.@@OTHERFACTORY@@(binding, @@THROUGH@@Descriptor{}, overlay, config); e == nil {
+					t.Fatal("catalog through declaration accepted wrong selected descriptor")
+				}
+				if _, e := project.NewAccountEditor(runtime.SessionStore(), overlay, accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields: []string{"catalog_links"}, Collections: []accountmodel.ProfileCollection[@@ACCOUNT@@]{choices}, ChangePermission: "account.change"}); e == nil {
+					t.Fatal("catalog identity created without its explicit owner")
+				}
+				for _, entry := range []struct {
+					field  string
+					limit  int
+					policy accountmodel.ThroughCreation
+				}{{"catalog_links", 0, policy}, {"catalog_links", accountmodel.MaximumThroughCreations + 1, policy}, {"catalog_links", 2, accountmodel.ThroughCreation{}}, {role.Groups, 2, policy}} {
+					if _, e := project.NewAccountEditor(runtime.SessionStore(), overlay, accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields: []string{"catalog_links"}, Collections: []accountmodel.ProfileCollection[@@ACCOUNT@@]{choices}, ChangePermission: "account.change", ThroughCreations: map[string]accountmodel.ThroughCreation{entry.field: entry.policy}, ThroughCreationLimit: entry.limit}); e == nil {
+						t.Fatal("invalid catalog through edit capability accepted")
+					}
+				}
+				if preparedCount != 0 || validated != 0 || backend.starts != 0 || backend.snapshots != 0 {
+					t.Fatal("pure catalog declarations performed I/O or creation")
+				}
+				return
+			}
+			switch mode {
+			case "denied_add":
+				overlay.deny = "through.add"
+			case "denied_related":
+				overlay.deny = "through.approve_account"
+			case "snapshot_cleanup":
+				backend.cleanup = true
+			case "rollback":
+				backend.rollback = true
+			case "unknown":
+				backend.unknown = true
+			}
+			inputKeys := slices.Clone(targets[:2])
+			if mode == "limit" {
+				inputKeys = targets
+			}
+			input, err := objects.Input(nil)
+			check(err)
+			input, err = input.WithCollections(map[string][]int64{"catalog_links": inputKeys})
+			check(err)
+			result, failure := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 1, input)
+			rejected := slices.Contains([]string{"denied_add", "denied_related", "limit", "duplicate", "target_key", "endpoint", "revision", "nested", "invalid_code", "snapshot_cleanup", "late_validator", "late_payload", "late_owned_link", "rollback"}, mode)
+			if rejected || mode == "unknown" {
+				if failure == nil || !reflect.DeepEqual(result, accountmodel.AccountChange{}) {
+					t.Fatal("unsuccessful catalog through write published result")
+				}
+			} else {
+				check(failure)
+			}
+			if mode == "unknown" && !errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+				t.Fatal("catalog through unknown outcome lost", failure)
+			}
+			if (mode == "late_payload" || mode == "late_owned_link") && !lateMutation {
+				t.Fatal("late catalog mutation was not exercised")
+			}
+			reader, err := database.Open(t.Context(), selected)
+			check(err)
+			defer reader.Close()
+			if rejected {
+				if !reflect.DeepEqual(initialRows, catalogThroughRows(t, reader, objects)) || !reflect.DeepEqual(initialGroups, catalogThroughRows(t, reader, groups)) || !reflect.DeepEqual(initialPermissions, catalogThroughRows(t, reader, permissions)) || !reflect.DeepEqual(initialAudits, catalogThroughRows(t, reader, audits)) || len(catalogThroughRows(t, reader, extras)) != 0 {
+					t.Fatal("failed catalog through operation retained rows, revisions, links or audit")
+				}
+				if slices.Contains([]string{"denied_add", "denied_related", "limit", "duplicate", "target_key", "endpoint", "revision", "nested", "invalid_code", "snapshot_cleanup"}, mode) && backend.starts != 0 {
+					t.Fatal("read refusal reached native write")
+				}
+				return
+			}
+			readCreated := func(reader db.Queryer) []@@THROUGH@@ {
+				t.Helper()
+				var result []@@THROUGH@@
+				for _, row := range catalogThroughRows(t, reader, through) {
+					values, e := through.ModelValues(row)
+					check(e)
+					owner, valid := values["link_owner"].Integer()
+					if valid && owner == boot.Account.ID {
+						result = append(result, row)
+					}
+				}
+				return result
+			}
+			children := readCreated(reader)
+			if len(children) != 2 || preparedCount != 2 || validated != 2 {
+				t.Fatal("catalog typed creation count mismatch", len(children), preparedCount, validated)
+			}
+			if mode != "unknown" && (result.ID != boot.Account.ID || result.Revision != 2 || result.RevokedSessions != 0 || !slices.Equal(result.ChangedFields, []string{"catalog_links"})) {
+				t.Fatal("root collection lost single revision ownership")
+			}
+			parentKey, err := objects.PrimaryKeyField()
+			check(err)
+			parent, err := objects.Using(reader).Filter(orm.NewAutoField[@@ACCOUNT@@](parentKey).Exact(boot.Account.ID)).Get(t.Context())
+			check(err)
+			parentValues, err := objects.ModelValues(parent)
+			check(err)
+			parentRevision, _ := parentValues[role.Revision].Integer()
+			if parentRevision != 2 || len(history(reader, accountName, boot.Account.ID)) != 2 {
+				t.Fatal("durable account revision or audit mismatch")
+			}
+			seen := make(map[int64]bool)
+			for _, row := range children {
+				id := catalogThroughKey(t, through, row)
+				values, e := through.ModelValues(row)
+				check(e)
+				owner, ok := values["link_owner"].Integer()
+				target, valid := values["link_target"].Integer()
+				version, _ := values[revision].Integer()
+				if !ok || owner != boot.Account.ID || !valid || !slices.Contains(inputKeys, target) || seen[target] || version != 1 {
+					t.Fatal("catalog row differs from supplied actual pair")
+				}
+				seen[target] = true
+				events := history(reader, modelName, id)
+				if len(events) != 1 || events[0].Action() != admin.ActionAdd || events[0].ActorID() != actor.ID() || !slices.Contains(events[0].ChangedFields(), "link_owner") || !slices.Contains(events[0].ChangedFields(), "link_target") {
+					t.Fatal("catalog creation audit did not own endpoints")
+				}
+			}
+			backend.unknown = false
+			backend.rollback = false
+			if mode == "no_op" {
+				rows, events := catalogThroughRows(t, reader, through), catalogThroughRows(t, reader, audits)
+				change, e := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 2, input)
+				check(e)
+				if change.Revision != 2 || len(change.ChangedFields) != 0 || preparedCount != 2 || validated != 2 || !reflect.DeepEqual(rows, catalogThroughRows(t, reader, through)) || !reflect.DeepEqual(events, catalogThroughRows(t, reader, audits)) {
+					t.Fatal("retained catalog pairs were created or audited again")
+				}
+			}
+			if slices.Contains([]string{"clear", "replace", "reuse_deleted_identity", "cascade_account", "clear_rollback"}, mode) {
+				var victim int64
+				var stored sessions.Record
+				if mode == "cascade_account" {
+					input, e := objects.Input(map[string]query.Value{role.Login: query.String("dependent@example.test"), "@@PROFILE@@": query.String("KR")})
+					check(e)
+					pending, e := runtime.Accounts().Creator().Prepare(t.Context(), actor, input, accountPasswordText)
+					check(e)
+					created, e := runtime.Accounts().Creator().Commit(t.Context(), actor, pending)
+					check(e)
+					victim = created.ID
+					row, e := objects.Using(native).Filter(orm.NewAutoField[@@ACCOUNT@@](parentKey).Exact(victim)).Get(t.Context())
+					check(e)
+					prepared, e := objects.PrepareValues(&row, map[string]query.Value{"anchor": query.Integer(catalogThroughKey(t, through, children[0]))})
+					check(e)
+					row, e = prepared.Model()
+					check(e)
+					check(prepared.Save(t.Context(), native, &row))
+					credential, e := runtime.Authenticator().Authenticate(t.Context(), "dependent@example.test", accountPasswordText)
+					check(e)
+					stored, e = auth.EstablishSession(t.Context(), runtime.Sessions(), credential, sessions.Record{})
+					check(e)
+				}
+				keys := []int64{}
+				if mode == "replace" || mode == "reuse_deleted_identity" {
+					keys = []int64{targets[2]}
+				}
+				if mode == "reuse_deleted_identity" {
+					values, e := through.ModelValues(children[0])
+					check(e)
+					reuseIdentity, _ = values[natural].String()
+				}
+				beforeRows, beforeAudits := catalogThroughRows(t, reader, through), catalogThroughRows(t, reader, audits)
+				beforeAccounts := catalogThroughRows(t, reader, objects)
+				next, e := objects.Input(nil)
+				check(e)
+				next, e = next.WithCollections(map[string][]int64{"catalog_links": keys})
+				check(e)
+				backend.rollback = mode == "clear_rollback"
+				changed, e := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 2, next)
+				if mode == "clear_rollback" {
+					if e == nil || !reflect.DeepEqual(changed, accountmodel.AccountChange{}) || !reflect.DeepEqual(beforeRows, catalogThroughRows(t, reader, through)) || !reflect.DeepEqual(beforeAudits, catalogThroughRows(t, reader, audits)) || !reflect.DeepEqual(beforeAccounts, catalogThroughRows(t, reader, objects)) {
+						t.Fatal("failed catalog deletion retained partial effects")
+					}
+					return
+				}
+				check(e)
+				remaining := readCreated(reader)
+				if changed.Revision != 3 || len(remaining) != len(keys) {
+					t.Fatal("catalog replacement did not collect exact identities")
+				}
+				for _, child := range children {
+					events := history(reader, modelName, catalogThroughKey(t, through, child))
+					deleted := 0
+					for _, event := range events {
+						if event.Action() == admin.ActionDelete && event.ActorID() == actor.ID() {
+							deleted++
+						}
+					}
+					if len(events) != 2 || deleted != 1 {
+						t.Fatal("catalog through deletion audit absent")
+					}
+				}
+				if len(remaining) == 1 {
+					values, e := through.ModelValues(remaining[0])
+					check(e)
+					target, ok := values["link_target"].Integer()
+					identity, _ := values[natural].String()
+					if !ok || target != targets[2] || preparedCount != 3 || reuseIdentity != "" && identity != reuseIdentity {
+						t.Fatal("replacement failed to create new actual pair")
+					}
+				}
+				if mode == "cascade_account" {
+					found, e := objects.Using(reader).Filter(orm.NewAutoField[@@ACCOUNT@@](parentKey).Exact(victim)).Exists(t.Context())
+					check(e)
+					_, loaded, e := runtime.SessionStore().Load(t.Context(), stored.ID())
+					check(e)
+					events := history(reader, accountName, victim)
+					deleted := 0
+					for _, event := range events {
+						if event.Action() == admin.ActionDelete {
+							deleted++
+						}
+					}
+					if found || loaded || changed.RevokedSessions != 1 || deleted != 1 {
+						t.Fatal("catalog deletion lost dependent account/session/audit ownership")
+					}
+				}
+			}
+			if mode == "restart" {
+				restarted, e := project.NewAccountRuntime(t.Context(), reader, hasher, overlay, runtimeConfig)
+				check(e)
+				credential, e := restarted.Authenticator().Authenticate(t.Context(), "operator@example.test", accountPasswordText)
+				check(e)
+				view, e := restarted.Accounts().Reader().Get(t.Context(), credential.Principal(), boot.Account.ID)
+				check(e)
+				if view.Revision() != 2 || len(readCreated(reader)) != 2 {
+					t.Fatal("restart lost through-created catalog identities")
+				}
+			}
+		})
+	}
+}

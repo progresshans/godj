@@ -1,5 +1,9 @@
 # ADR-0001: Schema IR을 모델 의미의 정규화된 단일 원본으로 사용
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0001-schema-ir-as-canonical-source.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 문서: [Architecture](../ARCHITECTURE.md)
@@ -26,10 +30,6 @@ ORM, migration, Form, Admin, API, OpenAPI, GIS, content types가 모델 정의�
 
 DSL의 정확한 문법, codegen bootstrap 입력 방식, IR 파일 encoding, custom field ABI는 정하지 않았습니다.
 
-## 검증
-
-M1 전까지 normalization round-trip, deterministic hash, 선언 순서 보존, unknown-version rejection, codegen/runtime metadata equivalence를 테스트합니다.
-
 ## 이후 확정된 진화
 
 GDJ-0004에서 create omission이 application default를 잃지 않도록 Schema IR v2에 typed
@@ -37,3 +37,7 @@ scalar default의 존재를 추가하기로 했습니다. Default는 DSL이나 c
 재해석하지 않고 IR validation, hash, generated write builder와 migration state가 함께
 소비합니다. 상세 write 의미는 [ADR-0009](0009-m2-explicit-write-change-state.md)를
 따릅니다.
+
+GDJ-0137에서 현재 IR의 앱은 모델이 없는 상태도 표현한다. 유효한 app label과 format은 유지하고,
+nil/빈 모델 목록은 동일한 빈 JSON 배열로 정규화한다. 아직 없는 모델·테이블·관계를 만들지 않으며,
+첫 모델 추가는 같은 앱의 새 schema hash가 된다. 빈 앱을 별도 registry 원본이나 가짜 모델로 표현하지 않는다.

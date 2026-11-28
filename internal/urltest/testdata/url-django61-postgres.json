@@ -1,0 +1,5108 @@
+{
+  "backend": "postgresql",
+  "changed": [
+    {
+      "changed": false,
+      "initial": "https://example.com",
+      "submitted": "example.com"
+    },
+    {
+      "changed": false,
+      "initial": "https://Example.COM",
+      "submitted": "//Example.COM"
+    },
+    {
+      "changed": true,
+      "initial": "example.com",
+      "submitted": "example.com"
+    },
+    {
+      "changed": true,
+      "initial": "https://example.com",
+      "submitted": "HTTPS://example.com"
+    },
+    {
+      "changed": false,
+      "initial": null,
+      "submitted": ""
+    },
+    {
+      "changed": true,
+      "initial": "https://example.com",
+      "submitted": "not a URL"
+    }
+  ],
+  "django": "6.1",
+  "drf": "3.18.0",
+  "forms": {
+    "form": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "host254": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [],
+          "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "length2049": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [],
+          "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": null,
+      "required": true,
+      "widget": "URLInput"
+    },
+    "form_http": {
+      "assume_scheme": "http",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "http://example.com/a:b"
+        },
+        "blank": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "host254": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [],
+          "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "length2049": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [],
+          "value": "http://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "http://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": null,
+      "required": true,
+      "widget": "URLInput"
+    },
+    "form_optional": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [],
+          "value": ""
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "host254": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [],
+          "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "length2049": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [],
+          "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "null": {
+          "codes": [],
+          "value": ""
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": null,
+      "required": false,
+      "widget": "URLInput"
+    },
+    "model": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "host254": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length2049": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": 200,
+      "required": true,
+      "widget": "URLInput"
+    },
+    "model_nullable": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [],
+          "value": null
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": null
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "host254": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length2049": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [],
+          "value": null
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": 200,
+      "required": false,
+      "widget": "URLInput"
+    },
+    "model_optional": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [],
+          "value": ""
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "host254": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [],
+          "value": "https://Example.COM/a?b=1#frag"
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "https://[2001:db8::1]:443/a"
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [],
+          "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [],
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+        },
+        "label64": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length2049": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [],
+          "value": ""
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [],
+          "value": "https://example.com/a%20b"
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [],
+          "value": "https://example.com:99999"
+        },
+        "port_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [],
+          "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [],
+          "value": "https://user:pass@example.com/path"
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [],
+          "value": "https://user:@example.com"
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [],
+          "value": "https://이름:암호@example.com"
+        }
+      },
+      "max_length": 200,
+      "required": false,
+      "widget": "URLInput"
+    },
+    "model_short": {
+      "assume_scheme": "https",
+      "cases": {
+        "backslash_path": {
+          "codes": [],
+          "value": "https://example.com/a\\b"
+        },
+        "bare_host": {
+          "codes": [],
+          "value": "https://example.com"
+        },
+        "bare_host_port": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bare_path_colon": {
+          "codes": [],
+          "value": "https://example.com/a:b"
+        },
+        "blank": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "double_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "file": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ftp": {
+          "codes": [],
+          "value": "ftp://example.com/file"
+        },
+        "ftps": {
+          "codes": [],
+          "value": "ftps://example.com/file"
+        },
+        "host253": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "host254": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "host_lower_expansion": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "http": {
+          "codes": [],
+          "value": "http://example.com"
+        },
+        "https": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "hyphen_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hyphen_start": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4": {
+          "codes": [],
+          "value": "http://127.0.0.1:80/a"
+        },
+        "ip4_leading_zero": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_range": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ip4_zero": {
+          "codes": [],
+          "value": "http://0.0.0.0/"
+        },
+        "ipv4_brackets": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "ipv6_invalid": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipv6_user": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "ipv6_zone": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ipvfuture": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "javascript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "label63": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "label64": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "length2048": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length2049": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "localhost": {
+          "codes": [],
+          "value": "http://localhost:8000"
+        },
+        "localhost_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "localhost_upper": {
+          "codes": [],
+          "value": "http://LOCALHOST"
+        },
+        "long_invalid": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "middle_control": {
+          "codes": [],
+          "value": "https://example.com/a\u0001b"
+        },
+        "missing_host": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "missing_scheme": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "normalization_over_length": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_path": {
+          "codes": [
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "padded": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/a"
+        },
+        "percent_encoded": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "percent_invalid": {
+          "codes": [],
+          "value": "https://example.com/%zz"
+        },
+        "port_empty": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "port_large": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "port_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "port_text": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "port_zero": {
+          "codes": [],
+          "value": "https://example.com:0"
+        },
+        "punycode": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "relative_scheme": {
+          "codes": [],
+          "value": "https://Example.COM/path"
+        },
+        "return_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "scheme_colon_only": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "single_label": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "stray_bracket": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_hyphen": {
+          "codes": [],
+          "value": "https://example.co-op"
+        },
+        "tld_numeric": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tld_single": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "trailing_control": {
+          "codes": [],
+          "value": "https://example.com/a"
+        },
+        "trailing_dot": {
+          "codes": [],
+          "value": "https://example.com."
+        },
+        "underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_domain": {
+          "codes": [],
+          "value": "https://예시.한국/경로"
+        },
+        "unicode_fullwidth_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_nfkc_slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_space_host": {
+          "codes": [],
+          "value": "https://exa mple.com"
+        },
+        "unicode_space_path": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "uppercase_scheme": {
+          "codes": [],
+          "value": "HTTPS://Example.COM/Path"
+        },
+        "userinfo": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_brackets": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_empty": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_empty_password": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_extra_at": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_extra_colon": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "userinfo_no_password": {
+          "codes": [],
+          "value": "https://user@example.com"
+        },
+        "userinfo_unicode": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 24,
+      "required": true,
+      "widget": "URLInput"
+    }
+  },
+  "input_sha256": "814b860bc74f2d96233d08b7fc420b8562382258f403fbca37992bb59072fc20",
+  "model_choices": {
+    "https://new.example.com": {
+      "candidate": "https://new.example.com",
+      "errors": [],
+      "valid": true
+    },
+    "legacy": {
+      "candidate": "legacy",
+      "errors": [
+        "invalid"
+      ],
+      "valid": false
+    },
+    "new.example.com": {
+      "candidate": "",
+      "errors": [
+        "invalid_choice"
+      ],
+      "valid": false
+    }
+  },
+  "model_forms": {
+    "bare": {
+      "candidate": "https://new.example.com/path",
+      "cleaned": "https://new.example.com/path",
+      "errors": [],
+      "valid": true
+    },
+    "empty": {
+      "candidate": null,
+      "cleaned": null,
+      "errors": [],
+      "valid": true
+    },
+    "invalid": {
+      "candidate": "https://old.example.com",
+      "cleaned": null,
+      "errors": [
+        "invalid"
+      ],
+      "valid": false
+    },
+    "omitted": {
+      "candidate": null,
+      "cleaned": null,
+      "errors": [],
+      "valid": true
+    },
+    "relative": {
+      "candidate": "https://new.example.com",
+      "cleaned": "https://new.example.com",
+      "errors": [],
+      "valid": true
+    }
+  },
+  "python": "3.14.3",
+  "serializer_defaults": {
+    "empty": "",
+    "legacy": "not-an-url",
+    "null": null,
+    "padded": "  HTTPS://Example.COM/Path  "
+  },
+  "serializers": {
+    "model": {
+      "backslash_path": {
+        "codes": [],
+        "value": "https://example.com/a\\b"
+      },
+      "bare_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_host_port": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_path_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "blank": {
+        "codes": [],
+        "value": ""
+      },
+      "double_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "file": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ftp": {
+        "codes": [],
+        "value": "ftp://example.com/file"
+      },
+      "ftps": {
+        "codes": [],
+        "value": "ftps://example.com/file"
+      },
+      "host253": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "host254": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "host_lower_expansion": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "http": {
+        "codes": [],
+        "value": "http://example.com"
+      },
+      "https": {
+        "codes": [],
+        "value": "https://Example.COM/a?b=1#frag"
+      },
+      "hyphen_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hyphen_start": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4": {
+        "codes": [],
+        "value": "http://127.0.0.1:80/a"
+      },
+      "ip4_leading_zero": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_range": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_zero": {
+        "codes": [],
+        "value": "http://0.0.0.0/"
+      },
+      "ipv4_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "https://[2001:db8::1]:443/a"
+      },
+      "ipv6_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6_user": {
+        "codes": [],
+        "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+      },
+      "ipv6_zone": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipvfuture": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "javascript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "label63": {
+        "codes": [],
+        "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+      },
+      "label64": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length2048": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "length2049": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost": {
+        "codes": [],
+        "value": "http://localhost:8000"
+      },
+      "localhost_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost_upper": {
+        "codes": [],
+        "value": "http://LOCALHOST"
+      },
+      "long_invalid": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "middle_control": {
+        "codes": [],
+        "value": "https://example.com/a\u0001b"
+      },
+      "missing_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "missing_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "normalization_over_length": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_path": {
+        "codes": [
+          "null_characters_not_allowed"
+        ],
+        "value": null
+      },
+      "padded": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/a"
+      },
+      "percent_encoded": {
+        "codes": [],
+        "value": "https://example.com/a%20b"
+      },
+      "percent_invalid": {
+        "codes": [],
+        "value": "https://example.com/%zz"
+      },
+      "port_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_large": {
+        "codes": [],
+        "value": "https://example.com:99999"
+      },
+      "port_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_text": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_zero": {
+        "codes": [],
+        "value": "https://example.com:0"
+      },
+      "punycode": {
+        "codes": [],
+        "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+      },
+      "relative_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "return_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "scheme_colon_only": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "single_label": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "stray_bracket": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_hyphen": {
+        "codes": [],
+        "value": "https://example.co-op"
+      },
+      "tld_numeric": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_single": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "trailing_control": {
+        "codes": [],
+        "value": "https://example.com/a"
+      },
+      "trailing_dot": {
+        "codes": [],
+        "value": "https://example.com."
+      },
+      "underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_domain": {
+        "codes": [],
+        "value": "https://예시.한국/경로"
+      },
+      "unicode_fullwidth_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_space_host": {
+        "codes": [],
+        "value": "https://exa mple.com"
+      },
+      "unicode_space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "uppercase_scheme": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/Path"
+      },
+      "userinfo": {
+        "codes": [],
+        "value": "https://user:pass@example.com/path"
+      },
+      "userinfo_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty_password": {
+        "codes": [],
+        "value": "https://user:@example.com"
+      },
+      "userinfo_extra_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_extra_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_no_password": {
+        "codes": [],
+        "value": "https://user@example.com"
+      },
+      "userinfo_unicode": {
+        "codes": [],
+        "value": "https://이름:암호@example.com"
+      }
+    },
+    "optional": {
+      "backslash_path": {
+        "codes": [],
+        "value": "https://example.com/a\\b"
+      },
+      "bare_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_host_port": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_path_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "blank": {
+        "codes": [],
+        "value": ""
+      },
+      "double_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "file": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ftp": {
+        "codes": [],
+        "value": "ftp://example.com/file"
+      },
+      "ftps": {
+        "codes": [],
+        "value": "ftps://example.com/file"
+      },
+      "host253": {
+        "codes": [],
+        "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "host254": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "host_lower_expansion": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "http": {
+        "codes": [],
+        "value": "http://example.com"
+      },
+      "https": {
+        "codes": [],
+        "value": "https://Example.COM/a?b=1#frag"
+      },
+      "hyphen_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hyphen_start": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4": {
+        "codes": [],
+        "value": "http://127.0.0.1:80/a"
+      },
+      "ip4_leading_zero": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_range": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_zero": {
+        "codes": [],
+        "value": "http://0.0.0.0/"
+      },
+      "ipv4_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "https://[2001:db8::1]:443/a"
+      },
+      "ipv6_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6_user": {
+        "codes": [],
+        "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+      },
+      "ipv6_zone": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipvfuture": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "javascript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "label63": {
+        "codes": [],
+        "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+      },
+      "label64": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length2048": {
+        "codes": [],
+        "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "length2049": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost": {
+        "codes": [],
+        "value": "http://localhost:8000"
+      },
+      "localhost_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost_upper": {
+        "codes": [],
+        "value": "http://LOCALHOST"
+      },
+      "long_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "middle_control": {
+        "codes": [],
+        "value": "https://example.com/a\u0001b"
+      },
+      "missing_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "missing_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "normalization_over_length": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [],
+        "value": null
+      },
+      "null_path": {
+        "codes": [
+          "null_characters_not_allowed"
+        ],
+        "value": null
+      },
+      "padded": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/a"
+      },
+      "percent_encoded": {
+        "codes": [],
+        "value": "https://example.com/a%20b"
+      },
+      "percent_invalid": {
+        "codes": [],
+        "value": "https://example.com/%zz"
+      },
+      "port_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_large": {
+        "codes": [],
+        "value": "https://example.com:99999"
+      },
+      "port_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_text": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_zero": {
+        "codes": [],
+        "value": "https://example.com:0"
+      },
+      "punycode": {
+        "codes": [],
+        "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+      },
+      "relative_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "return_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "scheme_colon_only": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "single_label": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "stray_bracket": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_hyphen": {
+        "codes": [],
+        "value": "https://example.co-op"
+      },
+      "tld_numeric": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_single": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "trailing_control": {
+        "codes": [],
+        "value": "https://example.com/a"
+      },
+      "trailing_dot": {
+        "codes": [],
+        "value": "https://example.com."
+      },
+      "underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_domain": {
+        "codes": [],
+        "value": "https://예시.한국/경로"
+      },
+      "unicode_fullwidth_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_space_host": {
+        "codes": [],
+        "value": "https://exa mple.com"
+      },
+      "unicode_space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "uppercase_scheme": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/Path"
+      },
+      "userinfo": {
+        "codes": [],
+        "value": "https://user:pass@example.com/path"
+      },
+      "userinfo_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty_password": {
+        "codes": [],
+        "value": "https://user:@example.com"
+      },
+      "userinfo_extra_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_extra_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_no_password": {
+        "codes": [],
+        "value": "https://user@example.com"
+      },
+      "userinfo_unicode": {
+        "codes": [],
+        "value": "https://이름:암호@example.com"
+      }
+    },
+    "required": {
+      "backslash_path": {
+        "codes": [],
+        "value": "https://example.com/a\\b"
+      },
+      "bare_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_host_port": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_path_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "blank": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "double_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "file": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ftp": {
+        "codes": [],
+        "value": "ftp://example.com/file"
+      },
+      "ftps": {
+        "codes": [],
+        "value": "ftps://example.com/file"
+      },
+      "host253": {
+        "codes": [],
+        "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "host254": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "host_lower_expansion": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "http": {
+        "codes": [],
+        "value": "http://example.com"
+      },
+      "https": {
+        "codes": [],
+        "value": "https://Example.COM/a?b=1#frag"
+      },
+      "hyphen_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hyphen_start": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4": {
+        "codes": [],
+        "value": "http://127.0.0.1:80/a"
+      },
+      "ip4_leading_zero": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_range": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_zero": {
+        "codes": [],
+        "value": "http://0.0.0.0/"
+      },
+      "ipv4_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "https://[2001:db8::1]:443/a"
+      },
+      "ipv6_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6_user": {
+        "codes": [],
+        "value": "https://user:pw@[::ffff:192.0.2.1]:123/a"
+      },
+      "ipv6_zone": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipvfuture": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "javascript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "label63": {
+        "codes": [],
+        "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+      },
+      "label64": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length2048": {
+        "codes": [],
+        "value": "https://example.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "length2049": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost": {
+        "codes": [],
+        "value": "http://localhost:8000"
+      },
+      "localhost_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost_upper": {
+        "codes": [],
+        "value": "http://LOCALHOST"
+      },
+      "long_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "middle_control": {
+        "codes": [],
+        "value": "https://example.com/a\u0001b"
+      },
+      "missing_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "missing_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "normalization_over_length": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_path": {
+        "codes": [
+          "null_characters_not_allowed"
+        ],
+        "value": null
+      },
+      "padded": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/a"
+      },
+      "percent_encoded": {
+        "codes": [],
+        "value": "https://example.com/a%20b"
+      },
+      "percent_invalid": {
+        "codes": [],
+        "value": "https://example.com/%zz"
+      },
+      "port_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_large": {
+        "codes": [],
+        "value": "https://example.com:99999"
+      },
+      "port_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_text": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_zero": {
+        "codes": [],
+        "value": "https://example.com:0"
+      },
+      "punycode": {
+        "codes": [],
+        "value": "https://xn--9n2bp8q.xn--3e0b707e/"
+      },
+      "relative_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "return_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "scheme_colon_only": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "single_label": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "stray_bracket": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_hyphen": {
+        "codes": [],
+        "value": "https://example.co-op"
+      },
+      "tld_numeric": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_single": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "trailing_control": {
+        "codes": [],
+        "value": "https://example.com/a"
+      },
+      "trailing_dot": {
+        "codes": [],
+        "value": "https://example.com."
+      },
+      "underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_domain": {
+        "codes": [],
+        "value": "https://예시.한국/경로"
+      },
+      "unicode_fullwidth_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_space_host": {
+        "codes": [],
+        "value": "https://exa mple.com"
+      },
+      "unicode_space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "uppercase_scheme": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/Path"
+      },
+      "userinfo": {
+        "codes": [],
+        "value": "https://user:pass@example.com/path"
+      },
+      "userinfo_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty_password": {
+        "codes": [],
+        "value": "https://user:@example.com"
+      },
+      "userinfo_extra_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_extra_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_no_password": {
+        "codes": [],
+        "value": "https://user@example.com"
+      },
+      "userinfo_unicode": {
+        "codes": [],
+        "value": "https://이름:암호@example.com"
+      }
+    },
+    "short": {
+      "backslash_path": {
+        "codes": [],
+        "value": "https://example.com/a\\b"
+      },
+      "bare_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_host_port": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bare_path_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "blank": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "double_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "file": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ftp": {
+        "codes": [],
+        "value": "ftp://example.com/file"
+      },
+      "ftps": {
+        "codes": [],
+        "value": "ftps://example.com/file"
+      },
+      "host253": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "host254": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "host_lower_expansion": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "http": {
+        "codes": [],
+        "value": "http://example.com"
+      },
+      "https": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "hyphen_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hyphen_start": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4": {
+        "codes": [],
+        "value": "http://127.0.0.1:80/a"
+      },
+      "ip4_leading_zero": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_range": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ip4_zero": {
+        "codes": [],
+        "value": "http://0.0.0.0/"
+      },
+      "ipv4_brackets": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "ipv6_invalid": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv6_user": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "ipv6_zone": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipvfuture": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "javascript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "label63": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "label64": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "length2048": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "length2049": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost": {
+        "codes": [],
+        "value": "http://localhost:8000"
+      },
+      "localhost_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "localhost_upper": {
+        "codes": [],
+        "value": "http://LOCALHOST"
+      },
+      "long_invalid": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "middle_control": {
+        "codes": [],
+        "value": "https://example.com/a\u0001b"
+      },
+      "missing_host": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "missing_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "normalization_over_length": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_path": {
+        "codes": [
+          "null_characters_not_allowed"
+        ],
+        "value": null
+      },
+      "padded": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/a"
+      },
+      "percent_encoded": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "percent_invalid": {
+        "codes": [],
+        "value": "https://example.com/%zz"
+      },
+      "port_empty": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_large": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "port_long": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_text": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "port_zero": {
+        "codes": [],
+        "value": "https://example.com:0"
+      },
+      "punycode": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "relative_scheme": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "return_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "scheme_colon_only": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "single_label": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "stray_bracket": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_hyphen": {
+        "codes": [],
+        "value": "https://example.co-op"
+      },
+      "tld_numeric": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tld_single": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "trailing_control": {
+        "codes": [],
+        "value": "https://example.com/a"
+      },
+      "trailing_dot": {
+        "codes": [],
+        "value": "https://example.com."
+      },
+      "underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_domain": {
+        "codes": [],
+        "value": "https://예시.한국/경로"
+      },
+      "unicode_fullwidth_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_nfkc_slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_space_host": {
+        "codes": [],
+        "value": "https://exa mple.com"
+      },
+      "unicode_space_path": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "uppercase_scheme": {
+        "codes": [],
+        "value": "HTTPS://Example.COM/Path"
+      },
+      "userinfo": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "userinfo_brackets": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_empty_password": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "userinfo_extra_at": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_extra_colon": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "userinfo_no_password": {
+        "codes": [],
+        "value": "https://user@example.com"
+      },
+      "userinfo_unicode": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      }
+    }
+  },
+  "source_sha256": {
+    "form_fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "model_fields": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f",
+    "serializer_fields": "c0c1540aacc5b4b9d9ee972cae322b0a0a10823d017ea3ffc0d3b85d500143d6",
+    "validators": "262c79a3ea6c4990847bc4c8764e03af1370979098be3d8fc9b4d7365de24ea0"
+  },
+  "storage": {
+    "after": [
+      [
+        "upper",
+        "https://Example.com/Path"
+      ],
+      [
+        "lower",
+        "https://example.com/path"
+      ],
+      [
+        "invalid",
+        "not-an-url"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ]
+    ],
+    "alter_sql_count": 0,
+    "before": [
+      [
+        "upper",
+        "https://Example.com/Path"
+      ],
+      [
+        "lower",
+        "https://example.com/path"
+      ],
+      [
+        "invalid",
+        "not-an-url"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ]
+    ],
+    "queries": {
+      "contains": [
+        "upper",
+        "lower"
+      ],
+      "exact": [
+        "upper"
+      ],
+      "iexact": [
+        "upper",
+        "lower"
+      ],
+      "null": [
+        "null"
+      ]
+    },
+    "reverse": [
+      [
+        "upper",
+        "https://Example.com/Path"
+      ],
+      [
+        "lower",
+        "https://example.com/path"
+      ],
+      [
+        "invalid",
+        "not-an-url"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ],
+      [
+        "new_invalid",
+        "also-not-url"
+      ]
+    ],
+    "reverse_sql_count": 0,
+    "unvalidated_save": "also-not-url"
+  },
+  "validator": {
+    "backslash_path": true,
+    "bare_host": false,
+    "bare_host_port": false,
+    "bare_path_colon": false,
+    "blank": false,
+    "double_dot": false,
+    "emoji_host": false,
+    "empty": false,
+    "file": false,
+    "ftp": true,
+    "ftps": true,
+    "host253": true,
+    "host254": false,
+    "host_lower_expansion": false,
+    "http": true,
+    "https": true,
+    "hyphen_end": false,
+    "hyphen_start": false,
+    "ip4": true,
+    "ip4_leading_zero": false,
+    "ip4_range": false,
+    "ip4_zero": true,
+    "ipv4_brackets": false,
+    "ipv6": true,
+    "ipv6_invalid": false,
+    "ipv6_user": true,
+    "ipv6_zone": false,
+    "ipvfuture": false,
+    "javascript": false,
+    "label63": true,
+    "label64": false,
+    "length2048": true,
+    "length2049": false,
+    "localhost": true,
+    "localhost_dot": false,
+    "localhost_upper": true,
+    "long_invalid": false,
+    "middle_control": true,
+    "missing_host": false,
+    "missing_scheme": false,
+    "newline_path": false,
+    "normalization_over_length": false,
+    "null": false,
+    "null_path": true,
+    "padded": false,
+    "percent_encoded": true,
+    "percent_invalid": true,
+    "port_empty": false,
+    "port_large": true,
+    "port_long": false,
+    "port_text": false,
+    "port_zero": true,
+    "punycode": true,
+    "relative_scheme": false,
+    "return_path": false,
+    "scheme_colon_only": false,
+    "single_label": false,
+    "space_path": false,
+    "stray_bracket": false,
+    "tab_path": false,
+    "tld_hyphen": true,
+    "tld_numeric": false,
+    "tld_single": false,
+    "trailing_control": false,
+    "trailing_dot": true,
+    "underscore": false,
+    "unicode_domain": true,
+    "unicode_fullwidth_dot": false,
+    "unicode_nfkc_at": false,
+    "unicode_nfkc_colon": false,
+    "unicode_nfkc_slash": false,
+    "unicode_space_host": true,
+    "unicode_space_path": false,
+    "uppercase_scheme": true,
+    "userinfo": true,
+    "userinfo_brackets": false,
+    "userinfo_empty": false,
+    "userinfo_empty_password": true,
+    "userinfo_extra_at": false,
+    "userinfo_extra_colon": false,
+    "userinfo_no_password": true,
+    "userinfo_unicode": true
+  }
+}

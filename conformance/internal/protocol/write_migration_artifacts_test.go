@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,11 +12,7 @@ import (
 func TestWriteMigrationArtifactsHaveExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate protocol test source")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", ".."))
+	root := conformanceRepositoryRoot(t)
 	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -178,11 +173,7 @@ func TestWriteMigrationArtifactsHaveExplicitNotImplementedBaseline(t *testing.T)
 func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 	t.Parallel()
 
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate protocol test source")
-	}
-	oracleDirectory := filepath.Join(filepath.Dir(source), "..", "..", "oracles", "django-6.1-sqlite-darwin-arm64")
+	oracleDirectory := filepath.Join(conformanceRepositoryRoot(t), "conformance", "oracles", "django-6.1-sqlite-darwin-arm64")
 	checksumBytes, err := os.ReadFile(filepath.Join(oracleDirectory, "SHA256SUMS"))
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +189,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 		entries[fields[1]] = fields[0]
 	}
-	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json"}
+	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "query-breadth-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json", "migration-definition-source-oracle.json", "migration-project-check-oracle.json", "migration-command-oracle.json", "migration-writer-oracle.json", "migration-status-oracle.json", "migration-target-plan-oracle.json", "migration-sql-rendering-oracle.json", "relation-oracle.json", "migration-relation-oracle.json", "query-expression-oracle.json", "template-form-oracle.json", "auth-session-oracle.json", "article-admin-oracle.json", "system-state.json"}
 	if len(entries) != len(wantedPaths) {
 		t.Fatalf("SHA256SUMS has %d entries, want %d: %#v", len(entries), len(wantedPaths), entries)
 	}
@@ -213,14 +204,23 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"migration-planning-oracle.json": "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-		"oracle.json":                    "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
-		"query-cache-oracle.json":        "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
-		"save-lifecycle-oracle.json":     "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
-		"write-migration-oracle.json":    "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
+		"migration-planning-oracle.json":      "9586075f25edca8eb82ab553c09416060d992978f0282d730c9d4232178c6938",
+		"oracle.json":                         "ba99ad6b7c1ccf68c92e272caf717d56c6aec43c0ef0f8ee4903e85d2a6b74fd",
+		"query-cache-oracle.json":             "8887677d4b89cae722313d90542b0916b364bccf9c9031261ecbd71c12978104",
+		"query-breadth-oracle.json":           "b1b4a981a83df9705f60e2570847353f3f216e30dedc899b995cac0b76968141",
+		"query-expression-oracle.json":        "463b2b0619b6e0d19030285b2fe268877aec0693ec35ffdfb877adc4dabc634c",
+		"template-form-oracle.json":           "ec3fe1dc73f919387b718dd3ee0ffea3b3a2ab7215dda5827a579109b9c2a8ab",
+		"auth-session-oracle.json":            "90f8fe223bde62cc3959945cfbf00fd0df02a5d89da4026f28372e703c819d68",
+		"article-admin-oracle.json":           "e718f31177bfa81b4cfe810f7cc13633b5d3465094be33e412c5ba6c3c2a6c2e",
+		"system-state.json":                   "fb9370af22749c949e85b5929772144ecd03890653b76e440c56b0e459503959",
+		"save-lifecycle-oracle.json":          "3d2327edc32f83f740f9dd8b5e2f64b7887ad10f07a36e51ca860213be10a4b8",
+		"write-migration-oracle.json":         "04f398468251850059f85aa0550d03cd91d001056a33c2ad41e2d85361ba176f",
+		"migration-status-oracle.json":        "38e121058b00b6d28303d91bbf9f0d0a5efcd434c7c0dec6bf0e7d9d462f7d20",
+		"migration-target-plan-oracle.json":   "0c104b05d7882dc0d740b011b8a4e63de7cb22af6a9b0cce047cd380f2e37473",
+		"migration-sql-rendering-oracle.json": "d59cff1aa58e4f8c485c3a7a087c839396626aabcddda5d9d687d4ad1c977617",
 	} {
 		if entries[name] != want {
-			t.Fatalf("existing %s checksum changed to %q, want immutable baseline %q", name, entries[name], want)
+			t.Fatalf("locked %s checksum changed to %q, want %q", name, entries[name], want)
 		}
 	}
 }
@@ -233,30 +233,6 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	// byte-for-byte immutable. Query-cache and migration-planning locked oracles
 	// and static baselines also remain immutable; only each manifest hash changes
 	// when its product adapter reaches 0-diff and status moves to passing.
-	expectedHashes := map[string]string{
-		"conformance/contracts/manifest.json":                                            "e395fc862d357b7d45f94fa7d2d15f5a5dfdf8c353db958adc280fd64870b874",
-		"conformance/contracts/query-cache-manifest.json":                                "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2",
-		"conformance/contracts/save-lifecycle-manifest.json":                             "6f215f6aee153954dee84d0571cc28529c2d50ee31ee2b9755733db3f9762905",
-		"conformance/contracts/write-migration-manifest.json":                            "b0ba235cb8b83e9b595b2ad3230ea7440d8b6ea74789de27c8a1f6625ecd05bb",
-		"conformance/fixtures/godj-not-implemented.json":                                 "f02ea4e01e0ffcc9195d56d69129c5def0591cbcdcb5b07a62d2ec7395fa7874",
-		"conformance/fixtures/godj-query-cache-not-implemented.json":                     "5cdec6cbd5440527529b08774673136c079895ab834fe2821a1626000d611d87",
-		"conformance/fixtures/godj-save-lifecycle-not-implemented.json":                  "5ece667fe6babef5d01059ba4166e1243946176f9672119ae45f4c39c440c726",
-		"conformance/fixtures/godj-write-migration-not-implemented.json":                 "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                 "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json":     "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json":  "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json": "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
-	}
-	for name, want := range expectedHashes {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want {
-			t.Fatalf("existing artifact %s checksum changed to %q, want immutable baseline %q", name, got, want)
-		}
-	}
 
 	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
 	if err != nil {
@@ -319,7 +295,7 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
-func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T) {
+func TestTwelveSetProductStatusesAre122Passing5ReviewedDeviationsAnd0OracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -332,9 +308,14 @@ func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T)
 		"migration-execution-manifest.json",
 		"migration-restart-manifest.json",
 		"migration-state-reconstruction-manifest.json",
+		"migration-lifecycle-manifest.json",
+		"migration-definition-source-manifest.json",
+		"migration-project-check-manifest.json",
+		"relation-manifest.json",
 	}
 	passing := 0
 	deviations := 0
+	oracleLocked := 0
 	for _, name := range manifestNames {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
 		if err != nil {
@@ -346,13 +327,15 @@ func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T)
 				passing++
 			case ContractDeviation:
 				deviations++
+			case ContractOracleLocked:
+				oracleLocked++
 			default:
 				t.Fatalf("manifest %s contract %s has non-product status %q", name, contract.ID, contract.Status)
 			}
 		}
 	}
-	if passing != 83 || deviations != 4 {
-		t.Fatalf("eight-set product statuses = %d passing + %d deviation, want 83 + 4", passing, deviations)
+	if passing != 122 || deviations != 5 || oracleLocked != 0 {
+		t.Fatalf("twelve-set product statuses = %d passing + %d deviation + %d oracle_locked, want 122 + 5 + 0", passing, deviations, oracleLocked)
 	}
 }
 

@@ -1,0 +1,261 @@
+package consumer
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"sync/atomic"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+type creationReadBoundary struct {
+	database.Backend
+	mode                       string
+	cause                      error
+	reads, callbacks, failures int
+}
+
+type creationFailedReader struct {
+	db.Queryer
+	db.SessionValidator
+	boundary *creationReadBoundary
+}
+
+func (reader *creationFailedReader) Query(context.Context, query.Plan) (db.Rows, error) {
+	reader.boundary.failures++
+	return nil, reader.boundary.cause
+}
+
+func (boundary *creationReadBoundary) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	boundary.reads++
+	if boundary.mode == "read_zero" {
+		return nil
+	}
+	work, cancel := context.WithCancel(ctx)
+	defer cancel()
+	callback := func(reader db.Queryer) error {
+		boundary.callbacks++
+		return read(reader)
+	}
+	err := boundary.Backend.ReadSnapshot(work, func(reader db.Queryer) error {
+		switch boundary.mode {
+		case "read_nil":
+			return callback(nil)
+		case "read_twice":
+			if err := callback(reader); err != nil {
+				return err
+			}
+			return callback(reader)
+		case "read_swallowed_failure":
+			validator, valid := reader.(db.SessionValidator)
+			if !valid {
+				return errors.New("query fault lost its native scope")
+			}
+			_ = callback(&creationFailedReader{Queryer: reader, SessionValidator: validator, boundary: boundary})
+			return nil
+		case "canceled":
+			err := callback(reader)
+			cancel()
+			return err
+		default:
+			return callback(reader)
+		}
+	})
+	if boundary.mode == "read_end_failure" {
+		err = errors.Join(err, boundary.cause)
+	}
+	if boundary.mode == "canceled" {
+		err = errors.Join(err, work.Err())
+	}
+	return err
+}
+
+func creationReadInput(t *testing.T, f *creationInputFixture, form *accountmodel.CreationForm[usernameAccount]) formmodel.BoundForm {
+	t.Helper()
+	definition := form.Definition()
+	bound, err := formmodel.Bind(t.Context(), f.metadata, form.Spec(), f.data(form, "admin_enabled", creationInputCase{Username: "MEMBER", Password1: "weak", Password2: "weak"}), nil, definition.PostClean)
+	creationInputCheck(t, err)
+	if !bound.Form().Valid() {
+		t.Fatal("read validation fixture failed before the advisory snapshot")
+	}
+	return bound
+}
+
+func TestAccountCreationReadValidation(t *testing.T) {
+	creationInputRun(t, "current_authority_precedes_diagnostics", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		form := f.form(t, "admin_enabled")
+		bound := creationReadInput(t, f, form)
+		root, err := f.objects.Using(f.native).Filter(f.login.Exact("manager")).Get(t.Context())
+		creationInputCheck(t, err)
+		values, err := f.objects.ModelValues(root)
+		creationInputCheck(t, err)
+		revision, valid := values[f.role.Revision].Integer()
+		if !valid || f.role.Superuser.Field == "" {
+			t.Fatal("current-authority fixture has no mutable role")
+		}
+		root, err = f.objects.ApplyValues(root, map[string]query.Value{f.role.Superuser.Field: query.Boolean(false), f.role.Revision: query.Integer(revision + 1)})
+		creationInputCheck(t, err)
+		creationInputCheck(t, f.objects.Save(t.Context(), f.native, &root, orm.ForceUpdate[usernameAccount]()))
+		before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+		f.recorded(true)
+		failure := form.Check(t.Context(), f.actor, bound)
+		_, rejected := validation.Rejected(failure)
+		if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodePermission}) || rejected || len(f.recorded(false)) != 0 || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+			t.Fatal("stale actor obtained private input diagnostics or performed work", failure)
+		}
+	})
+	creationInputRun(t, "read_failures_are_not_input", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		for _, login := range []string{"manager", "member", ""} {
+			values := map[string]string{"preserve": "advisory-validation"}
+			if login != "" {
+				row, err := f.objects.Using(f.native).Filter(f.login.Exact(login)).Get(t.Context())
+				creationInputCheck(t, err)
+				fields, err := f.objects.ModelValues(row)
+				creationInputCheck(t, err)
+				principal, _ := fields[f.role.PrincipalID].String()
+				credential, err := f.runtime.Authenticator().Resolve(t.Context(), principal)
+				creationInputCheck(t, err)
+				values[auth.SessionPrincipalIDKey], values[auth.SessionCredentialStampKey] = principal, credential.SessionStamp()
+			}
+			_, err := f.runtime.Sessions().Create(t.Context(), values)
+			creationInputCheck(t, err)
+		}
+		for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_twice", "read_swallowed_failure", "canceled"} {
+			creationInputRun(t, mode, func(t *testing.T) {
+				boundary := &creationReadBoundary{Backend: f.native, cause: errors.New("private-creation-read-fault")}
+				owner, err := project.NewAccountRuntime(t.Context(), boundary, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+				creationInputCheck(t, err)
+				form, err := accountmodel.NewCreationForm(owner.Accounts(), accountmodel.CreationFormConfig{AllowUnusablePassword: true, LoginInput: accountmodel.UnicodeUsernameInput(150)})
+				creationInputCheck(t, err)
+				bound := creationReadInput(t, f, form)
+				before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+				// The same candidate normally has both private model and
+				// credential diagnostics. A failed scope must publish neither.
+				diagnostics, rejected := validation.Rejected(form.Check(t.Context(), f.actor, bound))
+				if !rejected || diagnostics.ByField(validation.Field(f.role.Login)).Empty() || diagnostics.ByField(validation.Field(form.PasswordFields().Confirmation)).Empty() {
+					t.Fatal("read-failure control has no combined diagnostics")
+				}
+				boundary.mode, boundary.reads, boundary.callbacks, boundary.failures = mode, 0, 0, 0
+				f.recorded(true)
+				failure := form.Check(t.Context(), f.actor, bound)
+				_, rejected = validation.Rejected(failure)
+				wantCallbacks, wantPolicies, wantFailures := 1, 1, 0
+				switch mode {
+				case "read_zero":
+					wantCallbacks, wantPolicies = 0, 0
+				case "read_nil":
+					wantPolicies = 0
+				case "read_twice":
+					wantCallbacks = 2
+				case "read_swallowed_failure":
+					wantPolicies, wantFailures = 0, 1
+				}
+				if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodePersistence}) || rejected || boundary.reads != 1 || boundary.callbacks != wantCallbacks || boundary.failures != wantFailures || len(f.recorded(false)) != wantPolicies {
+					t.Fatal("failed advisory scope published diagnostics or lost the fault", mode, failure, boundary.reads, boundary.callbacks, boundary.failures)
+				}
+				if mode == "canceled" && !errors.Is(failure, context.Canceled) || (mode == "read_end_failure" || mode == "read_swallowed_failure") && !errors.Is(failure, boundary.cause) {
+					t.Fatal("advisory failure lost its original cause", mode, failure)
+				}
+				if f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+					t.Fatal("read-only failure changed native rows, hashed or allocated identity")
+				}
+			})
+		}
+	})
+	for _, mode := range []string{"revoked_authority", "duplicate_after_hash"} {
+		creationInputRun(t, mode, func(t *testing.T) {
+			f := newCreationInputFixture(t, false)
+			h := f.admin(t)
+			second, err := database.Open(t.Context(), f.database)
+			creationInputCheck(t, err)
+			t.Cleanup(func() { creationInputCheck(t, second.Close()) })
+			peer, err := project.NewAccountRuntime(t.Context(), second, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+			creationInputCheck(t, err)
+			root, err := f.objects.Using(f.native).Filter(f.login.Exact("manager")).Get(t.Context())
+			creationInputCheck(t, err)
+			expected, err := f.objects.ModelValues(root)
+			creationInputCheck(t, err)
+			revision, valid := expected[f.role.Revision].Integer()
+			if !valid || f.role.Superuser.Field == "" {
+				t.Fatal("concurrent authority fixture is incomplete")
+			}
+			expected[f.role.Superuser.Field], expected[f.role.Revision] = query.Boolean(false), query.Integer(revision+1)
+			key, present, err := f.objects.PrimaryKey(root)
+			creationInputCheck(t, err)
+			actorID, integer := key.Integer()
+			if !present || !integer {
+				t.Fatal("concurrent actor has no key")
+			}
+			data := h.choiceData(t, "Candidate", "  replacement secret  ", "  replacement secret  ", "false")
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			f.recorded(true)
+			var hooks atomic.Int64
+			committed := make(chan accountmodel.Creation, 1)
+			f.hasher.hook.Store(&creationInputHashHook{run: func(ctx context.Context) error {
+				hooks.Add(1)
+				if mode == "revoked_authority" {
+					return second.CoordinatedAtomic(ctx, func(scope db.Session) error {
+						candidate, err := f.objects.ApplyValues(root, map[string]query.Value{f.role.Superuser.Field: query.Boolean(false), f.role.Revision: query.Integer(revision + 1)})
+						if err != nil {
+							return err
+						}
+						return f.objects.Save(ctx, scope, &candidate, orm.ForceUpdate[usernameAccount]())
+					})
+				}
+				values := map[string]query.Value{f.role.Login: query.String("CANDIDATE")}
+				for _, field := range f.config.Accounts.CreateFields {
+					if field != f.role.Login {
+						values[field] = query.String("NZ")
+					}
+				}
+				input, err := f.objects.Input(values)
+				if err != nil {
+					return err
+				}
+				creator := peer.Accounts().Creator()
+				prepared, err := creator.PrepareUnusable(ctx, f.actor, input)
+				if err != nil {
+					return err
+				}
+				created, err := creator.Commit(ctx, f.actor, prepared)
+				if err == nil {
+					committed <- created
+				}
+				return err
+			}})
+			status, header, body := h.send(t, "POST", "/admin/accounts/add/", data)
+			wantStatus, wantIDs := 403, int64(1)
+			wantCodes := map[string][]string{}
+			if mode == "duplicate_after_hash" {
+				wantStatus, wantIDs = 200, 2
+				wantCodes["username"] = []string{"unique"}
+			}
+			form := f.form(t, "admin_enabled")
+			if status != wantStatus || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" || !reflect.DeepEqual(f.codes(form, creationInputDiagnostics(t, form, body)), wantCodes) || hooks.Load() != 1 || f.hasher.hook.Load() != nil || f.hasher.calls.Load()-hashes != 1 || f.ids.Load()-ids != wantIDs || len(f.recorded(false)) != 2 {
+				t.Fatal("late Admin rejection lost diagnostics, repeated work or held a native scope during hashing", mode, status)
+			}
+			if mode == "revoked_authority" {
+				f.actorChangedOnly(t, before, actorID, expected)
+			} else {
+				select {
+				case created := <-committed:
+					f.saved(t, before, created, "CANDIDATE", "", false)
+				default:
+					t.Fatal("separate native writer did not confirm the competing account")
+				}
+			}
+		})
+	}
+}

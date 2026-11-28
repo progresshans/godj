@@ -1,0 +1,92 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "observations": {
+    "authentication_only": {
+      "authenticated": true,
+      "last_login": null
+    },
+    "failures": {
+      "last_login_write": {
+        "last_login": null,
+        "new_cookie": false,
+        "old_session_retained": false,
+        "status": 500
+      },
+      "session_write": {
+        "last_login": "2026-09-27T01:02:03.123456+00:00",
+        "new_cookie": false,
+        "old_session_retained": false,
+        "status": 500
+      }
+    },
+    "lifecycle": [
+      {
+        "last_login": null,
+        "nonstaff_status": 401,
+        "session_retained": true,
+        "stage": "denied",
+        "wrong_status": 401
+      },
+      {
+        "authenticated": true,
+        "key_changed": true,
+        "last_login": "2026-09-27T01:02:03.123456+00:00",
+        "payload": "anonymous",
+        "stage": "login",
+        "status": 200
+      },
+      {
+        "last_login": "2026-09-27T01:02:03.123456+00:00",
+        "stage": "access"
+      },
+      {
+        "authenticated": true,
+        "key_changed": false,
+        "last_login": "2026-09-27T01:02:05.123456+00:00",
+        "payload": "anonymous",
+        "stage": "repeat_login",
+        "status": 200
+      },
+      {
+        "authenticated": true,
+        "key_changed": true,
+        "last_login": "2026-09-27T01:02:06.123456+00:00",
+        "payload": null,
+        "stage": "different_user",
+        "status": 200
+      },
+      {
+        "authenticated": false,
+        "last_login": "2026-09-27T01:02:06.123456+00:00",
+        "payload": null,
+        "stage": "logout"
+      }
+    ],
+    "post_authentication_change": {
+      "inactive": {
+        "last_login": "2026-09-27T01:02:03.123456+00:00",
+        "next_authenticated": false,
+        "status": 200
+      },
+      "password_changed": {
+        "last_login": "2026-09-27T01:02:03.123456+00:00",
+        "next_authenticated": false,
+        "status": 200
+      }
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "admin_forms": "d14089b2d9a605fa7f73fd00aa500b250632f5bc57a3d7eaa1040809038d184a",
+    "auth": "a4eda00e2c4e29178afac5c1a05b52f07b65c0c2a4582c3684eb332521b3209a",
+    "backends": "dbe0f9db060459c7e016d41d16a2a327872d74931a876cb4e014424875bf5da1",
+    "base_user": "8f0851c891464b42def6cdf433e09cc70dc52351279eee8303a1c6076a888da0",
+    "forms": "6c572868521f2b8023f3d5da86cc0d7f75974447f277b37eef7e17108453df25",
+    "hashers": "6cdd7b577c2e5898b59a7998806abcb86c231fa71440902380aed16783f26493",
+    "models": "fb5cc235be494dcb49c52bbcb716e5d8e741729162ca54cdd31846d90f107fb9",
+    "session_backend": "b3a44d765256c86ce232952797050dbf76cb37f83e92ed9025fc548361094265",
+    "session_middleware": "6d9f1882e11d2e6e37f04e4b793b98f67707d897544ec46736355dcf8d838e77"
+  }
+}

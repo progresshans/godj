@@ -1,0 +1,133 @@
+package consumer
+
+import (
+ "context"
+ "errors"
+ "reflect"
+ "slices"
+ "strings"
+ "testing"
+
+ @@IMPORTS@@
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ "github.com/progresshans/godj/admin"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ formmodel "github.com/progresshans/godj/forms/model"
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+)
+
+type graphBackend struct { database.Backend; unknown bool; writes int }
+func (b *graphBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+ b.writes++
+ err:=b.Backend.CoordinatedAtomicRelation(ctx,write)
+ if err==nil&&b.unknown{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type graphOverlay struct{ denied bool }
+func (o *graphOverlay) Allowed(_ context.Context, actor auth.Principal, permission auth.Permission)(bool,error){return actor.Has(permission)&&!(o.denied&&permission=="catalog.change_group"),nil}
+
+func graphInsert[M any](t *testing.T, backend db.Session, objects orm.Manager[M], values map[string]query.Value) M {
+ t.Helper();prepared,err:=objects.PrepareValues(nil,values);if err!=nil{t.Fatal(err)};row,err:=prepared.Model();if err!=nil{t.Fatal(err)};if err=prepared.Save(t.Context(),backend,&row);err!=nil{t.Fatal(err)};return row
+}
+func graphKey[M any](t *testing.T, objects orm.Manager[M], row M) int64 {
+ t.Helper();key,present,err:=objects.PrimaryKey(row);id,valid:=key.Integer();if err!=nil||!present||!valid{t.Fatal("missing typed key",err)};return id
+}
+
+func TestGeneratedAccountThroughIdentity(t *testing.T){
+ for _,mode:=range []string{"first_account","created","duplicate_pair","denied","missing_policy","validator","unknown","zero_key","negative_key","edit_rejected","restart"}{
+  t.Run(mode,func(t *testing.T){
+   check:=func(err error){t.Helper();if err!=nil{t.Fatal(err)}}
+   binding,err:=project.BindAccount();check(err);role,err:=binding.Role();check(err);objects,err:=binding.Objects();check(err)
+   groups:=orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{});permissions:=orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
+   native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@);backend:=&graphBackend{Backend:native}
+   hasher,_:=accountPassword(t)
+   group:=graphInsert(t,native,groups,map[string]query.Value{role.Catalog.GroupName:query.String("Grant owner"),role.Catalog.GroupRevision:query.Integer(1)})
+   permission:=graphInsert(t,native,permissions,map[string]query.Value{role.Catalog.PermissionName:query.String("Selected grant"),role.Catalog.PermissionCode:query.String("app.selected"),role.Catalog.PermissionRevision:query.Integer(1)})
+   groupID,permissionID:=graphKey(t,groups,group),graphKey(t,permissions,permission)
+   if mode=="zero_key"||mode=="negative_key"{metadata,err:=groups.Metadata();check(err);key,err:=groups.PrimaryKeyField();check(err);next:=int64(0);if mode=="negative_key"{next=-9};accountStoredKey(t,native,selected,metadata.DBTable,key.Column,groupID,next);groupID=next}
+   ownerPolicy,err:=accountmodel.NewProfileRelation(binding,"catalog_owner",groups,accountmodel.ProfileRelationConfig[@@GROUP@@]{
+    Choices:formmodel.ModelChoiceConfig[@@GROUP@@]{Label:func(@@GROUP@@)(string,error){return "Owner",nil}},
+    Filter:func(_ context.Context,_ db.Queryer,actor auth.Principal,origin accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@GROUP@@],error){if origin.Operation()==accountmodel.ProfileRelationFirstAccount&&actor.Authenticated(){return nil,errors.New("operator relation unexpectedly acquired actor authority")};return nil,nil},
+   });check(err)
+   grantPolicy,err:=accountmodel.NewProfileRelation(binding,"catalog_permission",permissions,accountmodel.ProfileRelationConfig[@@PERMISSION@@]{
+    Choices:formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label:func(@@PERMISSION@@)(string,error){return "Grant",nil}},
+    Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@PERMISSION@@],error){return nil,nil},
+   });check(err)
+   relations:=[]accountmodel.ProfileRelation[@@ACCOUNT@@]{ownerPolicy,grantPolicy}
+   fields:=[]string{role.Login,"@@PROFILE@@","catalog_owner","catalog_permission"}
+   related:=accountmodel.RelatedRowPermissions{Group:accountmodel.DeletionPermissions{Change:"catalog.change_group"}}
+   first,err:=project.NewFirstAccount(backend,hasher,accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:fields,Relations:relations,RelatedPermissions:related},EvidenceSHA256:strings.Repeat("a",64)});check(err)
+   firstValues:=map[string]query.Value{role.Login:query.String("operator@example.test"),"@@PROFILE@@":query.String("KR")}
+   if mode=="first_account"{firstValues["catalog_owner"],firstValues["catalog_permission"]=query.Integer(groupID),query.Integer(permissionID)}
+   firstInput,err:=objects.Input(firstValues);check(err);pending,err:=first.Prepare(t.Context(),firstInput,accountPasswordText);check(err);boot,err:=first.Commit(t.Context(),pending);check(err)
+   accountKeyField,err:=objects.PrimaryKeyField();check(err);accountKey:=orm.NewAutoField[@@ACCOUNT@@](accountKeyField)
+   readGroup:=func(reader db.Queryer)(int64,[]int64){
+    t.Helper();keyField,err:=groups.PrimaryKeyField();check(err);row,err:=groups.Using(reader).Filter(orm.NewAutoField[@@GROUP@@](keyField).Exact(groupID)).Get(t.Context());check(err);values,err:=groups.ModelValues(row);check(err);revision,_:=values[role.Catalog.GroupRevision].Integer()
+    bound,err:=binding.Project();check(err);groupBound,err:=orm.BindModel(bound,role.Catalog.Group,@@GROUP@@Descriptor{});check(err);permissionBound,err:=orm.BindModel(bound,role.Catalog.Permission,@@PERMISSION@@Descriptor{});check(err)
+    path,err:=orm.BindInverseManyToManyQuery(groupBound,role.Catalog.GroupPermissions,permissionBound);check(err);field,err:=path.Integer(orm.NewAutoField[@@GROUP@@](keyField));check(err);permissionKey,err:=permissions.PrimaryKeyField();check(err)
+    rows,err:=permissions.Using(reader).Filter(field.Exact(groupID)).Distinct().OrderBy(orm.NewAutoField[@@PERMISSION@@](permissionKey).Asc()).All(t.Context());check(err);keys:=make([]int64,len(rows));for i,row:=range rows{keys[i]=graphKey(t,permissions,row)};return revision,keys
+   }
+   if mode=="first_account"{
+    revision,keys:=readGroup(native);if revision!=2||!slices.Equal(keys,[]int64{permissionID})||boot.Account.Revision!=1{t.Fatal("first typed identity did not update its catalog membership")}
+    namespace,err:=binding.CredentialDomain(boot.Ownership.Generation());check(err)
+    histories,err:=db.ReadSnapshotResult(t.Context(),native,func(ctx context.Context,scope db.Queryer)([][]accountaudit.Entry,error){
+     first,err:=accountaudit.HistoryIn(ctx,scope,namespace,role.Model.AppLabel+"."+role.Model.ModelName,boot.Account.ID,10);if err!=nil{return nil,err}
+     group,err:=accountaudit.HistoryIn(ctx,scope,namespace,role.Catalog.Group.AppLabel+"."+role.Catalog.Group.ModelName,groupID,10);return [][]accountaudit.Entry{first,group},err
+    });check(err)
+    if len(histories)!=2||len(histories[0])!=1||len(histories[1])!=1||histories[0][0].Action()!=admin.ActionAdd||histories[1][0].Action()!=admin.ActionChange||histories[0][0].ActorID()!=histories[1][0].ActorID()||histories[0][0].Sequence()==histories[1][0].Sequence(){t.Fatal("bootstrap identity and membership audit were not coordinated")}
+    return
+   }
+   overlay:=&graphOverlay{}
+   accountPermissions:=accountmodel.AccountPermissions{View:"account.view",Add:"account.add",Change:"account.change",Delete:"account.delete"}
+   groupPermissions:=accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:"catalog.change_group",Delete:"catalog.delete_group"}
+   permissionPermissions:=accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:"catalog.change_permission",Delete:"catalog.delete_permission"}
+   runtime,err:=project.NewAccountRuntime(t.Context(),backend,hasher,overlay,accountmodel.RuntimeConfig[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]{
+    Accounts:accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields:fields,CreateFields:fields,EditFields:[]string{role.Login,"@@PROFILE@@"},Relations:relations,Permissions:accountPermissions,
+     GroupPermissions:accountmodel.DeletionPermissions{Change:groupPermissions.Change,Delete:groupPermissions.Delete},PermissionPermissions:accountmodel.DeletionPermissions{Change:permissionPermissions.Change,Delete:permissionPermissions.Delete},
+     ValidateCreate:func(_ context.Context,_ db.Queryer,row @@ACCOUNT@@,_ accountmodel.AccountMemberships)(validation.Errors,error){_,stored,err:=objects.PrimaryKey(row);if err!=nil{return validation.Errors{},err};if mode=="validator"&&stored{return validation.NewErrors(validation.New("@@PROFILE@@","final_graph")),nil};return validation.Errors{},nil},
+    },
+    Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{AccountPermissions:accountmodel.DeletionPermissions{Change:accountPermissions.Change,Delete:accountPermissions.Delete},
+     Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},WriteFields:[]string{role.Catalog.GroupName},Permissions:groupPermissions},
+     Permission:accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},WriteFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},Permissions:permissionPermissions},
+    },
+   });check(err)
+   credential,err:=runtime.Authenticator().Authenticate(t.Context(),"operator@example.test",accountPasswordText);check(err);actor:=credential.Principal()
+   if mode=="edit_rejected"{
+    if _,err:=project.NewAccountProfileEditor(backend,overlay,accountmodel.ProfileConfig[@@ACCOUNT@@]{Fields:[]string{"catalog_owner"},Relations:[]accountmodel.ProfileRelation[@@ACCOUNT@@]{ownerPolicy},ChangePermission:"account.change"});err==nil{t.Fatal("membership endpoint became a scalar profile edit")}
+    if _,err:=project.NewAccountEditor(runtime.SessionStore(),overlay,accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields:[]string{"catalog_owner"},Relations:[]accountmodel.ProfileRelation[@@ACCOUNT@@]{ownerPolicy},ChangePermission:"account.change"});err==nil{t.Fatal("membership endpoint became an ordinary account edit")};return
+   }
+   creator:=runtime.Accounts().Creator()
+   if mode=="missing_policy"{creator,err=project.NewAccountCreator(runtime.SessionStore(),overlay,hasher,accountmodel.CreationConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:fields,Relations:relations},AddPermission:"account.add",ChangePermission:"account.change"});check(err)}
+   overlay.denied=mode=="denied";backend.unknown=mode=="unknown"
+   input,err:=objects.Input(map[string]query.Value{role.Login:query.String("created@example.test"),"@@PROFILE@@":query.String("NZ"),"catalog_owner":query.Integer(groupID),"catalog_permission":query.Integer(permissionID)});check(err)
+   prepared,err:=creator.Prepare(t.Context(),actor,input,accountPasswordText);check(err);result,failure:=creator.Commit(t.Context(),actor,prepared)
+   rejected:=mode=="denied"||mode=="missing_policy"||mode=="validator"
+   if rejected||mode=="unknown"{if failure==nil||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("failed creation published identity")}}else{check(failure)}
+   if mode=="denied"||mode=="missing_policy"{if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodePermission}){t.Fatal("effect authority was not required",failure)}}
+   if mode=="validator"{if _,ok:=validation.Rejected(failure);!ok{t.Fatal("final validation refusal lost",failure)}}
+   if mode=="unknown"&&!errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown commit was downgraded",failure)}
+   reader,err:=database.Open(t.Context(),selected);check(err);defer reader.Close();revision,keys:=readGroup(reader)
+   if rejected{count,err:=objects.Using(reader).Count(t.Context());check(err);if count!=1||revision!=1||len(keys)!=0{t.Fatal("refused graph escaped rollback")};return}
+   if revision!=2||!slices.Equal(keys,[]int64{permissionID}){t.Fatal("new selected identity was hidden in post-insert membership",revision,keys)}
+   rows,err:=objects.Using(reader).OrderBy(accountKey.Asc()).All(t.Context());check(err);if len(rows)!=2{t.Fatal("creation count")}
+   view,err:=runtime.Catalog().Groups().Get(t.Context(),actor,groupID);check(err);if view.Revision()!=2{t.Fatal("catalog read lost membership revision")}
+   namespace,_:=actor.CredentialDomain();history,err:=db.ReadSnapshotResult(t.Context(),reader,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,namespace,role.Catalog.Group.AppLabel+"."+role.Catalog.Group.ModelName,groupID,10)});check(err)
+   if len(history)!=1||history[0].Action()!=admin.ActionChange||!slices.Equal(history[0].ChangedFields(),[]string{role.Catalog.GroupPermissions}){t.Fatal("membership audit omitted or duplicated")}
+   if mode=="duplicate_pair"{
+    values:=input.Values();values[role.Login]=query.String("duplicate-pair@example.test");input,err=objects.Input(values);check(err);pending,err:=creator.Prepare(t.Context(),actor,input,accountPasswordText);check(err);_,err=creator.Commit(t.Context(),actor,pending);check(err)
+    revision,keys=readGroup(reader);if revision!=2||!slices.Equal(keys,[]int64{permissionID}){t.Fatal("duplicate physical link changed logical membership")}
+    history,err=runtime.Catalog().Groups().History(t.Context(),actor,groupID,10);check(err);if len(history)!=1{t.Fatal("duplicate physical link emitted another membership audit")}
+    count,err:=objects.Using(reader).Count(t.Context());check(err);if count!=3{t.Fatal("duplicate pair was confused with duplicate identity")}
+
+   }
+   if mode=="restart"{verifier,err:=project.NewAccountAuthenticator(t.Context(),reader,hasher);check(err);_,err=verifier.Authenticate(t.Context(),"created@example.test",accountPasswordText);check(err)}
+  })
+ }
+}

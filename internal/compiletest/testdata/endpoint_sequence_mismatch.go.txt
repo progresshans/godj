@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/api/endpoint"
+
+var invalid endpoint.Input[endpoint.Pair[string, int64]] = endpoint.Sequence(endpoint.PathInt64("id"), endpoint.PathString("key"))

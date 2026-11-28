@@ -1,0 +1,7 @@
+package consumer
+
+import "github.com/progresshans/godj/api/output"
+
+type row struct { ID int64 }
+type other struct { ID int64 }
+var _ = output.Object[row](output.Field("id", output.Int64(), func(value other) int64 { return value.ID }))

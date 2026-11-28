@@ -1,0 +1,429 @@
+{
+  "backend": "postgresql",
+  "contention": [
+    {
+      "case": "default_selection_locks_root_and_related",
+      "lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "probes": {
+        "Category": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Item": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Region": {
+          "locked": false
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "self_only_leaves_related_available",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_item\""
+      ],
+      "probes": {
+        "Category": {
+          "locked": false
+        },
+        "Item": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Region": {
+          "locked": false
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "related_only_leaves_root_available",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_category\""
+      ],
+      "probes": {
+        "Category": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Item": {
+          "locked": false
+        },
+        "Region": {
+          "locked": false
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "nested_target_only_locks_region",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_region\""
+      ],
+      "probes": {
+        "Category": {
+          "locked": false
+        },
+        "Item": {
+          "locked": false
+        },
+        "Region": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "projection_omitting_self_actual_locks",
+      "lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "probes": {
+        "Category": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Item": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Region": {
+          "locked": false
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "projection_including_self_actual_locks",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_item\""
+      ],
+      "probes": {
+        "Category": {
+          "locked": false
+        },
+        "Item": {
+          "error": "OperationalError",
+          "sqlstate": "55P03"
+        },
+        "Region": {
+          "locked": false
+        }
+      },
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    {
+      "case": "foreign_key_insert_with_update",
+      "contender": {
+        "lock_clauses": [],
+        "statement_count": 4,
+        "transaction_commands": [
+          "BEGIN",
+          "COMMIT",
+          "ROLLBACK"
+        ]
+      },
+      "durable_child": false,
+      "owner": {
+        "lock_clauses": [
+          "FOR UPDATE"
+        ],
+        "statement_count": 3,
+        "transaction_commands": [
+          "BEGIN",
+          "COMMIT"
+        ]
+      },
+      "result": {
+        "error": "OperationalError",
+        "sqlstate": "55P03"
+      }
+    },
+    {
+      "case": "foreign_key_insert_with_no_key_update",
+      "contender": {
+        "lock_clauses": [],
+        "statement_count": 3,
+        "transaction_commands": [
+          "BEGIN",
+          "COMMIT"
+        ]
+      },
+      "durable_child": true,
+      "owner": {
+        "lock_clauses": [
+          "FOR NO KEY UPDATE"
+        ],
+        "statement_count": 3,
+        "transaction_commands": [
+          "BEGIN",
+          "COMMIT"
+        ]
+      },
+      "result": {
+        "committed": true
+      }
+    }
+  ],
+  "django": "6.1",
+  "final_rows": [
+    "joined",
+    "orphan"
+  ],
+  "kind": "django-row-lock-reference-v1",
+  "observer_sha256": "629748323ce836c0b872480db827b720d6a938b29fe7d00c1e3ec6c0fd3a2707",
+  "python": "3.14.3",
+  "source_sha256": {
+    "Atomic": "aee995a682da7157a7ef415521e4d3336c25fd5a25c1b8582e2453c5f1d30a79",
+    "QuerySet": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6",
+    "SQLCompiler": "38e5ed0147669e8085f00b02646e5b7436ece76f6bb399bef4acd4ae9f07feb4"
+  },
+  "targets": [
+    {
+      "case": "lock_selected_related_model",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_category\""
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "name": "joined"
+      }
+    },
+    {
+      "case": "filter_join_does_not_make_lock_target_selected",
+      "lock_clauses": [],
+      "statement_count": 2,
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "value": {
+        "error": "FieldError",
+        "sqlstate": null
+      }
+    },
+    {
+      "case": "unknown_selected_lock_target",
+      "lock_clauses": [],
+      "statement_count": 2,
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "value": {
+        "error": "FieldError",
+        "sqlstate": null
+      }
+    },
+    {
+      "case": "relation_value_projection_lock_target",
+      "lock_clauses": [],
+      "statement_count": 2,
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "value": {
+        "error": "FieldError",
+        "sqlstate": null
+      }
+    },
+    {
+      "case": "self_lock_when_projection_omits_self",
+      "lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "category__name": "category"
+      }
+    },
+    {
+      "case": "self_lock_when_projection_includes_self",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_item\""
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "category__name": "category",
+        "name": "joined"
+      }
+    },
+    {
+      "case": "nested_selected_lock_target",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_region\""
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "name": "joined"
+      }
+    },
+    {
+      "case": "no_key_update_for_two_selected_models",
+      "lock_clauses": [
+        "FOR NO KEY UPDATE OF \"gdj_lock_item\", \"gdj_lock_category\""
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "name": "joined"
+      }
+    }
+  ],
+  "terminals": [
+    {
+      "case": "count_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 1,
+      "transaction_commands": [],
+      "value": 2
+    },
+    {
+      "case": "max_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 1,
+      "transaction_commands": [],
+      "value": {
+        "highest": 7
+      }
+    },
+    {
+      "case": "exists_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 0,
+      "transaction_commands": [],
+      "value": {
+        "error": "TransactionManagementError"
+      }
+    },
+    {
+      "case": "ordered_first_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 0,
+      "transaction_commands": [],
+      "value": {
+        "error": "TransactionManagementError"
+      }
+    },
+    {
+      "case": "empty_in_get_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 0,
+      "transaction_commands": [],
+      "value": {
+        "error": "DoesNotExist"
+      }
+    },
+    {
+      "case": "empty_in_exists_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 0,
+      "transaction_commands": [],
+      "value": false
+    },
+    {
+      "case": "empty_in_aggregate_outside_transaction",
+      "lock_clauses": [],
+      "statement_count": 0,
+      "transaction_commands": [],
+      "value": {
+        "count": 0,
+        "lowest": null
+      }
+    },
+    {
+      "case": "selected_values_lock_self_inside_transaction",
+      "lock_clauses": [
+        "FOR UPDATE OF \"gdj_lock_item\""
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "name": "first"
+      }
+    },
+    {
+      "case": "distinct_selected_values_inside_transaction",
+      "lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "statement_count": 3,
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "value": {
+        "error": "NotSupportedError"
+      }
+    },
+    {
+      "case": "locking_clone_does_not_reuse_warm_cache",
+      "lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "statement_count": 5,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "value": {
+        "base_still_cached": 0,
+        "before": 0,
+        "different_instance": true,
+        "fresh": 9
+      }
+    }
+  ]
+}

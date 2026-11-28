@@ -1,0 +1,438 @@
+#!/usr/bin/env python3
+"""Compare independently executed project/event observations from the same CI run.
+
+This reader never runs a product or reference test. Missing, skipped, truncated,
+duplicated, stale-source and unsealed observations are not comparison evidence.
+"""
+import argparse
+from collections import Counter
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+
+import darwin_boundary
+from go_test_events import discover_roots, events, inspect
+from platform_policy import CONTRACT, product_coordinates
+from project_artifacts import PYTHON, resolve, validated_producers
+from runserver_tests import PACKAGE, SPECIAL, plan, verify as verify_runserver
+
+ROOT = Path(__file__).resolve().parents[2]
+REFERENCES = ROOT / "conformance/runners/django"
+COMMAND_TEST = SPECIAL["scaffold"] + "/explicit_app_registration_and_existing_data"
+EVENT_TEST = "TestEventSynchronousReferenceBoundaries"
+SCAFFOLD_PACKAGE = "github.com/progresshans/godj/internal/projectscaffold"
+
+
+def require(condition, detail):
+    if not condition:
+        raise ValueError(detail)
+
+
+def decode(data):
+    def object_value(pairs):
+        value = {}
+        for key, item in pairs:
+            require(key not in value, "duplicate reference JSON key")
+            value[key] = item
+        return value
+    def invalid_constant(unused):
+        raise ValueError("non-finite reference JSON number")
+    return json.loads(data, object_pairs_hook=object_value, parse_constant=invalid_constant)
+
+
+def same(left, right):
+    return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(right, sort_keys=True, allow_nan=False)
+
+
+def digest(path):
+    value = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            value.update(block)
+    return value.hexdigest()
+
+
+def document(path):
+    path = Path(path)
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= 1 << 20, "invalid reference document")
+    return decode(path.read_text())
+
+
+def source_identity():
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+    source = {"repository": os.environ["GITHUB_REPOSITORY"], "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"], "event": os.environ["GITHUB_EVENT_NAME"],
+              "event_head": os.environ["GODJ_SOURCE_HEAD"], "checkout": git("rev-parse", "HEAD"),
+              "tree": git("rev-parse", "HEAD^{tree}"), "status": git("status", "--porcelain=v1")}
+    require(source["status"] == "", "reference comparison source is dirty")
+    return source
+
+
+def seal(directory):
+    directory = Path(directory)
+    entries = []
+    for path in sorted(directory.iterdir()):
+        require(path.is_file() and not path.is_symlink() and path.name != "SHA256SUMS", "irregular or already sealed evidence")
+        entries.append(f"{digest(path)}  {path.name}\n")
+    require(entries, "empty evidence directory")
+    (directory / "SHA256SUMS").write_text("".join(entries))
+
+
+def verify_seal(directory):
+    directory = Path(directory)
+    manifest = directory / "SHA256SUMS"
+    require(manifest.is_file() and not manifest.is_symlink(), "evidence checksum manifest is missing")
+    entries = {}
+    for line in manifest.read_text().splitlines():
+        match = re.fullmatch(r"([a-f0-9]{64})  ([A-Za-z0-9][A-Za-z0-9_.-]*)", line)
+        require(match is not None, "invalid evidence checksum entry")
+        expected, name = match.groups()
+        require(name not in entries and name != "SHA256SUMS", "duplicate evidence checksum entry")
+        path = directory / name
+        require(path.is_file() and not path.is_symlink() and digest(path) == expected, "evidence checksum differs: " + name)
+        entries[name] = expected
+    require(entries and set(entries) == {path.name for path in directory.iterdir()} - {"SHA256SUMS"},
+            "evidence contains an unsealed or omitted member")
+    return digest(manifest)
+
+
+def tagged_documents(path, marker):
+    found = []
+    with Path(path).open(encoding="utf-8") as stream:
+        while line := stream.readline((1 << 20) + 1):
+            require(len(line) <= 1 << 20, "oversized reference log line")
+            if marker + " " in line:
+                found.append(decode(line.split(marker + " ", 1)[1]))
+    return found
+
+
+def go_observation(path, test, marker):
+    inventory = inspect(path)
+    require(not inventory.verify(required=[(PACKAGE, test)], packages=[PACKAGE]), "reference consumer did not complete successfully")
+    lifecycle, found = Counter(), []
+    pending = ""
+    for event in events(path):
+        if event.get("Package") != PACKAGE or event.get("Test") != test:
+            continue
+        if event["Action"] in ("run", "pass", "skip", "fail"):
+            lifecycle[event["Action"]] += 1
+            require(not pending, "reference output line crosses a test lifecycle boundary")
+        output = event.get("Output", "")
+        if event["Action"] != "output":
+            require(marker + " " not in output, "reference data outside output event")
+            continue
+        # test2json splits long lines into several Output events, including
+        # inside the marker or JSON. Reassemble only this exact test's stream;
+        # an interleaved test must never complete or contribute an observation.
+        lines = (pending + output).split("\n")
+        pending = lines.pop()
+        require(all(len(line.encode("utf-8")) <= 1 << 20 for line in [*lines, pending]),
+                "oversized reference output line")
+        for line in lines:
+            if marker + " " in line:
+                found.append(decode(line.split(marker + " ", 1)[1]))
+                require(len(found) == 1, "duplicate consumer observation")
+    require(not pending, "reference output line is incomplete")
+    require(lifecycle == {"run": 1, "pass": 1} and len(found) == 1, "missing, duplicate or skipped consumer observation")
+    return found[0]
+
+
+def verify_reference(value, name, python_version):
+    directory = REFERENCES / (name + "_reference")
+    identity = document(directory / "source-verification.json")
+    require(value["kind"] == "django-" + name + "-observations-v1" and
+            value["django_commit"] == identity["django_commit"] and value["sources"] == identity["sources"],
+            "reference upstream source differs")
+    require(value["profile"]["django"] == "6.1" and value["profile"]["python"] == python_version,
+            "reference runtime differs")
+    require(value["input_sha256"] == digest(directory / "input.json") and
+            value["observer_sha256"] == digest(directory / "observe.py"), "reference authored source differs")
+    if name == "development":
+        fixtures = {path.name: digest(path) for path in (directory / "fixtures").iterdir()}
+        require(value["runtime_sha256"] == digest(directory / "runtime.py") and value["fixtures"] == fixtures,
+                "reference process helper or fixtures differ")
+        require(value["profile"]["backend"] == "sqlite" and value["profile"]["reloader"] == "StatReloader",
+                "reference development profile differs")
+    inputs = document(directory / "input.json")
+    require(len(value["cases"]) == len(inputs["cases"]), "reference cases are incomplete")
+    for observed, case in zip(value["cases"], inputs["cases"]):
+        require(all(observed.get(key) == item for key, item in case.items()), "reference case metadata differs")
+    return inputs
+
+
+def compare_development(reference, consumers):
+    require(set(consumers) == {"notes", "article", "command"}, "development consumer owners are incomplete")
+    expected = {case["name"]: case for case in reference["cases"]}
+    seen, shared, differences = set(), [], []
+    for owner, consumer in consumers.items():
+        require(consumer["kind"] == "godj-development-observations-v1" and consumer["owner"] == owner and
+                consumer["input_sha256"] == reference["input_sha256"], "development consumer source/owner differs")
+        for case in consumer["cases"]:
+            name = case["name"]
+            require(name not in seen and name in expected, "duplicate or unexpected development result")
+            seen.add(name)
+            original = expected[name]
+            require(set(case) == set(original) and all(case[key] == original[key] for key in ("name", "owner", "comparison", "reason"))
+                    and case["owner"] == owner, "development comparison boundary differs")
+            if case["comparison"] == "native_difference":
+                require(name == "source_failure" and same(case["observed"], {"previous_still_serving": True})
+                        and same(original["observed"], {"previous_still_serving": False}), "unaccepted native development difference")
+                differences.append(name)
+            else:
+                require(same(case["observed"], original["observed"]), "development results differ: " + name)
+                shared.append(name)
+    require(seen == set(expected) and len(shared) == 8 and differences == ["source_failure"], "development comparison is incomplete")
+    return {"shared": sorted(shared), "native_differences": differences}
+
+
+def compare_events(reference, consumer):
+    require(consumer["kind"] == "godj-event-observations-v1" and consumer["input_sha256"] == reference["input_sha256"],
+            "event consumer source differs")
+    expected = {case["name"]: case for case in reference["cases"] if case["comparison"] != "native_difference"}
+    seen = set()
+    for case in consumer["cases"]:
+        name = case["name"]
+        require(name not in seen and name in expected, "duplicate or unexpected event result")
+        seen.add(name)
+        original = expected[name]
+        require(same(case, {key: original[key] for key in ("name", "comparison", "calls", "disconnected")}),
+                "event call/removal results differ: " + name)
+    require(seen == set(expected) and len(seen) == 6, "event comparison is incomplete")
+    return sorted(seen)
+
+
+COMMON_RUNNER = "github.com/progresshans/godj/conformance/runners/godj"
+RUNNER_FILES = ("GoFiles", "CgoFiles", "TestGoFiles", "XTestGoFiles", "CFiles", "CXXFiles", "MFiles", "HFiles",
+                "FFiles", "SFiles", "SwigFiles", "SwigCXXFiles", "SysoFiles", "EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles")
+
+
+def list_runner_files(system, arch, mode):
+    flags = ["-race"] if mode == "race" else []
+    env = os.environ | {"GOOS": system, "GOARCH": arch, "CGO_ENABLED": "0" if mode == "cgo0" else "1"}
+    value = json.loads(subprocess.check_output(["go", "list", *flags, "-json", COMMON_RUNNER], cwd=ROOT, env=env))
+    require(value["ImportPath"] == COMMON_RUNNER, "wrong common runner package")
+    return {"active": {key: sorted(value[key]) for key in RUNNER_FILES if value.get(key)},
+            "ignored_go": sorted(value.get("IgnoredGoFiles", []))}
+
+
+def runner_input_digest(record):
+    base = ROOT / "conformance/runners/godj"
+    active = record["active"]
+    require(set(active) <= set(RUNNER_FILES) and active.get("GoFiles")
+            and (active.get("TestGoFiles") or active.get("XTestGoFiles")), "incomplete common runner package inputs")
+    go_files = list(record["ignored_go"])
+    material = []
+    for kind, names in sorted(active.items()):
+        require(isinstance(names, list) and names == sorted(set(names)), "duplicate common runner source")
+        if kind in ("GoFiles", "CgoFiles", "TestGoFiles", "XTestGoFiles"):
+            go_files.extend(names)
+        for name in names:
+            path = base / name
+            require(not Path(name).is_absolute() and ".." not in Path(name).parts and path.is_file()
+                    and not path.is_symlink() and path.resolve().is_relative_to(base.resolve()), "invalid common runner source")
+            material.append([kind, name])
+    on_disk = {p.name for p in base.glob("*.go") if not p.name.startswith((".", "_"))}
+    require(len(go_files) == len(set(go_files)) and set(go_files) == on_disk, "common runner omitted or duplicated Go inputs")
+    # The producer and comparison already bind file contents to the same Git tree.
+    return hashlib.sha256(json.dumps(material, separators=(",", ":")).encode()).hexdigest()
+
+
+def plan_common_runner(directory):
+    source = document(directory / "source.json")
+    system, arch, mode = source["go"]["GOOS"], source["go"]["GOARCH"], source["mode"]
+    native = list_runner_files(system, arch, mode)
+    actual = runner_input_digest(native)
+    delegate = system == "darwin" and actual == runner_input_digest(list_runner_files("linux", arch, mode))
+    record = {"coordinate": [system, arch, mode], "files": native, "delegate": delegate}
+    (directory / "common-runner-plan.json").write_text(json.dumps(record, sort_keys=True) + '\n')
+    return "delegate" if delegate else "execute"
+
+
+def verify_common_runner(directory, system, arch, mode):
+    package = COMMON_RUNNER
+    record = document(directory / "common-runner-plan.json")
+    require(record["coordinate"] == [system, arch, mode] and type(record["delegate"]) is bool, "wrong common runner plan")
+    declared = {"source_selection_sha256": runner_input_digest(record["files"])}
+    required = [line for line in (ROOT / "scripts/ci/relation-required.txt").read_text().splitlines()
+                if line.startswith(package + "|")]
+    require(required and len(required) == len(set(required)), "invalid common runner sentinel inventory")
+    if record["delegate"]:
+        require(system == "darwin", "Linux must execute its complete common runner")
+        require(not list(directory.glob("conformance-runner*")), "delegated runner has unexpected local evidence")
+        return {**declared, "owner": ["linux", arch, mode], "required": required}
+    require((directory / "conformance-runner-required.txt").read_text().splitlines() == required,
+            "common runner required inventory differs")
+    log = directory / "conformance-runner.json"
+    roots = discover_roots(directory / "conformance-runner-discovery.json", package)
+    inventory = inspect(log)
+    require(inventory.packages == {package} and not inventory.verify(
+        required=[(package, root) for root in roots] + [tuple(line.split("|", 1)) for line in required],
+        packages=[package], no_skips=True), "common runner execution is incomplete")
+    counts = Counter((event["Test"], event["Action"]) for event in events(log) if event.get("Test"))
+    require({name for name, action in counts if action == "run" and "/" not in name} == set(roots)
+            and all(counts[name, "run"] == counts[name, "pass"] == 1 for name, _ in counts),
+            "common runner test was missing or duplicated")
+    return {**declared, "owner": [system, arch, mode], "required": required, "executed_roots": roots}
+
+
+def verify_native(directory, owner, coordinate, expected_source):
+    seal_hash = verify_seal(directory)
+    source = document(directory / "source.json")
+    system, arch, mode = coordinate
+    require(source == {**expected_source, "mode": mode, "go": {"GOOS": system, "GOARCH": arch, "GOVERSION": "go1.26.5"}},
+            "native evidence belongs to a different source/run/coordinate")
+    coverage = {}
+    if owner == "baseline":
+        coverage["common_runner"] = verify_common_runner(directory, system, arch, mode)
+        packages = (directory / "platform-packages.txt").read_text().splitlines()
+        require(len(packages) == len(set(packages)) and SCAFFOLD_PACKAGE in packages,
+                "native platform inventory omitted or duplicated scaffold publication")
+        roots = discover_roots(directory / "scaffold-discovery.json", SCAFFOLD_PACKAGE)
+        platform_log = directory / "platform.json"
+        inventory = inspect(platform_log)
+        require(not inventory.verify(required=[(SCAFFOLD_PACKAGE, root) for root in roots],
+                                     packages=packages, no_skip_packages={SCAFFOLD_PACKAGE}),
+                "native scaffold publication tests are incomplete or skipped")
+        counts = Counter((event["Test"], event["Action"]) for event in events(platform_log)
+                         if event.get("Package") == SCAFFOLD_PACKAGE and event.get("Test"))
+        require({test for test, action in counts if action == "run" and "/" not in test} == set(roots),
+                "native scaffold execution differs from discovered roots")
+        for test in {test for test, _ in counts}:
+            require(counts[test, "run"] == counts[test, "pass"] == 1,
+                    "native scaffold test or child is missing or duplicated")
+    required = ROOT / "scripts/ci/runserver-required.txt"
+    require((directory / "runserver-required.txt").read_bytes() == required.read_bytes(), "native required manifest differs")
+    execution = plan(discover_roots(directory / "runserver-discovery.json", PACKAGE), required.read_text().splitlines(),
+                     (ROOT / "scripts/ci/postgres-core-required.txt").read_text().splitlines(), owner, coordinate)
+    require(document(directory / "runserver-batches.json") == execution, "native execution ownership differs")
+    require((directory / "runserver-batch-names.txt").read_text().splitlines() == list(execution["batches"]),
+            "native batch order differs from its plan")
+    verify_runserver(directory, execution)
+    if owner == "baseline":
+        if "fixed-module" in execution["delegated_batches"]:
+            require(not list(directory.glob("runserver-fixed-module*")), "delegated fixed-module has local evidence")
+            fixed = execution["delegated_batches"]["fixed-module"]
+            coverage["fixed_module"] = {"owner": fixed["coordinate"], "required": fixed["required"]}
+        else:
+            fixed = execution["batches"]["fixed-module"]
+            coverage["fixed_module"] = {"owner": list(coordinate), "required": fixed["required"], "executed_roots": fixed["roots"]}
+    # The shared verifier binds roots. Also bind every mandatory child to one
+    # actual run/pass so missing or duplicated phases cannot supply evidence.
+    for name, batch in execution["batches"].items():
+        counts = Counter((event.get("Test"), event["Action"]) for event in events(directory / ("runserver-" + name + ".json")))
+        for entry in batch["required"]:
+            test = entry.split("|", 1)[1]
+            require(counts[test, "run"] == counts[test, "pass"] == 1, "mandatory consumer phase is missing or duplicated")
+    return seal_hash, coverage
+
+
+def verify_all(directory, expected_source, selection, repository_id, profile):
+    directory = Path(directory)
+    selected = validated_producers(selection, expected_source, repository_id, profile)
+    names = {f"{stem}-{row['producer_attempt']}" for stem, row in selected.items()}
+    paths = list(directory.iterdir())
+    require({p.name for p in paths} == names and all(p.is_dir() and not p.is_symlink() for p in paths),
+            "unexpected or missing project evidence archives")
+
+    def producer_input(stem):
+        attempt = str(selected[stem]["producer_attempt"])
+        return directory / (stem + "-" + attempt), {**expected_source, "run_attempt": attempt}
+
+    python_directory, python_source = producer_input(PYTHON)
+    python_seal = verify_seal(python_directory)
+    from python_semantics import expected_report
+    semantics = (python_directory / "python-semantics.txt").read_text()
+    require(semantics == expected_report() + "\n", "Python semantic digest differs from the sealed source oracles")
+    require(document(python_directory / "source.json") == {**python_source, "python_version": "3.14.10"}, "Python evidence source/run differs")
+    log = python_directory / "python-tests.txt"
+    with log.open() as stream:
+        completed = sum(bool(re.fullmatch(r"PYTHON_SUITE_VERIFIED tests=[1-9][0-9]* skips=[0-9]+\n?", line)) for line in stream)
+    require(completed == 1, "Python suite did not complete exactly once")
+    observed = {}
+    for name in ("development", "event"):
+        found = tagged_documents(log, "DJANGO_" + name.upper() + "_OBSERVATION")
+        require(len(found) == 1, "Python observation missing or duplicated: " + name)
+        verify_reference(found[0], name, "3.14.10")
+        observed[name] = found[0]
+    outputs = []
+    for _, system, arch, mode in product_coordinates(profile):
+        coordinate = (system, arch, mode)
+        suffix = "-".join(coordinate)
+        baseline, baseline_source = producer_input("project-check-" + suffix)
+        reload, reload_source = producer_input("project-reload-" + suffix)
+        baseline_seal, coverage = verify_native(baseline, "baseline", coordinate, baseline_source)
+        reload_seal, _ = verify_native(reload, "reload", coordinate, reload_source)
+        seals = {"baseline": baseline_seal, "reload": reload_seal}
+        boundaries = {}
+        if system == 'darwin' and mode != 'normal':
+            boundaries = {'project-check': darwin_boundary.verify(baseline, 'project-check', mode),
+                          'reload': darwin_boundary.verify(reload, 'reload', mode)}
+            require(Counter(boundaries['project-check'] + boundaries['reload']) == Counter(darwin_boundary.required('standalone')),
+                    'Darwin native boundaries do not have exactly one owner')
+        consumers = {
+            "notes": go_observation(reload / "runserver-reload-notes.json", SPECIAL["reload-notes"], "GODJ_DEVELOPMENT_OBSERVATION"),
+            "article": go_observation(reload / "runserver-reload-article.json", SPECIAL["reload-article"], "GODJ_DEVELOPMENT_OBSERVATION"),
+            "command": go_observation(baseline / "runserver-scaffold.json", COMMAND_TEST, "GODJ_DEVELOPMENT_OBSERVATION"),
+        }
+        event_observation = go_observation(baseline / "runserver-runtime.json", EVENT_TEST, "GODJ_EVENT_OBSERVATION")
+        outputs.append({"coordinate": coordinate, "seals": seals, "native_boundaries": boundaries, "product_coverage": coverage,
+                        "development": compare_development(observed["development"], consumers),
+                        "events": compare_events(observed["event"], event_observation)})
+    owners = {tuple(row["coordinate"]): row["product_coverage"] for row in outputs}
+    for row in outputs:
+        system, arch, mode = row["coordinate"]
+        if system == "darwin":
+            native = row["product_coverage"]["common_runner"]
+            linux = owners["linux", arch, mode]["common_runner"]
+            require((native["owner"] == ["linux", arch, mode]) == (native["source_selection_sha256"] == linux["source_selection_sha256"]),
+                    "Darwin common runner delegation differs from the actual same-mode Linux sources")
+        for family, obligation in row["product_coverage"].items():
+            actual = owners.get(tuple(obligation["owner"]), {}).get(family, {})
+            require(actual.get("executed_roots") and actual["required"] == obligation["required"],
+                    "delegated product obligation lacks its same-mode execution")
+    return {"kind": "project-reference-comparison-v5", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,
+            "producers": selected, "python_seal": python_seal, "python_semantics": semantics.strip(),
+            "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("initialize-python", "plan-common-runner", "seal", "resolve", "verify"))
+    parser.add_argument("path", type=Path)
+    parser.add_argument("--selection", type=Path)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    try:
+        if args.action == "initialize-python":
+            args.path.mkdir()
+            source = {**source_identity(), "python_version": os.environ["EXPECTED_PYTHON"]}
+            (args.path / "source.json").write_text(json.dumps(source, sort_keys=True) + "\n")
+        elif args.action == "plan-common-runner":
+            print(plan_common_runner(args.path))
+        elif args.action == "seal":
+            seal(args.path)
+        elif args.action == "resolve":
+            selection = resolve(source_identity(), int(os.environ["GITHUB_REPOSITORY_ID"]), os.environ["GODJ_CI_PROFILE"])
+            with args.path.open("x") as output:
+                json.dump(selection, output, sort_keys=True)
+            ids = ",".join(str(row["artifact_id"]) for row in selection["producers"].values())
+            with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                print("artifact_ids=" + ids, file=output)
+        else:
+            require(args.selection is not None, "verification requires the authorized project evidence selection")
+            result = verify_all(args.path, source_identity(), document(args.selection), int(os.environ["GITHUB_REPOSITORY_ID"]),
+                                os.environ["GODJ_CI_PROFILE"])
+            report = json.dumps(result, sort_keys=True) + "\n"
+            if args.output:
+                args.output.write_text(report)
+            print(report, end="")
+    except (KeyError, OSError, TypeError, ValueError, subprocess.SubprocessError) as error:
+        parser.exit(1, str(error) + "\n")
+
+
+if __name__ == "__main__":
+    main()

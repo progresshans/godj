@@ -164,7 +164,7 @@ func runMigrationExecutionFixture(ctx context.Context, contractID string, fixtur
 		if len(fixture.seed) > 0 {
 			seedPlan := migrationExecutionForwardPlan(fixture.seed...)
 			var err error
-			beforeState, err = (migrations.Executor{Backend: backend}).ExecutePlan(
+			beforeState, err = (migrations.DirectExecutor{Backend: backend}).ExecutePlan(
 				ctx,
 				beforeState,
 				fixture.definitions,
@@ -186,7 +186,7 @@ func runMigrationExecutionFixture(ctx context.Context, contractID string, fixtur
 			fixture.operationFault,
 			fixture.recorderFault,
 		)
-		returnedState, executionErr := (migrations.Executor{Backend: trace}).ExecutePlan(
+		returnedState, executionErr := (migrations.DirectExecutor{Backend: trace}).ExecutePlan(
 			ctx,
 			beforeState,
 			fixture.definitions,
@@ -975,7 +975,7 @@ func migrationExecutionHistoricalTransitions(
 	state := before.Clone()
 	for _, step := range plan {
 		from := migrationExecutionStateValue(state)
-		next, err := (migrations.Executor{Backend: migrationExecutionStateBackend{}}).ExecutePlan(
+		next, err := (migrations.DirectExecutor{Backend: migrationExecutionStateBackend{}}).ExecutePlan(
 			ctx,
 			state,
 			definitions,
@@ -1017,3 +1017,26 @@ func (migrationExecutionStateTransaction) RecordUnapplied(context.Context, strin
 }
 func (migrationExecutionStateTransaction) Commit(context.Context) error   { return nil }
 func (migrationExecutionStateTransaction) Rollback(context.Context) error { return nil }
+
+func (transaction *migrationExecutionTransaction) AlterField(ctx context.Context, model ir.Model, before, after ir.Field) error {
+	return transaction.delegate.AlterField(ctx, model, before, after)
+}
+func (migrationExecutionStateTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return nil
+}
+
+func (transaction *migrationExecutionTransaction) AddConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	return transaction.delegate.AddConstraint(ctx, model, constraint)
+}
+
+func (transaction *migrationExecutionTransaction) RemoveConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	return transaction.delegate.RemoveConstraint(ctx, model, constraint)
+}
+
+func (migrationExecutionStateTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}
+
+func (migrationExecutionStateTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}

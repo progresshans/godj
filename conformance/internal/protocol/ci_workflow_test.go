@@ -1,0 +1,587 @@
+package protocol
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+)
+
+// These readers cover the checked-in workflow's block jobs, needs and matrix
+// records. Unsupported or missing structures fail the caller's required set;
+// they are not a general YAML parser or a replacement for Actions validation.
+func ciJobs(t *testing.T) map[string]string {
+	t.Helper()
+	text := ciRead(t, ".github/workflows/ci.yml")
+	start := strings.Index(text, "\njobs:\n")
+	if start < 0 {
+		t.Fatal("workflow jobs mapping is missing")
+	}
+	text = text[start+len("\njobs:\n"):]
+	pattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):[ \t]*(?:#.*)?$`)
+	matches := pattern.FindAllStringSubmatchIndex(text, -1)
+	jobs := make(map[string]string)
+	for i, match := range matches {
+		name := text[match[2]:match[3]]
+		if _, exists := jobs[name]; exists {
+			t.Fatalf("duplicate CI job %q", name)
+		}
+		end := len(text)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+		jobs[name] = text[match[0]:end]
+	}
+	if len(jobs) == 0 {
+		t.Fatal("workflow jobs mapping could not be read")
+	}
+	return jobs
+}
+
+func ciJob(t *testing.T, jobs map[string]string, name string) string {
+	t.Helper()
+	job, ok := jobs[name]
+	if !ok {
+		t.Fatalf("required CI job %q is missing", name)
+	}
+	return job
+}
+
+// A packed job must retain each product's execution and completion checks.
+// Reading one step prevents another product's flags from satisfying them.
+func ciStep(t *testing.T, job, id string) string {
+	t.Helper()
+	starts := regexp.MustCompile(`(?m)^      - name:.*$`).FindAllStringIndex(job, -1)
+	identity := regexp.MustCompile(`(?m)^        id: ` + regexp.QuoteMeta(id) + `$`)
+	var found string
+	for index, start := range starts {
+		end := len(job)
+		if index+1 < len(starts) {
+			end = starts[index+1][0]
+		}
+		step := job[start[0]:end]
+		if identity.MatchString(step) {
+			if found != "" {
+				t.Fatalf("duplicate CI step %q", id)
+			}
+			found = step
+		}
+	}
+	if found == "" {
+		t.Fatalf("required CI step %q is missing", id)
+	}
+	return found
+}
+
+func ciNeeds(t *testing.T, job string) []string {
+	t.Helper()
+	match := regexp.MustCompile(`(?m)^    needs:[ \t]*([^\n]*)\n((?:      - [^\n]+\n)*)`).FindStringSubmatch(job)
+	if len(match) != 3 {
+		t.Fatal("CI dependency mapping could not be read")
+	}
+	var values []string
+	if inline := strings.TrimSpace(match[1]); inline != "" {
+		values = strings.Split(strings.Trim(inline, "[]"), ",")
+	} else {
+		for _, line := range strings.Split(strings.TrimSpace(match[2]), "\n") {
+			values = append(values, strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- ")))
+		}
+	}
+	for i := range values {
+		values[i] = strings.Trim(strings.TrimSpace(values[i]), "\"'")
+	}
+	sort.Strings(values)
+	return values
+}
+
+func ciMatrix(t *testing.T, job, axis string) []map[string]string {
+	t.Helper()
+	header := "\n        " + axis + ":\n"
+	start := strings.Index(job, header)
+	end := strings.Index(job, "\n    steps:")
+	if start < 0 || end <= start {
+		t.Fatalf("workflow matrix %s mapping could not be read", axis)
+	}
+	var rows []map[string]string
+	for _, line := range strings.Split(job[start+len(header):end], "\n") {
+		if text := strings.TrimSpace(line); text == "" || strings.HasPrefix(text, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "          - ") {
+			rows = append(rows, make(map[string]string))
+			line = "            " + strings.TrimPrefix(line, "          - ")
+		}
+		if !strings.HasPrefix(line, "            ") || len(rows) == 0 {
+			continue
+		}
+		key, value, ok := strings.Cut(strings.TrimSpace(line), ":")
+		if !ok || strings.TrimSpace(value) == "" {
+			t.Fatalf("unsupported matrix include property %q", line)
+		}
+		row := rows[len(rows)-1]
+		if _, exists := row[key]; exists {
+			t.Fatalf("duplicate matrix include key %q", key)
+		}
+		row[key] = strings.Trim(strings.TrimSpace(value), "\"'")
+	}
+	if len(rows) == 0 {
+		t.Fatal("matrix include records could not be read")
+	}
+	return rows
+}
+
+func ciRead(t *testing.T, relative string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(conformanceRepositoryRoot(t), filepath.FromSlash(relative)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func ciRequire(t *testing.T, scope, text string, values ...string) {
+	t.Helper()
+	for _, value := range values {
+		if !strings.Contains(text, value) {
+			t.Fatalf("%s lacks required behavior %q", scope, value)
+		}
+	}
+}
+
+func ciMakeTarget(t *testing.T, text, target string) string {
+	t.Helper()
+	start := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(target) + `:[^\n]*\n`).FindStringIndex(text)
+	if start == nil {
+		t.Fatalf("Make target %q is missing", target)
+	}
+	rest := text[start[1]:]
+	end := regexp.MustCompile(`(?m)^[A-Za-z0-9_.%-]+:[^=]`).FindStringIndex(rest)
+	if end == nil {
+		return text[start[0]:]
+	}
+	return text[start[0] : start[1]+end[0]]
+}
+
+func ciPlan(t *testing.T) map[string]string {
+	t.Helper()
+	outputPath := filepath.Join(t.TempDir(), "plan.txt")
+	command := exec.CommandContext(t.Context(), "python3", "scripts/ci/workflow.py", "plan")
+	command.Dir = conformanceRepositoryRoot(t)
+	command.Env = append(os.Environ(), "GITHUB_OUTPUT="+outputPath, "PYTHONDONTWRITEBYTECODE=1", "GITHUB_EVENT_NAME=workflow_dispatch")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("read CI execution plan: %v\n%s", err, output)
+	}
+	output, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := make(map[string]string)
+	for _, line := range strings.Split(string(output), "\n") {
+		if key, value, ok := strings.Cut(line, "="); ok {
+			values[key] = value
+		}
+	}
+	return values
+}
+
+func ciPlannedMatrix(t *testing.T, job, key string) []map[string]string {
+	t.Helper()
+	ciRequire(t, key, job, "matrix: ${{ fromJSON(needs.validation-plan.outputs."+key+") }}")
+	ciRequire(t, key, ciJob(t, ciJobs(t), "validation-plan"), key+": ${{ steps.plan.outputs."+key+" }}")
+	var matrix struct {
+		Include []struct {
+			Platform struct {
+				Runner string `json:"runs_on"`
+				OS     string `json:"expected_goos"`
+				Arch   string `json:"expected_goarch"`
+			} `json:"platform"`
+			Mode   string `json:"mode"`
+			Shard  string `json:"shard"`
+			Scope  string `json:"scope"`
+			Worker string `json:"worker"`
+		} `json:"include"`
+	}
+	if err := json.Unmarshal([]byte(ciPlan(t)[key]), &matrix); err != nil {
+		t.Fatal(err)
+	}
+	if len(matrix.Include) == 0 {
+		t.Fatalf("%s has no execution coordinates", key)
+	}
+	var rows []map[string]string
+	for _, entry := range matrix.Include {
+		rows = append(rows, map[string]string{
+			"runs_on": entry.Platform.Runner, "expected_goos": entry.Platform.OS, "expected_goarch": entry.Platform.Arch,
+			"mode": entry.Mode, "shard": entry.Shard, "scope": entry.Scope, "worker": entry.Worker,
+		})
+	}
+	return rows
+}
+
+func TestWorkflowRequiredJobsReachAggregate(t *testing.T) {
+	jobs := ciJobs(t)
+	var owners []string
+	if err := json.Unmarshal([]byte(ciPlan(t)["jobs"]), &owners); err != nil {
+		t.Fatal(err)
+	}
+	if len(owners) == 0 {
+		t.Fatal("CI execution plan has no required jobs")
+	}
+	sort.Strings(owners)
+	var discovered []string
+	for name := range jobs {
+		if name != "validation-plan" && name != "required-ci" {
+			discovered = append(discovered, name)
+		}
+	}
+	sort.Strings(discovered)
+	if !reflect.DeepEqual(discovered, owners) {
+		t.Fatalf("workflow jobs differ from the required plan: jobs=%v owners=%v", discovered, owners)
+	}
+	for _, owner := range owners {
+		job := ciJob(t, jobs, owner)
+		if !containsString(ciNeeds(t, job), "validation-plan") {
+			t.Fatalf("owner %s lacks the validation plan dependency", owner)
+		}
+		if regexp.MustCompile(`(?m)^    if:`).MatchString(job) {
+			t.Fatalf("required job %s has an optional execution condition", owner)
+		}
+		if regexp.MustCompile(`continue-on-error:\s*true`).MatchString(job) {
+			t.Fatalf("owner %s can ignore failure", owner)
+		}
+	}
+	aggregate := ciJob(t, jobs, "required-ci")
+	want := append(append([]string(nil), owners...), "validation-plan")
+	sort.Strings(want)
+	if actual := ciNeeds(t, aggregate); !reflect.DeepEqual(actual, want) {
+		t.Fatalf("aggregate needs=%v want all owners=%v", actual, want)
+	}
+	ciRequire(t, "aggregate", aggregate, "always()", "toJSON(needs)", "scripts/ci/workflow.py verify")
+	ciRequire(t, "plan", ciJob(t, jobs, "validation-plan"), "scripts/ci/workflow.py plan")
+}
+
+func ciCheckFullPlatformRows(t *testing.T, jobName string, rows []map[string]string, want map[string]int) {
+	t.Helper()
+	runners := map[string]string{"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm", "darwin/arm64": "macos-26"}
+	counts := make(map[string]int)
+	workers := make(map[string]bool)
+	for _, row := range rows {
+		platform := row["expected_goos"] + "/" + row["expected_goarch"]
+		runner, supported := runners[platform]
+		if !supported || row["runs_on"] != runner {
+			t.Fatalf("%s schedules %s on unexpected runner %q", jobName, platform, row["runs_on"])
+		}
+		coordinate := platform + "/" + row["mode"]
+		if jobName == "relation-product-matrix" {
+			worker := row["worker"]
+			workerKey := coordinate + "/" + worker
+			if workers[workerKey] {
+				t.Fatalf("%s repeats worker %s", jobName, workerKey)
+			}
+			workers[workerKey] = true
+			role := worker
+			if strings.HasPrefix(worker, "parts-") {
+				role = "consumer"
+			}
+			coordinate += "/" + row["scope"] + "/" + role
+		}
+		counts[coordinate]++
+	}
+	if !reflect.DeepEqual(counts, want) {
+		t.Fatalf("full %s obligations = %v, want %v", jobName, counts, want)
+	}
+}
+
+func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
+	jobs := ciJobs(t)
+	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v5" {
+		t.Fatalf("unexpected full CI contract %q", contract)
+	}
+	product := make(map[string]int)
+	relation := map[string]int{"darwin/arm64/normal/darwin-runtime/runtime": 1}
+	for _, mode := range []string{"normal", "race", "cgo0"} {
+		for _, linux := range []string{"linux/amd64/", "linux/arm64/"} {
+			product[linux+mode] = 1
+			relation[linux+mode+"/complete-relation/runtime"] = 1
+			relation[linux+mode+"/complete-relation/consumer"] = 7
+		}
+		product["darwin/arm64/"+mode] = 1
+		relation["darwin/arm64/"+mode+"/darwin-generated-native/darwin-generated-native"] = 1
+	}
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "product-reload-matrix", "command-product-matrix"} {
+		job := ciJob(t, jobs, name)
+		if name == "relation-product-matrix" {
+			ciCheckFullPlatformRows(t, name, ciPlannedMatrix(t, job, "relation_matrix"), relation)
+			ciRequire(t, name, job, "matrix.parts[0]", "matrix.shards", "matrix.scope", "bash scripts/ci/relation-product.sh prepare", "bash scripts/ci/relation-product.sh run")
+			job += "\n" + ciRead(t, "scripts/ci/relation-product.sh")
+			ciRequire(t, name, job, "scripts/ci/relation_shards.py plan", "scripts/ci/relation_shards.py verify", "-list .", "--discovery", "--log", "scripts/ci/darwin-native.sh", "scripts/ci/native_evidence.py")
+		} else {
+			ciCheckFullPlatformRows(t, name, ciPlannedMatrix(t, job, "product_matrix"), product)
+		}
+		ciRequire(t, name, job, "runs-on: ${{ matrix.platform.runs_on }}", "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
+			"matrix.mode", "-race", "CGO_ENABLED=0", "go test")
+	}
+	intel := ciJob(t, jobs, "intel-compatibility")
+	ciRequire(t, "Intel compatibility", intel, "runs-on: macos-15-intel", "scripts/ci/native_evidence.py intel-compatibility", "native-compat-darwin-amd64-${{ matrix.mode }}")
+	intelModes := make(map[string]int)
+	for _, row := range ciPlannedMatrix(t, intel, "intel_matrix") {
+		intelModes[row["mode"]]++
+	}
+	if !reflect.DeepEqual(intelModes, map[string]int{"normal": 1, "cgo0": 1}) {
+		t.Fatalf("unexpected full Intel compatibility modes %v", intelModes)
+	}
+	ciRequire(t, "Darwin cross-compile", ciJob(t, jobs, "darwin-compile-only"), "runs-on: ubuntu-24.04", "scripts/ci/darwin_compile.py")
+	ciRequire(t, "exact Darwin reference", ciJob(t, jobs, "exact-darwin-validation"), "runs-on: macos-26")
+	ciRequire(t, "platform evidence", ciJob(t, jobs, "required-ci"), "scripts/ci/native_receipts.py resolve", "scripts/ci/native_receipts.py verify")
+	commands := ciJob(t, jobs, "command-product-matrix")
+	for _, product := range []string{"operator", "targeted"} {
+		step := ciStep(t, commands, product)
+		ciRequire(t, product, step, "matrix.mode", "-race", "CGO_ENABLED=0", "go test", "go vet", "-timeout=",
+			"!cancelled()", "steps.dependencies.outcome == 'success'")
+	}
+	ciRequire(t, "command outcome gate", commands, "steps.operator.outcome", "steps.targeted.outcome",
+		"COMMAND_PRODUCTS_RESULTS_JSON", "scripts/ci/workflow.py verify-command-products")
+	portable := ciMatrix(t, ciJob(t, jobs, "portable-go-matrix"), "include")
+	for mode, prefix := range map[string]string{"normal": "go-test", "race": "go-race", "cgo0": "cgo-zero-build"} {
+		for _, group := range []string{"core", "integration", "conformance", "products"} {
+			found := false
+			for _, row := range portable {
+				if row["mode"] == mode && containsString(strings.Fields(row["make_targets"]), prefix+"-"+group) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("portable Go matrix misses package group=%s mode=%s", group, mode)
+			}
+		}
+	}
+	seen := make(map[string]bool)
+	for key, owner := range map[string]string{"postgres_matrix": "postgresql-product", "postgres_capture_matrix": "postgresql-captures"} {
+		for _, row := range ciPlannedMatrix(t, ciJob(t, jobs, owner), key) {
+			coordinate := row["shard"] + "/" + row["mode"]
+			capture := coordinate == "core/normal" || coordinate == "operator-target/normal"
+			if seen[coordinate] || capture != (owner == "postgresql-captures") {
+				t.Fatalf("incorrect PostgreSQL owner %s for %s", owner, coordinate)
+			}
+			seen[coordinate] = true
+		}
+	}
+	for _, shard := range []string{"core", "operator-target"} {
+		for _, mode := range []string{"normal", "race", "cgo0"} {
+			if !seen[shard+"/"+mode] {
+				t.Fatalf("PostgreSQL matrix misses shard=%s mode=%s", shard, mode)
+			}
+		}
+	}
+
+}
+
+func TestNormalPythonOwnsTheSuiteSemanticsAndBothReceipts(t *testing.T) {
+	jobs := ciJobs(t)
+	normal := ciJob(t, jobs, "python-reference-validation")
+	if !reflect.DeepEqual(ciNeeds(t, normal), []string{"validation-plan"}) {
+		t.Fatal("normal Python must be eligible after planning")
+	}
+	ciRequire(t, "normal Python", normal, "uv sync --frozen", "uv sync --project conformance/reference/drf --frozen",
+		"make python-test 2>&1", "conformance/reference/drf python scripts/ci/python_semantics.py",
+		"python-semantics.txt", "GODJ_PYTHON_INVENTORY", "id: platform_upload", "id: project_upload")
+	if strings.Count(normal, "make python-test ") != 1 || strings.Contains(ciJob(t, jobs, "conformance-validation"), "python-test") {
+		t.Fatal("normal Python suite must run once")
+	}
+	if !containsString(ciNeeds(t, ciJob(t, jobs, "project-reference-comparison")), "python-reference-validation") {
+		t.Fatal("product comparison lost its Python producer")
+	}
+}
+
+func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
+	jobs := ciJobs(t)
+	for _, name := range []string{"conformance-validation", "exact-darwin-validation"} {
+		job := ciJob(t, jobs, name)
+		ciRequire(t, name, job, "git diff --exit-code --", "conformance/contracts", "conformance/profiles", "conformance/oracles")
+		if strings.Contains(job, "oracle-regenerate") {
+			t.Fatalf("%s regenerates the reference authority", name)
+		}
+	}
+	ciRequire(t, "exact oracle validation", ciJob(t, jobs, "exact-darwin-validation"),
+		"uv sync --frozen", "uv sync --project conformance/reference/drf --frozen", "python-test-exact", "oracle-check")
+	postgres := ciJob(t, jobs, "postgresql-product")
+	reference := ciJob(t, jobs, "conformance-validation")
+	if !reflect.DeepEqual(ciNeeds(t, reference), []string{"postgresql-captures", "validation-plan"}) {
+		t.Fatal("reference comparison does not wait for current product captures")
+	}
+	ciRequire(t, "capture workflow", ciJob(t, jobs, "postgresql-captures"), "env: *postgres-environment", "services: *postgres-services", "steps: *postgres-steps")
+	ciRequire(t, "shared service execution", postgres, "env: &postgres-environment", "services: &postgres-services", "steps: &postgres-steps")
+	ciRequire(t, "PostgreSQL capture producer", postgres, "scripts/ci/capture_artifact.py pack", "actions/upload-artifact@", "if-no-files-found: error")
+	ciRequire(t, "current capture consumer", reference, "GODJ_REFERENCE_PYTHON", `"$UV_PYTHON" --version`,
+		"actions/download-artifact@", "scripts/ci/capture_artifact.py verify", "ATTESTATION_DIR:",
+		"docs-check format-check generate-check conformance-check godj-conformance")
+	for _, artifact := range []string{"systemstate-postgres", "operator-postgres"} {
+		ciRequire(t, "capture producer", postgres, "name: "+artifact+"-${{ github.run_attempt }}")
+	}
+	ciRequire(t, "successful same-run capture resolution", reference, "scripts/ci/capture_artifact.py resolve", "artifact-ids: ${{ steps.captures.outputs.systemstate_artifact_id }}", "artifact-ids: ${{ steps.captures.outputs.operator_artifact_id }}", "run-id: ${{ github.run_id }}", "--producer-attempt")
+	for _, file := range []string{"postgresql-17.10-two-process-v1.json", "postgresql-17.10-sqlite-external-operator-v1.json"} {
+		ciRequire(t, "capture producer", postgres, file)
+		ciRequire(t, "capture consumer", reference, file)
+	}
+	if strings.Index(reference, "scripts/ci/capture_artifact.py verify") > strings.Index(reference, "godj-conformance") {
+		t.Fatal("product comparison runs before capture provenance verification")
+	}
+}
+
+func TestPortableProductTargetsRunAllThreeModesOutsideQuickFeedback(t *testing.T) {
+	makefile := ciRead(t, "Makefile")
+	for target, mode := range map[string]string{"go-test-products": "normal", "go-race-products": "race", "cgo-zero-build-products": "cgo0"} {
+		ciRequire(t, target, ciMakeTarget(t, makefile, target), "python3 scripts/ci/portable_tests.py products "+mode)
+	}
+	quick := ciMakeTarget(t, makefile, "quick")
+	for _, heavy := range []string{"godj-conformance", "go-test-products", "go-test-platform"} {
+		if strings.Contains(quick, heavy) {
+			t.Fatalf("quick feedback unexpectedly owns %s", heavy)
+		}
+	}
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
+func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
+	jobs := ciJobs(t)
+	operatorRequiredSentinels := []string{
+		"TestOperatorSanitizeEnvironmentDropsHostOnlyControls",
+		"TestGlobalCreatesuperuserExternalSQLiteProduct",
+		"TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity",
+		"TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation",
+		"TestOperatorCountRawSecretOccurrencesDetectsAuditMarker",
+	}
+	targetRequiredSentinels := []string{
+		"TestProjectLinkedTargetedMigrateSQLite",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-119_exact_argv_and_exact_name_miss",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-120_named_forward_closure",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-121_named_reverse_descendants",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-122_app_zero_DEV-0002_order",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-123_noop_and_known_zero_unknown",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset",
+		"TestProjectLinkedTargetedMigrateSQLite/exact_public_family_coverage",
+	}
+	postgresCoreRequiredSentinels := []string{
+		"github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationBackfillsNullableDefaultOnPopulatedTableIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration",
+		"github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP",
+		"github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow",
+		"github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow",
+		"github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow",
+		"github.com/progresshans/godj/cmd/godj|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart",
+		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
+		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
+		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
+		"github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart",
+		"github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLMigrateExternalPhaseDProduct",
+		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
+		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+	}
+	postgresOperatorTargetRequiredSentinels := []string{
+		"github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle",
+		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
+		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
+	}
+	for _, inventory := range []struct {
+		job, step, array, file string
+		required               []string
+	}{
+		{"command-product-matrix", "operator", "required_tests", "", operatorRequiredSentinels},
+		{"command-product-matrix", "targeted", "required_passes", "", targetRequiredSentinels},
+		{"postgresql-product", "", "required_passes", "scripts/ci/postgres-core-required.txt", postgresCoreRequiredSentinels},
+		{"postgresql-product", "", "operator_target_required_passes", "", postgresOperatorTargetRequiredSentinels},
+	} {
+		job := ciJob(t, jobs, inventory.job)
+		if inventory.job == "postgresql-product" {
+			ciRequire(t, inventory.job, job, "bash scripts/ci/postgres-product.sh")
+			job = ciRead(t, "scripts/ci/postgres-product.sh")
+		}
+		if inventory.step != "" {
+			job = ciStep(t, job, inventory.step)
+		}
+		pattern := regexp.MustCompile(`(?s)\b` + regexp.QuoteMeta(inventory.array) + `=\(\s*(.*?)\s*\)`)
+		array := pattern.FindStringSubmatch(job)
+		if len(array) != 2 {
+			t.Fatalf("%s has no required test inventory %s", inventory.job, inventory.array)
+		}
+		actual := make(map[string]bool)
+		if inventory.file != "" {
+			// Python tests execute the partition planner and shell loader,
+			// checking exact ownership in all modes. This test keeps the
+			// required product sentinels bound to that authoritative manifest.
+			ciRequire(t, inventory.job, job, "scripts/ci/postgres_shards.py", "--required "+inventory.file,
+				`required_passes+=("$sentinel")`, `< "$partition/required.txt"`)
+			for _, value := range strings.Fields(ciRead(t, inventory.file)) {
+				actual[value] = true
+			}
+		} else {
+			for _, value := range regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(array[1], -1) {
+				actual[value[1]] = true
+			}
+		}
+		for _, sentinel := range inventory.required {
+			if !actual[sentinel] {
+				t.Fatalf("%s required inventory omits %s", inventory.job, sentinel)
+			}
+		}
+		ciRequire(t, inventory.job, job, "${"+inventory.array+"[@]}", "scripts/ci/go_test_events.py", "--required", "--no-skips")
+	}
+}
+
+func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.T) {
+	jobs := ciJobs(t)
+	portable := ciJob(t, jobs, "portable-go-matrix")
+	image := regexp.MustCompile(`(?m)^    runs-on: ([^\n]+)$`).FindStringSubmatch(portable)
+	if len(image) != 2 {
+		t.Fatal("portable runner image is missing")
+	}
+	ciRequire(t, "portable package ownership", portable, "GODJ_CI_OWNERS: ${{ needs.validation-plan.outputs.jobs }}")
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix"} {
+		job := ciJob(t, jobs, name)
+		var rows []map[string]string
+		if name == "relation-product-matrix" {
+			rows = ciPlannedMatrix(t, job, "relation_matrix")
+		} else {
+			rows = ciPlannedMatrix(t, job, "product_matrix")
+		}
+		for _, row := range rows {
+			if row["expected_goos"] == "linux" && row["expected_goarch"] == "amd64" && row["runs_on"] != image[1] {
+				t.Fatalf("%s cannot replace a portable execution on a different OS image", name)
+			}
+		}
+		ciRequire(t, name, job, "PORTABLE_COVERED:", "matrix.platform.expected_goos == 'linux'", "matrix.platform.expected_goarch == 'amd64'")
+	}
+	relation := ciJob(t, jobs, "relation-product-matrix") + "\n" + ciRead(t, "scripts/ci/relation-product.sh")
+	ciRequire(t, "relation execution owner", relation, "scripts/ci/packages.py relation", "--required", "--packages", "--no-skips", `"$PORTABLE_COVERED" != true`)
+	makefile := ciRead(t, "Makefile")
+	for _, group := range []string{"core", "conformance"} {
+		for prefix, mode := range map[string]string{"go-test-": "normal", "go-race-": "race", "cgo-zero-build-": "cgo0"} {
+			ciRequire(t, "portable "+group+" owner", ciMakeTarget(t, makefile, prefix+group), "scripts/ci/portable_tests.py "+group+" "+mode)
+		}
+	}
+	ciRequire(t, "portable evidence", portable, "GODJ_PORTABLE_EVIDENCE_DIR: ${{ runner.temp }}/portable-go", "Publish portable test evidence", "path: ${{ runner.temp }}/portable-go/", "if-no-files-found: error")
+}

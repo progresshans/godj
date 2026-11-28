@@ -3,14 +3,17 @@ package migrations
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 // Operation is intentionally limited to built-in typed operations in this
-// first migration slice. New operation kinds extend this package after their
-// state and database semantics are specified.
+// first migration slice. Embedding an operation does not create an accepted
+// operation type: execution and reconstruction reject wrappers before invoking
+// methods. New kinds extend this package after their state and database
+// semantics are specified.
 type Operation interface {
 	operation()
 	Kind() string
@@ -33,6 +36,10 @@ func (op CreateModel) App() string {
 }
 
 func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
+	return op.insertState(state, "")
+}
+
+func (op CreateModel) insertState(state ProjectState, before string) (ProjectState, error) {
 	model, err := normalizedSingleModel(op.AppLabel, op.Model)
 	if err != nil {
 		return state, fmt.Errorf("normalize model: %w", err)
@@ -42,9 +49,16 @@ func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
 	}
 	schema, exists := state.Schema(op.AppLabel)
 	if !exists {
-		schema = ir.Schema{FormatVersion: ir.FormatVersion, AppLabel: op.AppLabel}
+		schema = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: op.AppLabel}
 	}
-	schema.Models = append(schema.Models, model)
+	position := len(schema.Models)
+	if before != "" {
+		position, err = modelInsertionPosition(modelOrder(schema.Models), before)
+		if err != nil {
+			return state, err
+		}
+	}
+	schema.Models = slices.Insert(schema.Models, position, model)
 	normalized, err := ir.Normalize(schema)
 	if err != nil {
 		return state, fmt.Errorf("normalize project app %s: %w", op.AppLabel, err)
@@ -102,6 +116,28 @@ type AddField struct {
 	AppLabel  string
 	ModelName string
 	Field     ir.Field
+	// BeforeField inserts the field before an existing historical field. Empty
+	// appends it. This is logical Schema IR order, not physical column order.
+	BeforeField string
+}
+
+func addedFieldPosition(fields []ir.Field, before string) (int, error) {
+	if before == "" {
+		return len(fields), nil
+	}
+	for index, field := range fields {
+		if field.Name == before {
+			return index, nil
+		}
+	}
+	return 0, fmt.Errorf("AddField insertion anchor %q does not exist", before)
+}
+
+func validateAddedFieldPosition(fields []ir.Field, index int, before string) error {
+	if before == "" && index == len(fields)-1 || before != "" && index+1 < len(fields) && fields[index+1].Name == before {
+		return nil
+	}
+	return fmt.Errorf("field %q does not match AddField insertion position before %q", fields[index].Name, before)
 }
 
 func (AddField) operation()   {}
@@ -130,7 +166,11 @@ func (op AddField) stateForward(state ProjectState) (ProjectState, error) {
 	if modelIndex < 0 {
 		return state, fmt.Errorf("model %s.%s does not exist", op.AppLabel, op.ModelName)
 	}
-	schema.Models[modelIndex].Fields = append(schema.Models[modelIndex].Fields, op.Field)
+	position, err := addedFieldPosition(schema.Models[modelIndex].Fields, op.BeforeField)
+	if err != nil {
+		return state, err
+	}
+	schema.Models[modelIndex].Fields = slices.Insert(schema.Models[modelIndex].Fields, position, op.Field)
 	normalized, err := ir.Normalize(schema)
 	if err != nil {
 		return state, fmt.Errorf("normalize added field: %w", err)
@@ -172,6 +212,9 @@ func (op AddField) stateBackward(state ProjectState) (ProjectState, error) {
 		return state, fmt.Errorf("field %s.%s.%s does not exist", op.AppLabel, op.ModelName, op.Field.Name)
 	}
 	fields := schema.Models[modelIndex].Fields
+	if err := validateAddedFieldPosition(fields, fieldIndex, op.BeforeField); err != nil {
+		return state, err
+	}
 	schema.Models[modelIndex].Fields = append(fields[:fieldIndex:fieldIndex], fields[fieldIndex+1:]...)
 	normalized, err := ir.Normalize(schema)
 	if err != nil {

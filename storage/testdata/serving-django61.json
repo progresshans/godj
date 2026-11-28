@@ -1,0 +1,192 @@
+{
+  "abandoned": {
+    "closes": 1,
+    "reads": 0
+  },
+  "aliases": {
+    "after_first": 1,
+    "before_lookup": 0,
+    "different_alias_identity": true,
+    "missing_error": "InvalidStorageError",
+    "same_alias_identity": true
+  },
+  "django": "6.1",
+  "files": [
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "application/octet-stream",
+      "disposition": "attachment",
+      "filename": "plain.bin",
+      "header_filename": "plain.bin",
+      "inline": false,
+      "length": "3",
+      "name": "binary",
+      "opened_after_read": true,
+      "payload_hex": "610062",
+      "reads_before": 0
+    },
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "application/pdf",
+      "disposition": "attachment",
+      "filename": "\ud55c\uae00 \uc694\uc57d.pdf",
+      "header_filename": "\ud55c\uae00 \uc694\uc57d.pdf",
+      "inline": false,
+      "length": "9",
+      "name": "unicode",
+      "opened_after_read": true,
+      "payload_hex": "ebb3b4eab3a0ec849c",
+      "reads_before": 0
+    },
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "text/plain; charset=utf-8",
+      "disposition": "inline",
+      "filename": "note.txt",
+      "header_filename": "note.txt",
+      "inline": true,
+      "length": "10",
+      "name": "inline",
+      "opened_after_read": true,
+      "payload_hex": "706c61696e2074657874",
+      "reads_before": 0
+    },
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "application/octet-stream",
+      "disposition": "attachment",
+      "filename": "empty.bin",
+      "header_filename": "empty.bin",
+      "inline": false,
+      "length": "0",
+      "name": "empty",
+      "opened_after_read": true,
+      "payload_hex": "",
+      "reads_before": 0
+    },
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "application/octet-stream",
+      "disposition": "attachment",
+      "filename": "unknown.bin",
+      "header_filename": "unknown.bin",
+      "inline": false,
+      "length": null,
+      "name": "unknown",
+      "opened_after_read": true,
+      "payload_hex": "756e6b6e6f776e2073697a65",
+      "reads_before": 0
+    },
+    {
+      "closes": 1,
+      "content_error": "AttributeError",
+      "content_type": "application/octet-stream",
+      "disposition": "attachment",
+      "filename": "offset.bin",
+      "header_filename": "offset.bin",
+      "inline": false,
+      "length": "7",
+      "name": "offset",
+      "opened_after_read": true,
+      "payload_hex": "636f6e74656e74",
+      "reads_before": 0
+    }
+  ],
+  "native_file_defaults": {
+    "content_type": "text/html",
+    "disposition": "inline; filename=\"page.html\""
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "filesystem": "58590ed08e59875f970c889188deeb1d914a56d61da7e750652fd797a631ffeb",
+    "handler": "9ed3896769dfd9551a518eed287d269dd39116218a49d87fd7aa373ad8a52012",
+    "response": "ef219a1065749b54818c60def0e609aaa17466fdeb97208f6453ab24ebd34a41"
+  },
+  "unsupported_names": [
+    {
+      "name": "",
+      "url": "/media/"
+    },
+    {
+      "name": "../outside.txt",
+      "url": "/outside.txt"
+    },
+    {
+      "name": "/absolute.txt",
+      "url": "/media/absolute.txt"
+    },
+    {
+      "name": "nested\\file.txt",
+      "url": "/media/nested/file.txt"
+    }
+  ],
+  "url_storage_reads": 0,
+  "url_unavailable": "ValueError",
+  "urls": [
+    {
+      "base": "/media/",
+      "name": "plain.txt",
+      "url": "/media/plain.txt"
+    },
+    {
+      "base": "/media/",
+      "name": "docs/\ud55c\uae00 \uc694\uc57d.pdf",
+      "url": "/media/docs/%ED%95%9C%EA%B8%80%20%EC%9A%94%EC%95%BD.pdf"
+    },
+    {
+      "base": "/media/",
+      "name": "symbols/a+b&c#d% (x)'!.txt",
+      "url": "/media/symbols/a%2Bb%26c%23d%25%20(x)'!.txt"
+    },
+    {
+      "base": "/media/",
+      "name": "%2e%2e/literal.txt",
+      "url": "/media/%252e%252e/literal.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media/",
+      "name": "plain.txt",
+      "url": "https://cdn.example.test/media/plain.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media/",
+      "name": "docs/\ud55c\uae00 \uc694\uc57d.pdf",
+      "url": "https://cdn.example.test/media/docs/%ED%95%9C%EA%B8%80%20%EC%9A%94%EC%95%BD.pdf"
+    },
+    {
+      "base": "https://cdn.example.test/media/",
+      "name": "symbols/a+b&c#d% (x)'!.txt",
+      "url": "https://cdn.example.test/media/symbols/a%2Bb%26c%23d%25%20(x)'!.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media/",
+      "name": "%2e%2e/literal.txt",
+      "url": "https://cdn.example.test/media/%252e%252e/literal.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media",
+      "name": "plain.txt",
+      "url": "https://cdn.example.test/media/plain.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media",
+      "name": "docs/\ud55c\uae00 \uc694\uc57d.pdf",
+      "url": "https://cdn.example.test/media/docs/%ED%95%9C%EA%B8%80%20%EC%9A%94%EC%95%BD.pdf"
+    },
+    {
+      "base": "https://cdn.example.test/media",
+      "name": "symbols/a+b&c#d% (x)'!.txt",
+      "url": "https://cdn.example.test/media/symbols/a%2Bb%26c%23d%25%20(x)'!.txt"
+    },
+    {
+      "base": "https://cdn.example.test/media",
+      "name": "%2e%2e/literal.txt",
+      "url": "https://cdn.example.test/media/%252e%252e/literal.txt"
+    }
+  ]
+}

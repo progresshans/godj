@@ -1,0 +1,18 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+type Other struct{}
+
+var otherTitle = orm.NewStringField[Other](ir.Field{
+	Name:   "title",
+	GoName: "Title",
+	Column: "title",
+	Kind:   ir.FieldChar,
+})
+
+var _ = models.ArticleFields.Title.ExactField(orm.F(otherTitle))

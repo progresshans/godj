@@ -1,0 +1,26 @@
+{
+  "format_version": 2,
+  "id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "fingerprint": {
+    "django_version": "6.1",
+    "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+    "django_distribution_sha256": "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe",
+    "python_implementation": "CPython",
+    "python_version": "3.14.10",
+    "sqlite_version": "3.53.1",
+    "sqlite_source_id": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+    "database_engine": "django.db.backends.sqlite3",
+    "use_tz": true,
+    "timezone": "UTC",
+    "language_code": "en-us",
+    "locale": "C",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "lock": {
+    "file": "conformance/reference/drf/uv.lock",
+    "sha256": "d80b60923248d97d03689f9148364a37b368e0b844f75b41ca0f4eaaa5153472",
+    "manager": "uv",
+    "manager_version": "0.13.6"
+  }
+}

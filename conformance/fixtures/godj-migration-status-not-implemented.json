@@ -1,0 +1,38 @@
+{
+  "format_version": 2,
+  "profile": {
+    "id": "django-6.1-sqlite-darwin-arm64",
+    "fingerprint": {
+      "django_version": "6.1",
+      "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+      "django_distribution_sha256": "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe",
+      "python_implementation": "CPython",
+      "python_version": "3.14.10",
+      "sqlite_version": "3.53.1",
+      "sqlite_source_id": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+      "database_engine": "django.db.backends.sqlite3",
+      "use_tz": true,
+      "timezone": "UTC",
+      "language_code": "en-us",
+      "locale": "C",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "lock": {
+      "file": "uv.lock",
+      "sha256": "a91621c0cf2286a888302c606602a3facc6f4ed6c9856bb5eaad62af7e6b4f15",
+      "manager": "uv",
+      "manager_version": "0.13.6"
+    }
+  },
+  "contracts": [
+    {"id": "MIG-111", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-112", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-113", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-114", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-115", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-116", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-117", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MIG-118", "status": "not_implemented", "phase": "environment"}
+  ]
+}

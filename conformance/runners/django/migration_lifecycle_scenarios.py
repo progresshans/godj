@@ -31,8 +31,8 @@ from django.db.migrations.operations.fields import AddField
 from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.migrations.state import ProjectState
-from django.db.models.fields import NOT_PROVIDED
 
+from .migration_observation import managed_schema, state_value
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -62,11 +62,6 @@ _MANAGED_TABLE_PREFIX = "godj_lifecycle_"
 _DATABASE_ALIAS = "godj_lifecycle_reference"
 _DDL_KINDS = frozenset({"ALTER", "CREATE", "DROP", "TRUNCATE"})
 _WRITE_KINDS = frozenset({"DELETE", "INSERT", "REPLACE", "UPDATE"})
-_FIELD_KINDS = {
-    "AutoField": "auto",
-    "BooleanField": "boolean",
-    "CharField": "char",
-}
 
 
 class ConformanceLifecycleOperationFailure(RuntimeError):
@@ -270,133 +265,14 @@ def _isolated_database() -> Iterator[_DatabaseSession]:
             del connections.databases[_DATABASE_ALIAS]
 
 
-def _default_value(
-    field: models.Field[Any, Any], field_kind: str
-) -> dict[str, Any]:
-    default = field.default
-    if default is NOT_PROVIDED:
-        return {"present": False, "type": "absent", "value": None}
-    if callable(default):
-        raise AssertionError("callable defaults are outside this contract")
-    if field_kind == "boolean" and isinstance(default, bool):
-        default_type = "bool"
-    elif field_kind == "char" and isinstance(default, str):
-        default_type = "string"
-    else:
-        raise AssertionError(
-            f"unsupported lifecycle default: {type(default).__name__}"
-        )
-    return {"present": True, "type": default_type, "value": default}
-
-
-def _state_value(state: ProjectState) -> dict[str, Any]:
-    apps: dict[str, list[dict[str, Any]]] = {}
-    for (app_label, model_key), model_state in sorted(state.models.items()):
-        db_table = model_state.options.get("db_table")
-        if not isinstance(db_table, str) or not db_table:
-            raise AssertionError("lifecycle fixture requires explicit db_table")
-        fields = []
-        for field_name, field in model_state.fields.items():
-            try:
-                field_kind = _FIELD_KINDS[field.get_internal_type()]
-            except KeyError as error:
-                raise AssertionError(
-                    f"unsupported lifecycle field: {field.get_internal_type()}"
-                ) from error
-            max_length = field.max_length
-            if field_kind == "char":
-                if (
-                    isinstance(max_length, bool)
-                    or not isinstance(max_length, int)
-                    or max_length <= 0
-                ):
-                    raise AssertionError("char max_length must be positive")
-            elif max_length is not None:
-                raise AssertionError("non-char max_length must be null")
-            fields.append(
-                {
-                    "column": field.db_column or field_name,
-                    "default": _default_value(field, field_kind),
-                    "kind": field_kind,
-                    "max_length": max_length,
-                    "name": field_name,
-                    "nullable": field.null,
-                    "primary_key": field.primary_key,
-                }
-            )
-        apps.setdefault(app_label, []).append(
-            {
-                "db_table": db_table,
-                "fields": fields,
-                "name": model_key,
-            }
-        )
-    return {
-        "apps": [
-            {
-                "label": app_label,
-                "models": sorted(app_models, key=lambda item: item["name"]),
-            }
-            for app_label, app_models in sorted(apps.items())
-        ],
-        "format_version": 1,
-    }
-
-
-def _type_family(type_code: Any) -> str:
-    rendered = str(type_code).lower()
-    if "int" in rendered:
-        return "integer"
-    if "char" in rendered or "clob" in rendered or "text" in rendered:
-        return "text"
-    if "bool" in rendered:
-        return "boolean"
-    return rendered
-
-
 def _database_snapshot(database_connection: Any) -> dict[str, Any]:
     recorder = MigrationRecorder(database_connection)
     recorder_present = recorder.has_table()
     records = (
         sorted(recorder.applied_migrations()) if recorder_present else []
     )
-    managed_schema: list[dict[str, Any]] = []
-    with database_connection.cursor() as cursor:
-        for table in sorted(
-            database_connection.introspection.table_names(cursor)
-        ):
-            if not table.startswith(_MANAGED_TABLE_PREFIX):
-                continue
-            description = database_connection.introspection.get_table_description(
-                cursor, table
-            )
-            constraints = database_connection.introspection.get_constraints(
-                cursor, table
-            )
-            primary_key_columns = {
-                column
-                for constraint in constraints.values()
-                if constraint["primary_key"]
-                for column in constraint["columns"]
-            }
-            managed_schema.append(
-                {
-                    "columns": [
-                        {
-                            "name": column.name,
-                            "nullable": column.null_ok,
-                            "primary_key": column.name in primary_key_columns,
-                            "type_family": _type_family(column.type_code),
-                        }
-                        for column in sorted(
-                            description, key=lambda item: item.name
-                        )
-                    ],
-                    "name": table,
-                }
-            )
     return {
-        "managed_schema": managed_schema,
+        "managed_schema": managed_schema(database_connection, _MANAGED_TABLE_PREFIX, primary_keys=True, datetime_types=False),
         "migration_records": _key_values(records),
         "recorder_present": recorder_present,
     }
@@ -719,7 +595,7 @@ def _run_lifecycle(
             raise AssertionError("successful lifecycle returned no state")
         result: dict[str, Any] | None = {
             "plan": _plan_value(plan),
-            "returned_state": _state_value(state),
+            "returned_state": state_value(state),
         }
         error_value = None
     else:

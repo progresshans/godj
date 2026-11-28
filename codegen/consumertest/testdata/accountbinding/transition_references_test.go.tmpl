@@ -1,0 +1,344 @@
+package consumer
+
+import (
+ "context"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "math"
+ "reflect"
+ "slices"
+ "strings"
+ "sync"
+ "sync/atomic"
+ "testing"
+ "time"
+
+ "example.com/godj-project-bundle/host"
+ legacyhost "example.com/godj-project-bundle/legacy/host"
+ contractedhost "example.com/godj-project-bundle/contracted/host"
+ contractedproject "example.com/godj-project-bundle/contracted/project"
+ "example.com/godj-project-bundle/members"
+ "example.com/godj-project-bundle/models"
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ auditmodels "github.com/progresshans/godj/account/audit/models"
+ "github.com/progresshans/godj/account/domain"
+ domainmodels "github.com/progresshans/godj/account/domain/models"
+ "github.com/progresshans/godj/admin"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/schema/ir"
+ "github.com/progresshans/godj/sessions"
+ sessiondb "github.com/progresshans/godj/sessions/database"
+ sessionmodels "github.com/progresshans/godj/sessions/database/models"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+)
+
+type referenceBackend struct {
+ database.Backend
+ mode string
+ ticket, source int64
+ writes, badgeWrites, faults, completed atomic.Int32
+ policy, denied atomic.Bool
+}
+func (b *referenceBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+ err:=b.Backend.ReadSnapshot(ctx,read)
+ if err==nil&&b.mode=="read_cleanup" {return errors.New("private reference snapshot cleanup")}
+ return err
+}
+func (b *referenceBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session)error)error{
+ err:=b.Backend.CoordinatedAtomic(ctx,func(scope db.Session)error{
+  if err:=write(&referenceScope{Session:scope,owner:b});err!=nil{return err}
+  b.completed.Add(1)
+  if b.mode=="unknown_rollback"{return errors.New("reference rollback after complete callback")};return nil
+ })
+ if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+func (b *referenceBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession)error)error{
+ err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
+  if err:=write(&referenceScope{Session:scope,owner:b});err!=nil{return err}
+  b.completed.Add(1)
+  if b.mode=="unknown_rollback"{return errors.New("reference rollback after complete relation callback")};return nil
+ })
+ if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type referenceScope struct {db.Session;owner *referenceBackend}
+func(s *referenceScope)ValidateSession(ctx context.Context)error{return s.Session.(db.SessionValidator).ValidateSession(ctx)}
+func(s *referenceScope)RelationSetNull(ctx context.Context,plan query.RelationSetNullPlan)(int64,error){return s.Session.(db.RelationSession).RelationSetNull(ctx,plan)}
+func(s *referenceScope)InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {return s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)}
+func(s *referenceScope)changeTicket(ctx context.Context)error{
+ row,err:=host.TicketObjects.Using(s.Session).Filter(host.TicketFields.ID.Exact(s.owner.ticket)).Get(ctx);if err!=nil{return err}
+ prepared,err:=host.TicketObjects.PrepareValues(&row,map[string]query.Value{"title":query.String("changed by native rule")});if err!=nil{return err}
+ row,err=prepared.Model();if err!=nil{return err};return prepared.Save(ctx,s.Session,&row)
+}
+func(s *referenceScope)Update(ctx context.Context,plan query.UpdatePlan)(int64,error){
+ count,err:=s.Session.Update(ctx,plan);if err==nil&&plan.Table()=="transition_badge"{s.owner.badgeWrites.Add(1)};if err!=nil||plan.Table()!="transition_ticket"{return count,err}
+ n:=s.owner.writes.Add(1)
+ if s.owner.mode=="second_write_failure"&&n==2{s.owner.faults.Add(1);return count,errors.New("failure after second host update")}
+ if s.owner.mode=="lost_update"&&n==1{s.owner.faults.Add(1);return 0,nil}
+ if s.owner.mode=="host_source_change"&&n==1{
+  row,e:=models.UserObjects.Using(s.Session).Filter(models.UserFields.ID.Exact(s.owner.source)).Get(ctx);if e!=nil{return 0,e}
+  prepared,e:=models.UserObjects.PrepareValues(&row,map[string]query.Value{"first_name":query.String("unreviewed source change")});if e!=nil{return 0,e}
+  row,e=prepared.Model();if e!=nil{return 0,e};if e=prepared.Save(ctx,s.Session,&row);e!=nil{return 0,e};s.owner.faults.Add(1)
+ }
+ return count,nil
+}
+func(s *referenceScope)Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
+ id,err:=s.Session.Insert(ctx,plan);if err!=nil{return id,err}
+ if s.owner.mode=="target_insert_host_change"&&plan.Table()=="members_member"&&s.owner.faults.CompareAndSwap(0,1){if err:=s.changeTicket(ctx);err!=nil{return 0,err}}
+ if s.owner.mode=="audit_after_write"&&plan.Table()=="godj_account_audit_event"&&s.owner.writes.Load()>0{s.owner.faults.Add(1);return id,errors.New("failure after host audit insert")}
+ if plan.Table()=="godj_account_domain_transition"{
+  if s.owner.mode=="late_host_change"{s.owner.faults.Add(1);if err:=s.changeTicket(ctx);err!=nil{return 0,err}}
+  if s.owner.mode=="late_policy_change"{s.owner.faults.Add(1);s.owner.policy.Store(true)}
+ }
+ return id,nil
+}
+type referenceOverlay struct {state *referenceBackend}
+func(o referenceOverlay)Allowed(_ context.Context,actor auth.Principal,permission auth.Permission)(bool,error){
+ return actor.Has(permission)&&!(permission=="host.remap"&&o.state.denied.Load()),nil
+}
+
+func referenceRows[M any](t *testing.T,scope db.Queryer,objects orm.Manager[M])any{
+ t.Helper();key,err:=objects.PrimaryKeyField();transitionCheck(t,err)
+ rows,err:=objects.Using(scope).OrderBy(orm.NewAutoField[M](key).Asc()).All(t.Context());transitionCheck(t,err)
+ values:=make([]map[string]query.Value,len(rows));for i,row:=range rows{values[i],err=objects.ModelValues(row);transitionCheck(t,err)};return values
+}
+func referenceSnapshot(t *testing.T,scope db.Queryer)map[string]any{
+ t.Helper();return map[string]any{
+  "users":referenceRows(t,scope,models.UserObjects),"members":referenceRows(t,scope,members.MemberObjects),
+  "groups":referenceRows(t,scope,models.GroupObjects),"permissions":referenceRows(t,scope,models.PermissionObjects),
+  "group_permissions":referenceRows(t,scope,models.GroupPermissionsLinkObjects),"user_groups":referenceRows(t,scope,models.UserGroupsLinkObjects),
+  "user_permissions":referenceRows(t,scope,models.UserPermissionsLinkObjects),"user_topics":referenceRows(t,scope,models.UserTopicsLinkObjects),
+  "member_groups":referenceRows(t,scope,members.MemberGroupsLinkObjects),"member_permissions":referenceRows(t,scope,members.MemberPermissionsLinkObjects),"member_interests":referenceRows(t,scope,members.MemberInterestsLinkObjects),
+  "tickets":referenceRows(t,scope,host.TicketObjects),"badges":referenceRows(t,scope,host.BadgeObjects),"workspaces":referenceRows(t,scope,host.WorkspaceObjects),"assignments":referenceRows(t,scope,host.AssignmentObjects),
+  "ownership":referenceRows(t,scope,domainmodels.TransitionObjects),"mapping":referenceRows(t,scope,domainmodels.MappingObjects),"audit":referenceRows(t,scope,auditmodels.EventObjects),"sessions":referenceRows(t,scope,sessionmodels.SessionObjects),
+ }
+}
+
+func TestAccountTransitionReferences(t *testing.T){
+ for _,strategy:=range []string{"staged","created"}{t.Run(strategy,func(t *testing.T){
+  cases:=[]string{"lifecycle","schema_lifecycle","signed_keys","null_references","no_revision","page_boundary","row_limit","revision_limit","callback_owned","config_owned","missing_grant","permission_revoked","policy_rejected","row_changed","new_row","row_deleted","second_write_failure","audit_after_write","late_host_change","host_source_change","lost_update","unknown_commit","unknown_rollback","concurrent","configuration","read_cleanup","canceled","late_policy_change","one_to_one_conflict"}
+  if strategy=="staged"{cases=append(cases,"already_mapped","wrong_target","target_without_source")}else{cases=append(cases,"target_insert_host_change")}
+  for _,mode:=range cases{t.Run(mode,func(t *testing.T){
+   native,selected:=openAccountDatabase(t)
+   if mode=="schema_lifecycle"{migrateAccountDefinitions(t,native,@@LEGACY_MIGRATIONS@@)}else{migrateAccountDefinitions(t,native,@@MIGRATIONS@@)}
+   backend:=&referenceBackend{Backend:native}
+   hasher,encoded:=accountPassword(t);joined:=time.Date(2026,10,28,3,4,5,0,time.UTC)
+   var originals []models.User
+   var staged []members.Member
+   var mapping []accountmodel.AccountMapping
+   var requests []accountmodel.AccountCreation[members.Member]
+   for i,name:=range []string{"alice","bob"}{
+    row,err:=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("reference-principal-"+name,name,encoded,joined).WithFirstName("private-"+name).WithStaff(i==0));transitionCheck(t,err)
+    if mode=="signed_keys"{key:=int64(-9);if i==1{key=0};accountStoredKey(t,native,selected,"godj_identity_user","id",row.ID,key);row.ID=key}
+    originals=append(originals,row)
+    if strategy=="staged"{
+     next,err:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate(row.PrincipalID,name+"-new",encoded,joined,"").WithStaff(row.Staff).WithSuperuser(row.Superuser).WithActive(row.Active));transitionCheck(t,err)
+     if mode=="signed_keys"{key:=int64(-20);if i==1{key=0};accountStoredKey(t,native,selected,"members_member","id",next.ID,key);next.ID=key}
+     staged=append(staged,next);mapping=append(mapping,accountmodel.AccountMapping{SourceID:row.ID,SourceRevision:row.Revision,TargetID:next.ID,TargetRevision:next.Version})
+    }else{
+     input,err:=members.MemberObjects.Input(map[string]query.Value{"handle":query.String(name+"-new")});transitionCheck(t,err)
+     requests=append(requests,accountmodel.AccountCreation[members.Member]{Source:accountmodel.SourceAccount{ID:row.ID,Revision:row.Revision},Input:input})
+    }
+   }
+   for _,code:=range []string{"account.transition","host.remap","host.audit"}{
+    permission,err:=models.PermissionObjects.Create(t.Context(),native,models.NewPermissionCreate(code,code));transitionCheck(t,err)
+    if mode=="missing_grant"&&code=="host.remap"{continue}
+    _,err=models.UserPermissionsLinkObjects.Create(t.Context(),native,models.NewUserPermissionsLinkCreate(originals[0].ID,permission.ID));transitionCheck(t,err)
+    if strategy=="staged"{_,err=members.MemberPermissionsLinkObjects.Create(t.Context(),native,members.NewMemberPermissionsLinkCreate(staged[0].ID,permission.ID));transitionCheck(t,err)}
+   }
+   ticketCount:=2;if mode=="page_boundary"{ticketCount=257}
+   var tickets []host.Ticket
+   var badge host.Badge
+   var workspace host.Workspace
+   var assignments []host.Assignment
+   if mode=="schema_lifecycle"{
+    for i:=0;i<ticketCount;i++{_,err:=legacyhost.TicketObjects.Create(t.Context(),native,legacyhost.NewTicketCreate(fmt.Sprintf("ticket-%d",i)).WithOldOwnerID(originals[i%2].ID).WithOldReviewerID(originals[(i+1)%2].ID));transitionCheck(t,err)}
+    _,err:=legacyhost.BadgeObjects.Create(t.Context(),native,legacyhost.NewBadgeCreate("badge").WithOldUserID(originals[0].ID));transitionCheck(t,err)
+    legacyWorkspace,err:=legacyhost.WorkspaceObjects.Create(t.Context(),native,legacyhost.NewWorkspaceCreate("workspace"));transitionCheck(t,err)
+    for i,old:=range originals{_,err:=legacyhost.AssignmentObjects.Create(t.Context(),native,legacyhost.NewAssignmentCreate(fmt.Sprintf("assignment-%d",i)).WithWorkspaceID(legacyWorkspace.ID).WithOldUserID(old.ID));transitionCheck(t,err)}
+    migrateAccountDefinitions(t,native,@@EXPANDED_MIGRATIONS@@)
+    tickets,err=host.TicketObjects.Using(native).OrderBy(host.TicketFields.ID.Asc()).All(t.Context());transitionCheck(t,err)
+    badge,err=host.BadgeObjects.Using(native).Get(t.Context());transitionCheck(t,err)
+    workspace,err=host.WorkspaceObjects.Using(native).Get(t.Context());transitionCheck(t,err)
+    assignments,err=host.AssignmentObjects.Using(native).OrderBy(host.AssignmentFields.ID.Asc()).All(t.Context());transitionCheck(t,err)
+    if len(tickets)!=2||len(assignments)!=2{t.Fatal("schema expansion lost filled host rows")}
+    for i,row:=range tickets{if row.Title!=fmt.Sprintf("ticket-%d",i)||row.Revision!=1||row.OldOwnerID==nil||*row.OldOwnerID!=originals[i%2].ID||row.OldReviewerID==nil||*row.OldReviewerID!=originals[(i+1)%2].ID||row.OwnerID!=nil||row.ReviewerID!=nil{t.Fatal("schema expansion did not preserve source references and empty destinations")}}
+   }else{
+   for i:=0;i<ticketCount;i++{
+    input:=host.NewTicketCreate(fmt.Sprintf("ticket-%d",i))
+    if mode=="revision_limit"{input=input.WithRevision(math.MaxInt64)}
+    if mode!="null_references"{input=input.WithOldOwnerID(originals[i%2].ID).WithOldReviewerID(originals[(i+1)%2].ID)}
+    if mode=="already_mapped"{input=input.WithOwnerID(staged[i%2].ID).WithReviewerID(staged[(i+1)%2].ID)}
+    if mode=="wrong_target"&&i==0{input=input.WithOwnerID(staged[1].ID)}
+    if mode=="target_without_source"&&i==0{input=input.WithOldOwnerIDNull().WithOwnerID(staged[0].ID)}
+    row,err:=host.TicketObjects.Create(t.Context(),native,input);transitionCheck(t,err)
+    if mode=="signed_keys"{key:=int64(-4);if i==1{key=0};accountStoredKey(t,native,selected,"transition_ticket","id",row.ID,key);row.ID=key}
+    tickets=append(tickets,row)
+   }
+   badgeInput:=host.NewBadgeCreate("badge")
+   if mode!="null_references"{badgeInput=badgeInput.WithOldUserID(originals[0].ID)}
+   if mode=="already_mapped"{badgeInput=badgeInput.WithUserID(staged[0].ID)}
+   var err error
+   badge,err=host.BadgeObjects.Create(t.Context(),native,badgeInput);transitionCheck(t,err)
+   if mode=="one_to_one_conflict"{_,err=host.BadgeObjects.Create(t.Context(),native,host.NewBadgeCreate("duplicate-badge").WithOldUserID(originals[0].ID));transitionCheck(t,err)}
+   workspace,err=host.WorkspaceObjects.Create(t.Context(),native,host.NewWorkspaceCreate("workspace"));transitionCheck(t,err)
+   for i,old:=range originals{
+    input:=host.NewAssignmentCreate(fmt.Sprintf("assignment-%d",i)).WithWorkspaceID(workspace.ID)
+    if mode!="null_references"{input=input.WithOldUserID(old.ID)}
+    if mode=="already_mapped"{input=input.WithUserID(staged[i].ID)}
+    row,err:=host.AssignmentObjects.Create(t.Context(),native,input);transitionCheck(t,err);assignments=append(assignments,row)
+   }
+   }
+   backend.ticket,backend.source=tickets[0].ID,originals[0].ID
+   sourceBinding,err:=project.BindAccount();transitionCheck(t,err);targetBinding:=transitionTargetBinding(t)
+   role,err:=sourceBinding.RoleFingerprint();transitionCheck(t,err)
+   initial,err:=domain.Prepare(t.Context(),role,strings.Repeat("a",64));transitionCheck(t,err)
+   transitionCheck(t,native.CoordinatedAtomic(t.Context(),func(scope db.Session)error{_,err:=domain.InitializeIn(t.Context(),scope,initial,joined);return err}))
+   oldStore,nextStore:=transitionStores(t,backend)
+   verifier,err:=oldStore.Authenticator(t.Context(),hasher);transitionCheck(t,err);credential,err:=verifier.Authenticate(t.Context(),"alice",accountPasswordText);transitionCheck(t,err)
+   actor:=credential.Principal();namespace,_:=actor.CredentialDomain()
+   manager,err:=sessions.NewManager(oldStore,sessions.Config{});transitionCheck(t,err)
+   session,err:=manager.Create(t.Context(),map[string]string{auth.SessionPrincipalIDKey:actor.ID(),auth.SessionCredentialStampKey:credential.SessionStamp()});transitionCheck(t,err)
+   _=session
+   policy:=func(current auth.Principal)validation.Errors{
+    if current.ID()!=actor.ID()||!current.Has("host.remap"){t.Error("reference validator lost admitted source authority")}
+    if backend.policy.Load(){return validation.NewErrors(validation.New(validation.NonField,"reference_policy"))};return validation.Errors{}
+   }
+   revision:="revision";if mode=="no_revision"{revision=""}
+   maxRows:=300;if mode=="row_limit"{maxRows=1}
+   ticketConfig:=accountmodel.TransitionReferenceConfig[host.Ticket]{Fields:[]accountmodel.TransitionReferenceFields{{Source:"old_reviewer",Target:"reviewer"},{Source:"old_owner",Target:"owner"}},RevisionField:revision,Permission:"host.remap",AdditionalPermissions:[]auth.Permission{"host.audit"},MaxRows:maxRows,
+    Validate:func(_ context.Context,_ db.Queryer,current auth.Principal,before,after host.Ticket)(validation.Errors,error){if before.Title!=after.Title||!reflect.DeepEqual(before.OldOwnerID,after.OldOwnerID)||!reflect.DeepEqual(before.OldReviewerID,after.OldReviewerID){t.Error("reference candidate changed unrelated state")};if mode=="callback_owned"{after.Title="callback local edit";if after.OwnerID!=nil{*after.OwnerID=999999}};return policy(current),nil},
+   }
+   ticketRef,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},ticketConfig);transitionCheck(t,err)
+   if mode=="config_owned"{ticketConfig.Fields[0].Target="title"}
+   badgeRef,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"badge"},host.BadgeDescriptor{},accountmodel.TransitionReferenceConfig[host.Badge]{Fields:[]accountmodel.TransitionReferenceFields{{Source:"old_user",Target:"user"}},Permission:"host.remap",Validate:func(_ context.Context,_ db.Queryer,current auth.Principal,before,after host.Badge)(validation.Errors,error){return policy(current),nil}});transitionCheck(t,err)
+   assignmentRef,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"assignment"},host.AssignmentDescriptor{},accountmodel.TransitionReferenceConfig[host.Assignment]{Fields:[]accountmodel.TransitionReferenceFields{{Source:"old_user",Target:"user"}},RevisionField:revision,Permission:"host.remap",Validate:func(_ context.Context,_ db.Queryer,current auth.Principal,before,after host.Assignment)(validation.Errors,error){if before.Note!=after.Note||!reflect.DeepEqual(before.WorkspaceID,after.WorkspaceID){t.Error("through remap changed its host owner")};return policy(current),nil}});transitionCheck(t,err)
+   config:=accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:referenceOverlay{backend},References:[]accountmodel.TransitionReference[models.User,members.Member]{ticketRef,badgeRef,assignmentRef}}
+   if strategy=="created"{collections,err:=project.BindCollections();transitionCheck(t,err);config.TargetCreation,err=accountmodel.NewTransitionTarget(targetBinding,collections.MembersMemberGroups,collections.MembersMemberPermissions,accountmodel.TransitionTargetConfig[members.Member]{Fields:[]string{"handle"}});transitionCheck(t,err)}
+   if mode=="configuration"{
+    sourceRole,err:=sourceBinding.Role();transitionCheck(t,err);partial,err:=accountmodel.Bind(sourceRole,models.UserDescriptor{},models.GoDjRelationSchema());transitionCheck(t,err)
+    if _,err:=accountmodel.NewTransitionReference(partial,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},ticketConfig);err==nil{t.Fatal("reference accepted an incomplete host source")}
+    for _,fields:=range [][]accountmodel.TransitionReferenceFields{nil,{{Source:"old_owner",Target:"old_reviewer"}},{{Source:"owner",Target:"reviewer"}},{{Source:"old_owner",Target:"missing"}},{{Source:"old_owner",Target:"title"}},{{Source:"old_owner",Target:"owner"},{Source:"old_reviewer",Target:"owner"}}}{
+     bad:=ticketConfig;bad.Fields=fields
+     if _,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},bad);err==nil{t.Fatal("invalid reference field mapping accepted")}
+    }
+    for _,name:=range []string{"missing","title","owner"}{bad:=ticketConfig;bad.RevisionField=name;if _,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},bad);err==nil{t.Fatal("invalid reference revision accepted")}}
+    for _,maximum:=range []int{-1,accountmodel.MaximumTransitionReferenceRows+1}{bad:=ticketConfig;bad.MaxRows=maximum;if _,err:=accountmodel.NewTransitionReference(sourceBinding,targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},bad);err==nil{t.Fatal("invalid reference budget accepted")}}
+    bad:=config;bad.References=append(slices.Clone(config.References),ticketRef);if _,err:=accountmodel.NewTransition(oldStore,nextStore,bad);err==nil{t.Fatal("duplicate host model owners accepted")}
+    bad=config;bad.References=[]accountmodel.TransitionReference[models.User,members.Member]{{}};if _,err:=accountmodel.NewTransition(oldStore,nextStore,bad);err==nil{t.Fatal("unbound reference accepted")};return
+   }
+   owner,err:=accountmodel.NewTransition(oldStore,nextStore,config);transitionCheck(t,err)
+   if mode=="read_cleanup"{backend.mode=mode}
+   beforePreparation:=referenceSnapshot(t,native)
+   prepare:=func(owner *accountmodel.Transition[models.User,members.Member],operation string)(accountmodel.PreparedTransition[models.User,members.Member],error){if strategy=="created"{return owner.PrepareCreation(t.Context(),actor,operation,requests)};return owner.Prepare(t.Context(),actor,operation,mapping)}
+   prepared,prepareErr:=prepare(owner,strings.Repeat("e",64));backend.mode=""
+   early:=slices.Contains([]string{"row_limit","revision_limit","missing_grant","wrong_target","target_without_source","read_cleanup"},mode)
+   if early{if prepareErr==nil||prepared.Manifest().OperationID!=""{t.Fatal("reference preparation accepted invalid state")};if !reflect.DeepEqual(referenceSnapshot(t,native),beforePreparation){t.Fatal("read-only reference preparation changed storage")};return}
+   transitionCheck(t,prepareErr)
+   manifest:=prepared.Manifest();if len(manifest.References)!=3{t.Fatal("host reference evidence missing")}
+   exported,err:=json.Marshal(manifest);transitionCheck(t,err)
+   for _,secret:=range []string{encoded,"private-alice","ticket-0",accountPasswordText}{if strings.Contains(string(exported),secret){t.Fatal("reference manifest exposed row values")}}
+   var retained accountmodel.TransitionManifest;transitionCheck(t,json.Unmarshal(exported,&retained))
+   manifest.References[0].Fields[0].Target="forged"
+   if _,found,err:=owner.Reconcile(t.Context(),retained);err!=nil||found{t.Fatal("uncommitted reference operation observed",err)}
+   switch mode{
+   case "row_changed":transitionPatch(t,native,host.TicketObjects,tickets[0],map[string]query.Value{"title":query.String("concurrent change without revision")})
+   case "new_row":_,err=host.TicketObjects.Create(t.Context(),native,host.NewTicketCreate("concurrent row"));transitionCheck(t,err)
+   case "row_deleted":_,err=host.TicketObjects.Delete(t.Context(),native,&tickets[0]);transitionCheck(t,err)
+   case "permission_revoked":backend.denied.Store(true)
+   case "policy_rejected":backend.policy.Store(true)
+   }
+   if mode=="concurrent"{
+    secondNative,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer secondNative.Close()
+    secondBackend:=&referenceBackend{Backend:secondNative};secondOld,secondNext:=transitionStores(t,secondBackend)
+    secondConfig:=config;secondConfig.Authorizer=referenceOverlay{secondBackend}
+    second,err:=accountmodel.NewTransition(secondOld,secondNext,secondConfig);transitionCheck(t,err)
+    other,err:=prepare(second,strings.Repeat("f",64));transitionCheck(t,err)
+    var results [2]accountmodel.TransitionResult;var failures [2]error;var wait sync.WaitGroup;start:=make(chan struct{})
+    for i,pending:=range []accountmodel.PreparedTransition[models.User,members.Member]{prepared,other}{wait.Add(1);go func(){defer wait.Done();<-start;if i==0{results[i],failures[i]=owner.Commit(t.Context(),actor,pending)}else{results[i],failures[i]=second.Commit(t.Context(),actor,pending)}}()};close(start);wait.Wait()
+    wins:=0;for i,failure:=range failures{if failure==nil{wins++;if results[i].RemappedRows!=5{t.Fatal("winner lost host mapping")}}else if !reflect.DeepEqual(results[i],accountmodel.TransitionResult{}){t.Fatal("loser published partial host result")}}
+    if wins!=1{t.Fatal("host transition race did not produce one winner",failures)}
+    stored,err:=host.TicketObjects.Using(native).OrderBy(host.TicketFields.ID.Asc()).All(t.Context());transitionCheck(t,err);for _,row:=range stored{if row.Revision!=2||row.OwnerID==nil||row.ReviewerID==nil{t.Fatal("concurrent host mapping incomplete")}};return
+   }
+   beforeCommit:=referenceSnapshot(t,native)
+   faults:=[]string{"second_write_failure","audit_after_write","late_host_change","host_source_change","lost_update","unknown_commit","unknown_rollback","late_policy_change","target_insert_host_change"}
+   backend.completed.Store(0)
+   if slices.Contains(faults,mode){backend.mode=mode}
+   ctx:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;ctx,cancel=context.WithCancel(ctx);cancel()}
+   result,failure:=owner.Commit(ctx,actor,prepared);backend.mode=""
+   success:=slices.Contains([]string{"lifecycle","schema_lifecycle","signed_keys","null_references","no_revision","page_boundary","already_mapped","callback_owned","config_owned"},mode)
+   applied:=success||mode=="unknown_commit"
+   if success{transitionCheck(t,failure)}else if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed host transition published partial success",failure)}
+   if mode=="unknown_commit"||mode=="unknown_rollback"{if !errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown})||backend.completed.Load()!=1{t.Fatal("unknown host outcome missed complete native callback",failure)}}else if slices.Contains(faults,mode)&&backend.faults.Load()!=1{t.Fatal("host failure phase was not reached",backend.faults.Load())}
+   if mode=="one_to_one_conflict"&&backend.badgeWrites.Load()!=1{t.Fatal("OneToOne conflict did not exercise rollback after an earlier host write")}
+   if _,err:=owner.Commit(t.Context(),actor,prepared);err==nil{t.Fatal("host preparation reused")}
+   reopened,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer reopened.Close()
+   freshOld,freshNext:=transitionStores(t,reopened)
+   // Recovery needs the retained evidence, not live policy callbacks or a
+   // replay of the host writes after process restart.
+   recovery,err:=accountmodel.NewTransition(freshOld,freshNext,accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:auth.PrincipalAuthorizer{}});transitionCheck(t,err)
+   receipt,found,err:=recovery.Reconcile(t.Context(),retained);transitionCheck(t,err);if found!=applied{t.Fatal("reference reconciliation disagrees with native outcome")}
+   if !applied{if !reflect.DeepEqual(referenceSnapshot(t,reopened),beforeCommit){t.Fatal("failed host mapping changed durable account/host/membership/session/audit/receipt state")};return}
+   actualMapping,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]domain.Mapping,error){return domain.LookupMappingsIn(ctx,scope,receipt)});transitionCheck(t,err)
+   actual:=make(map[int64]int64);for _,pair:=range actualMapping{actual[pair.SourceID]=pair.TargetID}
+   expectedChanges:=ticketCount+3;if mode=="null_references"||mode=="already_mapped"{expectedChanges=0}
+   if success&&(result.RemappedRows!=expectedChanges||result.MappedAccounts!=2||result.RevokedSessions!=1){t.Fatal("host mapping result disagrees with stored work")}
+   expectedRevision:=int64(2);if mode=="null_references"||mode=="already_mapped"||mode=="no_revision"{expectedRevision=1}
+   for _,original:=range tickets{
+    row,err:=host.TicketObjects.Using(reopened).Filter(host.TicketFields.ID.Exact(original.ID)).Get(t.Context());transitionCheck(t,err)
+    expected:=original;expected.Revision=expectedRevision
+    if original.OldOwnerID!=nil{key:=actual[*original.OldOwnerID];expected.OwnerID=&key};if original.OldReviewerID!=nil{key:=actual[*original.OldReviewerID];expected.ReviewerID=&key}
+    if !reflect.DeepEqual(row,expected){t.Fatal("host FK mapping changed source reference or unrelated typed values")}
+    history,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,namespace,"host.ticket",row.ID,10)});transitionCheck(t,err)
+    if expectedChanges==0{if len(history)!=0{t.Fatal("no-op host row was audited")}}else if len(history)!=1||history[0].Action()!=admin.ActionChange||!slices.Equal(history[0].ChangedFields(),[]string{"owner","reviewer"}){t.Fatal("host row did not receive one complete change audit")}
+   }
+   actualBadge,err:=host.BadgeObjects.Using(reopened).Filter(host.BadgeFields.ID.Exact(badge.ID)).Get(t.Context());transitionCheck(t,err)
+   expectedBadge:=badge;if badge.OldUserID!=nil{key:=actual[*badge.OldUserID];expectedBadge.UserID=&key};if !reflect.DeepEqual(actualBadge,expectedBadge){t.Fatal("OneToOne mapping changed unrelated state")}
+   for _,original:=range assignments{row,err:=host.AssignmentObjects.Using(reopened).Filter(host.AssignmentFields.ID.Exact(original.ID)).Get(t.Context());transitionCheck(t,err);expected:=original;expected.Revision=expectedRevision;if original.OldUserID!=nil{key:=actual[*original.OldUserID];expected.UserID=&key};if !reflect.DeepEqual(row,expected){t.Fatal("host through row lost its owner/profile/source endpoint")}}
+   collections,err:=project.BindCollections();transitionCheck(t,err)
+   legacy,err:=collections.HostWorkspaceLegacyMembers.From(reopened,workspace);transitionCheck(t,err);oldMembers,err:=legacy.All(t.Context());transitionCheck(t,err)
+   current,err:=collections.HostWorkspaceMembers.From(reopened,workspace);transitionCheck(t,err);newMembers,err:=current.All(t.Context());transitionCheck(t,err)
+   expectedMembers:=2;if mode=="null_references"{expectedMembers=0};if len(oldMembers)!=expectedMembers||len(newMembers)!=expectedMembers{t.Fatal("host M2M query disagrees with explicit through mapping")}
+   for _,old:=range originals{stored,err:=models.UserObjects.Using(reopened).Filter(models.UserFields.ID.Exact(old.ID)).Get(t.Context());transitionCheck(t,err);if stored.Active||stored.Staff||stored.Superuser||stored.Revision!=old.Revision+1||!strings.HasPrefix(stored.EncodedPassword,"!"){t.Fatal("host mapping did not retire source accounts")}}
+   audits,err:=auditmodels.EventObjects.Using(reopened).Count(t.Context());transitionCheck(t,err);wantAudits:=int64(expectedChanges+2);if strategy=="created"{wantAudits+=2};if audits!=wantAudits{t.Fatal("host/account audit count disagrees with atomic change")}
+   sessionsLeft,err:=sessionmodels.SessionObjects.Using(reopened).Count(t.Context());transitionCheck(t,err);if sessionsLeft!=0{t.Fatal("host transition retained old authenticated session")}
+   nextVerifier,err:=freshNext.Authenticator(t.Context(),hasher);transitionCheck(t,err);nextCredential,err:=nextVerifier.Authenticate(t.Context(),"alice-new",accountPasswordText);transitionCheck(t,err);if nextCredential.MatchesSessionStamp(credential.SessionStamp()){t.Fatal("mapped host account inherited old session stamp")}
+   changed:=retained;changed.References=slices.Clone(retained.References);changed.References[0].Rows++
+   if _,_,err:=recovery.Reconcile(t.Context(),changed);err==nil{t.Fatal("recovery ignored altered host evidence")}
+   if mode=="schema_lifecycle"{
+    migrateAccountDefinitions(t,reopened,@@CONTRACTED_MIGRATIONS@@)
+    restarted,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer restarted.Close()
+    finalCredentials,err:=contractedproject.NewAccountCredentialStore(restarted);transitionCheck(t,err)
+    finalStore,err:=accountmodel.NewSessionStore(finalCredentials,sessiondb.Config{});transitionCheck(t,err)
+    startup,err:=finalStore.InspectStartup(t.Context());transitionCheck(t,err)
+    if !startup.Ready()||startup.Ownership().OperationID()!=receipt.OperationID(){t.Fatal("contracted generated runtime did not adopt the committed domain")}
+    finalVerifier,err:=finalStore.Authenticator(t.Context(),hasher);transitionCheck(t,err)
+    finalCredential,err:=finalVerifier.Authenticate(t.Context(),"alice-new",accountPasswordText);transitionCheck(t,err)
+    if !finalCredential.MatchesSessionStamp(nextCredential.SessionStamp())||!finalCredential.Principal().Has("host.remap"){t.Fatal("host schema contraction changed selected account identity or grants")}
+    finalTickets,err:=contractedhost.TicketObjects.Using(restarted).OrderBy(contractedhost.TicketFields.ID.Asc()).All(t.Context());transitionCheck(t,err)
+    if len(finalTickets)!=len(tickets){t.Fatal("schema contraction lost host rows")}
+    for i,row:=range finalTickets{if row.ID!=tickets[i].ID||row.Title!=tickets[i].Title||row.Revision!=2||row.OwnerID==nil||*row.OwnerID!=actual[*tickets[i].OldOwnerID]||row.ReviewerID==nil||*row.ReviewerID!=actual[*tickets[i].OldReviewerID]{t.Fatal("final generated host model differs from mapped durable values")}}
+    if _,err:=host.TicketObjects.Using(restarted).All(t.Context());err==nil{t.Fatal("legacy source columns remained physically available after contraction")}
+    finalCollections,err:=contractedproject.BindCollections();transitionCheck(t,err)
+    finalWorkspace,err:=contractedhost.WorkspaceObjects.Using(restarted).Filter(contractedhost.WorkspaceFields.ID.Exact(workspace.ID)).Get(t.Context());transitionCheck(t,err)
+    finalMembers,err:=finalCollections.HostWorkspaceMembers.From(restarted,finalWorkspace);transitionCheck(t,err);finalPeople,err:=finalMembers.All(t.Context());transitionCheck(t,err)
+    if len(finalPeople)!=2{t.Fatal("contracted M2M lost mapped members")}
+    if _,err:=contractedhost.BadgeObjects.Create(t.Context(),restarted,contractedhost.NewBadgeCreate("duplicate-after-contraction").WithUserID(actual[originals[0].ID]));err==nil{t.Fatal("schema contraction dropped the OneToOne constraint")}
+    finalOld,finalNext:=transitionStores(t,restarted);finalRecovery,err:=accountmodel.NewTransition(finalOld,finalNext,accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:auth.PrincipalAuthorizer{}});transitionCheck(t,err)
+    historical,found,err:=finalRecovery.Reconcile(t.Context(),retained);transitionCheck(t,err)
+    if !found||historical.OperationID()!=receipt.OperationID(){t.Fatal("schema contraction invalidated immutable transition recovery")}
+    // A second public migration invocation must be a durable no-op.
+    migrateAccountDefinitions(t,restarted,@@CONTRACTED_MIGRATIONS@@)
+   }
+  })}
+ })}
+}

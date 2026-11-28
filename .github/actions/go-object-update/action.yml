@@ -1,0 +1,50 @@
+name: Reuse bounded Go build objects
+description: Restore a small generation over a full seed or publish the owner's successful update.
+inputs:
+  family:
+    description: Native or cross-compile cache owner
+    required: true
+  objects:
+    description: Go build cache populated by the seed
+    required: true
+  save-key:
+    description: Set only after all owned tests have succeeded
+    required: false
+outputs:
+  key:
+    description: Current generation
+    value: ${{ steps.keys.outputs.key }}
+  hit:
+    description: Exact generation was restored
+    value: ${{ steps.restore.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - id: keys
+      if: inputs.save-key == ''
+      shell: bash
+      env:
+        FAMILY: ${{ inputs.family }}
+        OBJECTS: ${{ inputs.objects }}
+        GODJ_MODULE_DIGEST: ${{ hashFiles('go.sum', 'go.mod', 'api/openapi/consumertest/testdata/client/go.sum', 'api/openapi/consumertest/testdata/client/go.mod') }}
+      run: python3 scripts/ci/go_object_update.py keys "$FAMILY" "$OBJECTS"
+    - id: restore
+      if: inputs.save-key == ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/godj-object-update
+        key: ${{ steps.keys.outputs.key }}
+        restore-keys: ${{ steps.keys.outputs.previous }}
+    - id: update
+      shell: bash
+      env:
+        GODJ_UPDATE_EXACT: ${{ steps.restore.outputs.cache-hit }}
+        ACTION: ${{ inputs.save-key && 'stage' || 'apply' }}
+        FAMILY: ${{ inputs.family }}
+        OBJECTS: ${{ inputs.objects }}
+      run: python3 scripts/ci/go_object_update.py "$ACTION" "$FAMILY" "$OBJECTS"
+    - if: inputs.save-key != '' && steps.update.outputs.ready == 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/godj-object-update
+        key: ${{ inputs.save-key }}

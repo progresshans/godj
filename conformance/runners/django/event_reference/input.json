@@ -1,0 +1,14 @@
+{
+  "kind": "django-event-inputs-v1",
+  "cases": [
+    {"name": "registration_order", "kind": "order", "comparison": "shared", "reason": "Synchronous receivers run in registration order."},
+    {"name": "fail_fast", "kind": "fail_fast", "comparison": "shared_boundary", "reason": "First receiver failure stops delivery; Go also returns the attempted receiver inventory."},
+    {"name": "robust", "kind": "robust", "comparison": "shared_boundary", "reason": "Later receivers run after an ordinary failure; Go uses typed errors and an explicit logger."},
+    {"name": "disconnect_before_send", "kind": "disconnect_before", "comparison": "shared", "reason": "Removed receivers do not participate in later sends; repeated removal has no effect."},
+    {"name": "connect_during_send", "kind": "connect_during", "comparison": "shared", "reason": "Registration during a send first participates in the next snapshot."},
+    {"name": "disconnect_during_send", "kind": "disconnect_during", "comparison": "native_difference", "reason": "Django retains a selected receiver in the current snapshot; Go stops any not-yet-admitted call so resource owners can unsubscribe and drain."},
+    {"name": "nested_send", "kind": "nested", "comparison": "shared", "reason": "A receiver can synchronously send the same event again."},
+    {"name": "duplicate_dispatch_uid", "kind": "duplicate", "comparison": "native_difference", "reason": "Django silently deduplicates dispatch_uid; Go rejects duplicate receiver names explicitly."},
+    {"name": "sender_filter", "kind": "sender", "comparison": "native_difference", "reason": "Django filters by sender identity; Go owners choose separate typed Event instances and do not mirror Python object identity."}
+  ]
+}
