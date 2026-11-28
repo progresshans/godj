@@ -148,7 +148,7 @@ func TestGeneratedDecimalExpressions(t *testing.T) {
 				document.Observer != hashes["observe.py"] || document.Input != hashes["input.json"] || document.Sources != hashes["source-verification.json"] || !document.Unchanged || !document.Cleaned {
 				t.Fatal("decimal reference is not bound to the current observer/input/source or its cleanup", vendor)
 			}
-			if document.Runtime.Python != "3.14.3" || document.Runtime.Django != "6.1" || document.Runtime.SQLite == "" || document.Runtime.Timezone != "UTC" ||
+			if document.Runtime.Python != "3.14.10" || document.Runtime.Django != "6.1" || document.Runtime.SQLite == "" || document.Runtime.Timezone != "UTC" ||
 				(vendor == "postgres" && (!strings.HasPrefix(document.Runtime.PostgreSQL, "17.10") || document.Runtime.Psycopg != "3.3.6")) {
 				t.Fatal("decimal reference runtime differs", vendor, document.Runtime)
 			}

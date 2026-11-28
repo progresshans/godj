@@ -42,7 +42,7 @@ func TestGeneratedDerivedResults(t *testing.T) {
 		writeGeneratedTestFile(t, root, "consumer/"+source.name, data)
 	}
 	source := filepath.Join(codegenRepositoryRoot(t), "conformance/runners/django/annotation_reference")
-	for name, want := range map[string]string{"observe.py": "671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297", "source-verification.json": "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87"} {
+	for name, want := range map[string]string{"historical/observe.py": "671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297", "source-verification.json": "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87"} {
 		data, err := os.ReadFile(filepath.Join(source, name))
 		if err != nil {
 			t.Fatal(err)

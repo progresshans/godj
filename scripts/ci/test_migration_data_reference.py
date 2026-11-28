@@ -17,7 +17,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
         self.report = {
             "model_rename": json.loads(runner.MODEL_RENAME_REFERENCE.read_text()),
             "model_deletion": json.loads(runner.MODEL_DELETION_REFERENCE.read_text()),
-            "backend": "sqlite", "database_version": "3.50.4", "django": "6.1", "python": "3.14.3",
+            "backend": "sqlite", "database_version": "3.53.1", "django": "6.1", "python": "3.14.10",
             "observations": json.loads(runner.HISTORICAL_REFERENCE.read_text()), "command_output": dict.fromkeys(("forward", "reverse", "barrier"), {}),
             "input_sha256": runner.input_digests(), "django_commit": fingerprint["django_commit"],
             "upstream_sha256": {"module": "ab" * 32},
@@ -27,7 +27,7 @@ class MigrationDataReferenceTests(unittest.TestCase):
     def capture(self, directory, report):
         data = json.dumps(report).encode()
         with patch.object(runner.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout=data)):
-            return runner.capture({}, directory, "sqlite", "3.50.4")
+            return runner.capture({}, directory, "sqlite", "3.53.1")
 
     def test_native_capture_preserves_raw_bytes_and_rejects_stale_or_missing_evidence(self):
         with tempfile.TemporaryDirectory() as temp:

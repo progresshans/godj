@@ -211,7 +211,7 @@ def exercise():
 
 
 def observe():
-    if not __debug__ or django.get_version() != "6.1" or platform.python_version() != "3.14.3" or settings.configured:
+    if not __debug__ or django.get_version() != "6.1" or platform.python_version() != "3.14.10" or settings.configured:
         raise RuntimeError("a fresh, non-optimized pinned Django 6.1 process is required")
     upstream = Path(django.__file__).parent
     for module, expected in SOURCE_SHA256.items():
@@ -237,7 +237,7 @@ def observe():
             with connection.cursor() as cursor:
                 cursor.execute("SHOW server_version_num" if name else "SELECT sqlite_version()")
                 version = cursor.fetchone()[0]
-            assert version == ("170010" if name else "3.50.4"), version
+            assert version == ("170010" if name else "3.53.1"), version
             observations, commands = exercise()
             return {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
                     "database_version": version, "django_commit": UPSTREAM, "upstream_sha256": SOURCE_SHA256,

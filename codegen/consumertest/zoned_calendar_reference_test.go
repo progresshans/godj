@@ -134,7 +134,7 @@ func validateZonedReference(document zonedReferenceDocument, input zonedReferenc
 		document.Sources != hashes["../calendar_extraction_reference/source-verification.json"] || !document.Unchanged || !document.Cleaned {
 		return errors.New("zoned reference source, backend or cleanup differs")
 	}
-	if document.Runtime.Python != "3.14.3" || document.Runtime.Django != "6.1" || document.Runtime.SQLite == "" || document.Runtime.Timezone != "UTC" || document.Runtime.DataProfile != "backzone/zone.tab" || document.Runtime.IANA != timezone.DataVersion ||
+	if document.Runtime.Python != "3.14.10" || document.Runtime.Django != "6.1" || document.Runtime.SQLite == "" || document.Runtime.Timezone != "UTC" || document.Runtime.DataProfile != "backzone/zone.tab" || document.Runtime.IANA != timezone.DataVersion ||
 		(vendor == "postgres" && (document.Runtime.PostgreSQL != "17.10" && !strings.HasPrefix(document.Runtime.PostgreSQL, "17.10 ") || document.Runtime.Psycopg != "3.3.6")) {
 		return errors.New("zoned reference runtime or data version differs")
 	}
@@ -354,7 +354,7 @@ func TestGeneratedZonedCalendarReferenceBindingRejectsForeignEvidence(t *testing
 		"input_sha256": hashes["input.json"], "data_source_sha256": hashes["data-source.json"], "prepare_sha256": hashes["prepare_data.py"],
 		"source_verification_sha256": hashes["../calendar_extraction_reference/source-verification.json"],
 		"build_receipt_sha256":       hex.EncodeToString(receiptHash[:]), "build_receipt": receipt,
-		"runtime": map[string]any{"python": "3.14.3", "django": "6.1", "sqlite": "3.50.4", "postgresql": "17.10", "psycopg": "3.3.6",
+		"runtime": map[string]any{"python": "3.14.10", "django": "6.1", "sqlite": "3.53.1", "postgresql": "17.10", "psycopg": "3.3.6",
 			"timezone": "UTC", "data_profile": "backzone/zone.tab", "iana": "2025c", "zoneinfo_module_sha256": strings.Repeat("b", 64)},
 		"storage_unchanged": true, "storage_cleaned": true, "provider": provider, "cases": cases, "native_zone_probes": probes,
 	})

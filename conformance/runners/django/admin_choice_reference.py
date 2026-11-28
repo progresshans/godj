@@ -299,7 +299,7 @@ def observe(backend="sqlite", *, require_profile=False):
 
     require(backend in ("sqlite", "postgres") and not settings.configured and django.get_version() == "6.1",
             "Admin choices require a fresh process with the pinned Django version")
-    require(not require_profile or platform.python_version() == "3.14.3", "Admin choice Python profile mismatch")
+    require(not require_profile or platform.python_version() == "3.14.10", "Admin choice Python profile mismatch")
     inputs, input_sha256 = read_inputs()
     verification_bytes = (FIXTURE / "source-verification.json").read_bytes()
     verification = json.loads(verification_bytes)

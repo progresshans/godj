@@ -70,7 +70,7 @@ def observe(vendor, data_directory):
     for name, identity in sources['sources'].items():
         installed = (Path(django.__file__).parent / name).read_bytes()
         assert len(installed) == identity['bytes'] and digest(installed) == identity['sha256'], name
-    assert django.get_version() == '6.1' and platform.python_version() == '3.14.3'
+    assert django.get_version() == '6.1' and platform.python_version() == '3.14.10'
     data_bytes = (DIRECTORY / 'data-source.json').read_bytes()
     data_source = json.loads(data_bytes)
     assert data_source['iana_version'] == '2025c'

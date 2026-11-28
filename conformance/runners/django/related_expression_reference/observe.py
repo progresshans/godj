@@ -47,7 +47,7 @@ def observe(vendor):
         installed = (Path(django.__file__).parent / name).read_bytes()
         assert len(installed) == identity['bytes']
         assert hashlib.sha256(installed).hexdigest() == identity['sha256'], name
-    assert django.get_version() == '6.1' and platform.python_version() == '3.14.3'
+    assert django.get_version() == '6.1' and platform.python_version() == '3.14.10'
     os.environ['TZ'] = 'UTC'
     time.tzset()
     locale.setlocale(locale.LC_ALL, 'C')

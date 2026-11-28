@@ -39,8 +39,11 @@ def compare(stem, vendor, version, expected, observed):
     if not observed["observations"] or not observed["source_sha256"]:
         raise ValueError(f"{label} has no observations or Django source_sha256")
     backend = "postgresql" if vendor == "postgres" and stem != "user-creation" else vendor
-    if observed["backend"] != backend or observed["django"] != "6.1" or observed["python"] != "3.14.3":
+    if expected["python"] != "3.14.3":
+        raise ValueError(f"{label} archived Python differs")
+    if observed["backend"] != backend or observed["django"] != "6.1" or observed["python"] != "3.14.10":
         raise ValueError(f"{label} observer runtime differs")
+    expected = expected | {"python": "3.14.10"}
     if stem != "user-creation":
         # Historical captures keep their original database patch versions.
         # The fresh capture must identify the engine actually used in this job.

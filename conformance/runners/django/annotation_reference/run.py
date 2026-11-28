@@ -1,4 +1,4 @@
-"""Run the unchanged pinned annotation observer in an owned native database.
+"""Run the pinned annotation observer in an owned native database.
 
 The observer reads synthetic inputs and verified Django modules only. This
 runner supplies isolation and cleanup; it never reads GoDj results or fixtures.
@@ -18,7 +18,7 @@ from urllib.parse import unquote, urlsplit
 def run(vendor):
     directory = Path(__file__).resolve().parent
     observer_path = directory / 'observe.py'
-    if hashlib.sha256(observer_path.read_bytes()).hexdigest() != '671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297':
+    if hashlib.sha256(observer_path.read_bytes()).hexdigest() != 'b2f5e1798289c525a12039d553f67510fbb4e3e748789547db490b62b6b2a457':
         raise ValueError('the pinned independent annotation observer changed')
     module_name = 'godj_independent_annotation_observer'
     spec = importlib.util.spec_from_file_location(module_name, observer_path)

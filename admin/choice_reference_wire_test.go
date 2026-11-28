@@ -284,7 +284,7 @@ func adminChoiceReadReference(raw, inputRaw, observerRaw, verificationRaw []byte
 		}
 	}
 	profile := reference.Profile
-	if profile.Python != "3.14.3" || profile.Django != "6.1" || profile.Database == "" {
+	if profile.Python != "3.14.10" || profile.Django != "6.1" || profile.Database == "" {
 		return bad("wrong runtime profile")
 	}
 	if backend == "sqlite" {

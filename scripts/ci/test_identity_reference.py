@@ -35,12 +35,16 @@ class IdentityReferenceTests(unittest.TestCase):
 
     def test_baseline_patch_is_historical_but_runtime_and_behavior_are_exact(self):
         baseline = fixture("identity", "postgres")
-        fresh = baseline | {"database_version": "170010"}
+        fresh = baseline | {"python": "3.14.10", "database_version": "170010"}
         runner.compare("identity", "postgres", "170010", baseline, fresh)
         for key, replacement in (("database_version", "170005"), ("backend", "sqlite"),
                                  ("django", "6.0"), ("python", "3.14.2"), ("source_sha256", {})):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 runner.compare("identity", "postgres", "170010", baseline, fresh | {key: replacement})
+        with self.assertRaisesRegex(ValueError, "archived Python"):
+            runner.compare("identity", "postgres", "170010", baseline | {"python": "3.14.10"}, fresh)
+        with self.assertRaisesRegex(ValueError, "observer runtime"):
+            runner.compare("identity", "postgres", "170010", baseline, fresh | {"python": "3.14.3"})
         wrong_type = copy.deepcopy(fresh)
         wrong_type["observations"]["roles"]["000"]["admin_entry"] = 0
         with self.assertRaisesRegex(ValueError, "observations"):
@@ -50,10 +54,11 @@ class IdentityReferenceTests(unittest.TestCase):
 
     def test_creation_requires_its_observed_backend_inputs_and_lifecycle(self):
         baseline = fixture("user-creation", "postgres")
-        runner.compare("user-creation", "postgres", "170010", baseline, baseline)
+        fresh = baseline | {"python": "3.14.10"}
+        runner.compare("user-creation", "postgres", "170010", baseline, fresh)
         for key in ("input_sha256", "unicode", "lifecycle", "source_sha256"):
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
-                runner.compare("user-creation", "postgres", "170010", baseline, baseline | {key: None})
+                runner.compare("user-creation", "postgres", "170010", baseline, fresh | {key: None})
         with self.assertRaisesRegex(ValueError, "runtime"):
             runner.compare("user-creation", "postgres", "170010", baseline, fixture("user-creation", "sqlite"))
         with self.assertRaisesRegex(ValueError, "fields"):
@@ -73,7 +78,7 @@ class IdentityReferenceTests(unittest.TestCase):
             self.assertEqual(env["PGPORT"], "45123")
             if selected:
                 self.assertRegex(env[variable], r"^" + variable.removesuffix("_DATABASE").lower() + r"_\d+$")
-            doc = fixture(stem, vendor)
+            doc = fixture(stem, vendor) | {"python": "3.14.10"}
             if "database_version" in doc:
                 doc["database_version"] = "170010" if selected else runner.sqlite3.sqlite_version
             calls.append((stem, vendor))

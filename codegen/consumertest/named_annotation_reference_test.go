@@ -75,8 +75,12 @@ func TestGeneratedNamedAnnotationReference(t *testing.T) {
 		digest := sha256.Sum256(data)
 		hashes[name] = hex.EncodeToString(digest[:])
 	}
-	if hashes["observe.py"] != "671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297" || hashes["source-verification.json"] != "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87" {
+	if hashes["observe.py"] != "b2f5e1798289c525a12039d553f67510fbb4e3e748789547db490b62b6b2a457" || hashes["source-verification.json"] != "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87" {
 		t.Fatal("independent annotation source changed")
+	}
+	observer, python, sqlite := hashes["observe.py"], "3.14.10", "3.53.1"
+	if os.Getenv("GODJ_ANNOTATION_REFERENCE_DIR") == "" {
+		observer, python, sqlite = "671c01676e34630d7d1f0ece791974e142bc198faad2a96670ee6b75fbade297", "3.14.3", "3.50.4"
 	}
 	required := []string{"TestNamedAnnotationReference"}
 	for _, vendor := range []string{"sqlite", "postgres"} {
@@ -111,11 +115,11 @@ func TestGeneratedNamedAnnotationReference(t *testing.T) {
 		if backend == "postgres" {
 			backend = "postgresql"
 		}
-		if document.Kind != "django-annotation-expression-exploratory-reference-v1" || document.Backend != backend || document.Commit != "fe0a859f537d4238cf49fca39073513206f83122" || document.Observer != hashes["observe.py"] || document.Sources != hashes["source-verification.json"] || !document.Unchanged || document.Runtime.Python != "3.14.3" || document.Runtime.Django != "6.1" || document.Runtime.SQLite != "3.50.4" {
+		if document.Kind != "django-annotation-expression-exploratory-reference-v1" || document.Backend != backend || document.Commit != "fe0a859f537d4238cf49fca39073513206f83122" || document.Observer != observer || document.Sources != hashes["source-verification.json"] || !document.Unchanged || document.Runtime.Python != python || document.Runtime.Django != "6.1" || document.Runtime.SQLite != sqlite {
 			t.Fatal("annotation reference provenance or runtime differs", vendor)
 		}
 		if os.Getenv("GODJ_ANNOTATION_REFERENCE_DIR") != "" {
-			if document.Runner != hashes["run.py"] || !document.Cleaned || document.RunnerRuntime.Python != "3.14.3" || document.RunnerRuntime.Timezone != "UTC" || vendor == "postgres" && (document.RunnerRuntime.Psycopg != "3.3.6" || !strings.HasPrefix(document.RunnerRuntime.Postgresql, "17.10")) {
+			if document.Runner != hashes["run.py"] || !document.Cleaned || document.RunnerRuntime.Python != python || document.RunnerRuntime.Timezone != "UTC" || vendor == "postgres" && (document.RunnerRuntime.Psycopg != "3.3.6" || !strings.HasPrefix(document.RunnerRuntime.Postgresql, "17.10")) {
 				t.Fatal("fresh annotation reference or cleanup differs", vendor)
 			}
 		}

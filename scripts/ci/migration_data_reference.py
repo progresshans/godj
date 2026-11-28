@@ -37,7 +37,7 @@ def capture(env, directory, vendor, version):
     )
     report = decode(result.stdout)
     if (report["backend"], report["database_version"], report["django"], report["python"]) != (
-        vendor, version, "6.1", "3.14.3"
+        vendor, version, "6.1", "3.14.10"
     ):
         raise ValueError(f"{vendor} capture has unexpected native versions")
     if (set(report["observations"]) != PHASES or set(report["command_output"]) != {"forward", "reverse", "barrier"}
@@ -77,7 +77,7 @@ def run(output):
     with tempfile.TemporaryDirectory(dir=output.parent) as temp:
         stage = Path(temp) / "observations"
         stage.mkdir()
-        sqlite, sqlite_file = capture(env, stage, "sqlite", "3.50.4")
+        sqlite, sqlite_file = capture(env, stage, "sqlite", "3.53.1")
         with psycopg.connect(dbname="postgres", host=env["PGHOST"], port=env["PGPORT"],
                              user=env["PGUSER"], password=env["PGPASSWORD"], autocommit=True) as control:
             if control.info.server_version != 170010 or psycopg.__version__ != "3.3.6":

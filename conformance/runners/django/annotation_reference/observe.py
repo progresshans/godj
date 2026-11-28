@@ -50,8 +50,8 @@ def observe():
     source = json.loads(source_path.read_text())
     for name, metadata in source['sources'].items():
         assert hashlib.sha256((Path(django.__file__).parent / name).read_bytes()).hexdigest() == metadata['sha256']
-    assert django.get_version() == '6.1' and platform.python_version() == '3.14.3'
-    assert sqlite3.sqlite_version == '3.50.4'
+    assert django.get_version() == '6.1' and platform.python_version() == '3.14.10'
+    assert sqlite3.sqlite_version == '3.53.1'
     assert not settings.configured
     owned = tempfile.TemporaryDirectory(prefix='godj-annotation-reference-')
     database = {'ENGINE': 'django.db.backends.sqlite3', 'NAME': str(Path(owned.name) / 'reference.sqlite3')}
