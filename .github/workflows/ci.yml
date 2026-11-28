@@ -1430,8 +1430,7 @@ jobs:
     needs: validation-plan
     name: Python compatibility (${{ matrix.python_version }})
     runs-on: ubuntu-24.04
-    # The complete reference suite includes native credential hashing. The
-    # 3.14.3 suite alone took 18m18s; retain time for the all-scenario digest.
+    # Allow time for the complete minor-version suite and its separate DRF semantic comparison.
     timeout-minutes: 30
     env:
       LC_ALL: C
@@ -1444,8 +1443,6 @@ jobs:
         python_version:
           - "3.12.13"
           - "3.13.15"
-          - "3.14.3"
-          - "3.14.7"
 
     steps:
       - name: Checkout

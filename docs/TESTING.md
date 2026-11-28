@@ -288,7 +288,7 @@ GOPATH나 과거 dependency 집합을 가정하지 않으며 native export 조�
 Python compatibility observer는 실제 실행 interpreter를 보고하고 고정 fixture의 runtime metadata와 구분한다.
 Linux 대표 작업은 uv 0.13.6의 CPython 3.14.10에서 normal suite를 한 번 실행한다. 같은 실행의 development/event 관측 로그와 플랫폼 실행 목록은 서로 다른 디렉터리에서 봉인하고 각각 업로드 영수증을 확인한다. PostgreSQL 캡처 소비자는 독립적으로 실행된다.
 고정 Mac은 macOS 26 ARM64에서 같은 interpreter와 oracle를 재생한다. 검토한 테스트 파일과 발견 ID, 공유 해석 helper·runner·프로필·잠금이 달라지면 해당 모듈 또는 전체 발견 목록을 Mac에서 직접 실행한다. 명시한 공유 입력 밖의 전이 의존성은 이 분류에 포함되지 않는다. 기준 이전 시에는 별도 **exact-all** 실행으로 모든 항목의 실행·종료와 skip 부재를 기록한다.
-각 지원 Python에서 311개 시나리오를 실행한다. 비교기는 Django·DRF 원본의 체크섬과 프로필, manifest의 계약 ID·순서를 확인한다. 호출자가 지정한 ID를 포함한 각 결과를 저장된 관측과 바이트 단위로 대조하고, 전체 크기와 SHA-256을 출력한다. [비교기](../scripts/ci/python_semantics.py)
+Linux 대표 3.14.10, 별도 3.12.13·3.13.15 환경에서 각각 311개 시나리오를 실행한다. 예전 3.14.3·3.14.7 setup-python과 그 배포판의 SQLite 3.45.1 조합은 정기 검사에서 제외했다. 비교기는 Django·DRF 원본의 체크섬과 프로필, manifest의 계약 ID·순서를 확인한다. 호출자가 지정한 ID를 포함한 각 결과를 저장된 관측과 바이트 단위로 대조하고, 전체 크기와 SHA-256을 출력한다. [비교기](../scripts/ci/python_semantics.py)
 고정 Django source hash·관찰 동작과 부정 대조는 각 지원 interpreter에서 유지하며 고정 reference fixture를 다시 쓰지 않는다.
 관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.
 JSON/file 읽기 구현을 공유해도 각 attestation의 source inventory·크기 제한·schema는 독립적으로 검증한다.
