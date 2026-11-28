@@ -15,7 +15,7 @@ go test ./orm -count=1
 ```
 
 실제로 존재하는 selector를 선택하고 테스트가 하나도 실행되지 않은 성공을 근거로 사용하지 않는다.
-생성기·IR·모델 선언 변경에는 `make generate-check`와 관련 whole-candidate/external compile을 포함한다.
+생성기·IR·모델 선언 변경에는 `make generate-check`와 관련 whole-candidate/external compile을 포함한다. 이 target은 임시 CLI를 한 번 빌드하고 11개 프로젝트에서 각각 별도 프로세스로 생성물 drift를 검사한다.
 순수 parsing/validation의 각 입력마다 외부 앱 전체를 다시 build하지 않는다. Public API·generated ABI 변경은 소비자 compile까지 확인한다.
 
 ## 검증 범위
@@ -64,7 +64,7 @@ PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태
 
 FirstAccount의 관찰용 관리 명령은 최종 생성 소스에서 fixture별로 한 번 빌드한다. 각 초기화·조회는 소스 지문을 다시 확인한 뒤 독립 프로세스에서 실행한다. 공개 첫 계정 명령의 선언·런타임 빌드, 호환성 검사, PTY 복구와 자식 회수는 각 시나리오에서 실행한다. 네이티브 원본에는 관찰 명령의 실제 빌드 좌표·지문, PID, 빌드·조회·공개 명령별 실행 시간이 남는다.
 
-Intel 일반·CGO=0과 Apple Silicon race·CGO=0에서는 원래 SQLite 테스트로 두 프로세스의 경합·재접속·migration revision·unique rollback을 검증한다. 각 좌표의 기존 선택을 실행할 때 원본 테스트 파일 8개와 전체 제품 소스를 컴파일한다. Intel의 설치 CLI·HTTP·DB 재개방은 독립 프로세스에서 실행한다. Go가 선택한 제품 입력을 overlay 적용 전후로 비교하고 테스트 소스 지문을 기록한다. 집계기는 해당 OS·아키텍처·모드로 Go의 활성 입력을 다시 열거한다. 패키지 테스트 파일이 수정·추가·삭제되어 검토된 지문이 달라지면 테스트 파일 전체를 컴파일한다. Linux와 Apple Silicon 일반 runtime도 전체 파일을 사용한다.
+Intel 일반·CGO=0과 Apple Silicon race·CGO=0에서는 원래 SQLite 테스트로 두 프로세스의 경합·재접속·migration revision·unique rollback을 검증한다. 각 좌표의 기존 선택을 실행할 때 원본 테스트 파일 8개와 전체 제품 소스를 컴파일한다. Intel의 설치 CLI·HTTP·DB 재개방은 독립 프로세스에서 실행한다. Go가 선택한 제품 입력을 overlay 적용 전후로 비교하고 테스트 소스 지문을 기록한다. 집계기는 해당 OS·아키텍처·모드로 Go의 활성 입력을 다시 열거한다. 패키지 테스트 파일이 수정·추가·삭제되어 검토된 지문이 달라지면 테스트 파일 전체를 컴파일한다. Linux와 Apple Silicon 일반 runtime도 전체 파일을 사용한다. Darwin/amd64 CGO=0 교차 컴파일은 전체 테스트 패키지를 링크한다. Intel CGO 활성 제품 소스만 변경되고 테스트 지문이 그대로면, 제외된 테스트 파일 고유의 컴파일 또는 초기화 문제는 해당 네이티브 실행에서 드러나지 않을 수 있다.
 
 Linux의 Darwin 교차 컴파일은 두 대상의 패키지를 발견하고 실제 Mach-O 링크와 빌드 정보를 검증한다. 호스트는 모듈 전용 캐시를 복원한다. Darwin 대상은 자체 GOCACHE에 러너·Go 도구 버전별 객체 캐시를 복원하고, 같은 계열의 저장본이 없을 때만 새로 저장한다. Go는 입력이 바뀐 객체를 다시 빌드한다. 링크된 테스트 파일은 검증 후 폐기하고 별도 cold-build 제품 테스트는 자체 임시 캐시를 사용한다.
 
