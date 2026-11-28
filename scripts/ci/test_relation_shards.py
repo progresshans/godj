@@ -77,6 +77,26 @@ class RelationShardTest(unittest.TestCase):
         self.assertCountEqual([p for g in before for p in g], [p for g in after for p in g])
         self.assertTrue(all(1 <= len(group) <= 3 for group in after))
 
+    def test_arm_race_weights_only_repack_the_other_complete_parts(self):
+        from unittest.mock import patch
+        from relation_shards import ARM64_RACE_WORKER_WEIGHTS, consumer_workers
+
+        count = len(ISOLATED_ACCOUNT_ROOTS) + 5
+        groups = consumer_workers('arm64', 'race', count)
+        with patch.dict(ARM64_RACE_WORKER_WEIGHTS, {ISOLATED_ACCOUNT_ROOTS[0]: 1000}):
+            changed = consumer_workers('arm64', 'race', count)
+        for candidate in (groups, changed):
+            self.assertEqual([ISOLATED_ACCOUNT_ROOTS[p - 1] for p in candidate[0]], [
+                'TestGeneratedFirstAccountUsesRequiredProfiles', 'TestGeneratedAccountTransitionTargetReferences',
+                'TestGeneratedFirstAccountParentDefault'])
+            self.assertEqual([ISOLATED_ACCOUNT_ROOTS[p - 1] for p in candidate[-1]], [
+                'TestGeneratedAccountCatalogTransition', 'TestGeneratedAccountCatalogCreation',
+                'TestGeneratedAccountTransitionThroughCreation'])
+            self.assertEqual(len(candidate), (count + 2) // 3)
+            self.assertTrue(all(1 <= len(group) <= 3 for group in candidate))
+            self.assertCountEqual([part for group in candidate for part in group], range(1, count + 1))
+        self.assertNotEqual(groups[1:-1], changed[1:-1])
+
     def test_build_cache_pilots_have_one_writer_per_family(self):
         from relation_shards import ISOLATED_ACCOUNT_ROOTS, matrix
         for profile in ('pr', 'native', 'full'):

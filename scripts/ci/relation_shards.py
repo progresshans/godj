@@ -95,6 +95,35 @@ AMD64_RACE_WORKER_WEIGHTS = {
 }
 AMD64_RACE_ORDINARY_WEIGHT = 42
 
+# Relative costs from 46041421514, 46053077506, 46073634327, 46122747151
+# and 46129446781. Each run had the same per-part discovery (134 roots).
+# Keep both seeded workers on the same fixtures and in their original order.
+ARM64_RACE_WORKER_WEIGHTS = {
+    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels': 18,
+    'TestGeneratedAccountResetUsesSelectedModels': 17,
+    'TestGeneratedAccountTransition': 16,
+    'TestGeneratedAccountSharedThroughTransition': 20,
+    'TestGeneratedAccountTransitionCatalogFields': 27,
+    'TestGeneratedAccountTransitionCatalogCycles': 15,
+    'TestGeneratedFirstAccountParentCustom': 11,
+    'TestGeneratedAccountRoleThroughCreation': 12,
+    'TestGeneratedAccountCatalogThroughCreation': 14,
+    'TestGeneratedAccountRootThroughCreation': 22,
+}
+ARM64_RACE_ORDINARY_WEIGHTS = (48, 44, 47, 45, 45)
+ARM64_RACE_CACHED_GROUPS = (
+    (
+        'TestGeneratedFirstAccountUsesRequiredProfiles',
+        'TestGeneratedAccountTransitionTargetReferences',
+        'TestGeneratedFirstAccountParentDefault',
+    ),
+    (
+        'TestGeneratedAccountCatalogTransition',
+        'TestGeneratedAccountCatalogCreation',
+        'TestGeneratedAccountTransitionThroughCreation',
+    ),
+)
+
 CONSUMER_LAYOUTS = ('round-robin', 'isolated-accounts', 'linux-arm64-race')
 
 
@@ -104,6 +133,11 @@ def consumer_weight(arch, mode, shard):
     root = ISOLATED_ACCOUNT_ROOTS[shard - 1] if shard <= len(ISOLATED_ACCOUNT_ROOTS) else None
     if (arch, mode) == ('amd64', 'race'):
         return AMD64_RACE_ORDINARY_WEIGHT if root is None else AMD64_RACE_WORKER_WEIGHTS.get(root, 20)
+    if (arch, mode) == ('arm64', 'race'):
+        if root is not None:
+            return ARM64_RACE_WORKER_WEIGHTS.get(root, 20)
+        ordinary = shard - len(ISOLATED_ACCOUNT_ROOTS) - 1
+        return ARM64_RACE_ORDINARY_WEIGHTS[ordinary] if ordinary < len(ARM64_RACE_ORDINARY_WEIGHTS) else 45
     if root is None:
         return 4
     if root == 'TestGeneratedFirstAccountUsesRequiredProfiles':
@@ -114,6 +148,19 @@ def consumer_weight(arch, mode, shard):
     if root in ('TestGeneratedFirstAccountParentDefault', 'TestGeneratedFirstAccountParentCustom'):
         return 1
     return 2
+
+
+def consumer_workers(arch, mode, count):
+    weights = {part: consumer_weight(arch, mode, part) for part in range(1, count + 1)}
+    if (arch, mode) != ('arm64', 'race'):
+        return pack(weights, 3)
+    first_account, catalog = [
+        [ISOLATED_ACCOUNT_ROOTS.index(name) + 1 for name in group]
+        for group in ARM64_RACE_CACHED_GROUPS
+    ]
+    for part in first_account + catalog:
+        del weights[part]
+    return [first_account, *pack(weights, 3), catalog]
 
 
 def matrix(profile='full'):
@@ -147,8 +194,7 @@ def matrix(profile='full'):
             minutes = 70 if sqlite_timeout else 45
             rows.append({**common, 'worker': 'runtime', 'parts':[0], 'sqlite_timeout':sqlite_timeout,
                          'serial_runtime_packages':False, 'step_minutes':minutes, 'job_timeout':minutes+10})
-            weights = {part: consumer_weight(goarch, mode, part) for part in range(1, count + 1)}
-            for parts in pack(weights, 3):
+            for parts in consumer_workers(goarch, mode, count):
                 rows.append({**common, 'worker':'parts-'+'-'.join(map(str, parts)), 'parts':parts,
                              'sqlite_timeout':'', 'step_minutes':45, 'job_timeout':len(parts)*45+15})
     # These executions own the measured object archives; other workers use
