@@ -628,6 +628,7 @@ jobs:
       PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
     strategy:
       fail-fast: false
+      max-parallel: 32
       matrix: ${{ fromJSON(needs.validation-plan.outputs.relation_matrix) }}
 
     steps:

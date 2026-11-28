@@ -211,7 +211,7 @@ PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각
 Linux의 각 아키텍처·모드는 자체 바이너리의 `go test -list .` 결과로 Test·Example·Fuzz를 배정한다. Runtime 전용 러너가 생성 소비자를 제외한 관계 패키지를 담당한다. 소비자 러너는 checkout, Go 캐시, 모듈 다운로드와 발견을 한 번 수행하고 최대 세 묶음을 독립 Go 프로세스와 제한으로 실행한다. [관계 실행기](../scripts/ci/relation-product.sh) · [배정 함수](../scripts/ci/relation_shards.py)
 Linux/x64 race에서는 이름이 고정된 전용 root와 발견 목록에 따라 구성되는 일반 그룹의 관측 비용으로 part를 러너에 배분한다. x64의 일반 그룹에는 같은 가중치를 적용한다. ARM64 race의 21개 part 중 FirstAccount(2·8·11)와 Catalog(5·6·16)는 각각 같은 러너에서 같은 순서로 실행해 객체 캐시를 재사용한다. 나머지 15개 part는 같은 테스트 목록을 실행했던 다섯 번의 실측으로 다섯 러너에 배분한다. 제품 root·child의 소유권과 실행 제한은 각 part가 유지한다.
 
-Linux에서는 오래 걸리는 계정 테스트 16개를 각각 단독 Go 프로세스에서 실행한다. ARM64 race의 나머지 상위 테스트는 예상 시간으로 균형을 맞춘 다섯 묶음에 배정한다. 두 Linux race runtime과 ARM64 race의 소비자 묶음을 먼저 제출한다. [Linux 시간 측정](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
+Linux에서는 오래 걸리는 계정 테스트 16개를 각각 단독 Go 프로세스에서 실행한다. ARM64 race의 나머지 상위 테스트는 예상 시간으로 균형을 맞춘 다섯 묶음에 배정한다. 관계 matrix는 동시 실행을 32개로 제한한다. 두 Linux race runtime과 양 아키텍처의 race 소비자 14개가 처음 21개 행에 들어가며, 나머지 행도 같은 발견 목록·프로세스·제한으로 모두 실행한다. [Linux 시간 측정](status/TEST_EVIDENCE.md#linux-arm64-race-소비자-작업-시간)
 
 Apple Silicon 일반 runtime은 소비자를 제외한 전체 패키지 목록과 필수 테스트를 대조하고 큰 패키지를 `-p=1`로 빌드한다. 대표 생성 검사는 각 root·child의 정확한 실행과 종료, 실제 자식의 좌표와 SDK의 잠금 파일·HTTP·DB 결과를 검증한다. 최종 집계는 같은 실행의 해당 작업이 올린 artifact ID·digest와 최신 유효 시도를 대조하고 원본을 다시 읽는다. [네이티브 증거](../scripts/ci/native_evidence.py) · [최종 검증](../scripts/ci/native_receipts.py)
 
