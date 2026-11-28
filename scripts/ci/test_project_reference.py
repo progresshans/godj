@@ -253,6 +253,37 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         coordinate = next(row for row in result['coordinates'] if row['coordinate'] == ('darwin', 'arm64', 'cgo0'))
         self.assertIn('TestNewCommonRunner', coordinate['product_coverage']['common_runner']['executed_roots'])
 
+    def test_delegated_darwin_roots_require_complete_descendants(self):
+        self.fixture()
+        target = self.directory / 'project-check-darwin-arm64-race-2'
+        log = target / 'platform.json'
+        values = [json.loads(line) for line in log.read_bytes().splitlines()]
+        package = darwin_boundary.MODULE + 'internal/projectcheck'
+        root = 'TestReadCreatesuperuserTerminalRestoresEchoAfterInterrupt'
+        child = root + '/new_native_boundary'
+        helper = 'TestMakemigrationsCrashHelper'
+        index = next(i for i, e in enumerate(values) if e.get('Test') == root and e['Action'] == 'pass')
+
+        def observe(actions, remove_required=False):
+            rows = values[:index] + [self.event(a, Package=package, Test=child) for a in actions]
+            rows.extend(self.event(a, Package=package, Test=helper) for a in ('run', 'skip'))
+            rows.extend(values[index:])
+            if remove_required:
+                rows = [e for e in rows if e.get('Test') != root]
+            self.write_events(log, rows)
+            (target / 'SHA256SUMS').unlink()
+            seal(target)
+            darwin_boundary.verify(target, 'project-check', 'race')
+            return self.verify()
+
+        self.assertTrue(observe(['run', 'pass']))
+        for actions in (['run', 'skip'], ['run', 'fail'], ['run'], ['pass'],
+                        ['run', 'pass', 'run', 'pass'], ['pass', 'run']):
+            with self.subTest(actions=actions), self.assertRaisesRegex(ValueError, 'exactly once'):
+                observe(actions)
+        with self.assertRaisesRegex(ValueError, 'exactly once'):
+            observe(['run', 'pass'], remove_required=True)
+
     def test_native_boundary_requires_each_delegated_event_and_unchanged_sqlite_sources(self):
         self.fixture()
         for owner, directory, filename in (

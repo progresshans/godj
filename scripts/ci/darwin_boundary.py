@@ -1,7 +1,6 @@
 """Assign Darwin boundary tests and compile their original SQLite test sources."""
 
 import argparse
-from collections import Counter
 import hashlib
 import json
 from pathlib import Path
@@ -106,19 +105,24 @@ def sqlite_overlay(directory, mode, overlay):
 def verify_execution(log, selected, complete_packages=False):
     pairs = [tuple(row.split('|')) for row in selected]
     expected = set(pairs)
-    counts = Counter(
-        (e.get('Package'), e.get('Test'), e['Action'])
-        for e in events(log)
-        if (e.get('Package'), e.get('Test')) in expected
-    )
-    for package, test in pairs:
-        if (
-            counts[package, test, 'run'] != 1
-            or counts[package, test, 'pass'] != 1
-            or counts[package, test, 'skip']
-            or counts[package, test, 'fail']
-        ):
-            raise ValueError('Darwin boundary did not run and pass exactly once: ' + package + '|' + test)
+    roots = {(package, name.partition('/')[0]) for package, name in expected}
+    completed = {}
+    for event in events(log):
+        package, name = event.get('Package'), event.get('Test', '')
+        if (package, name.partition('/')[0]) not in roots:
+            continue
+        key = package, name
+        prior = completed.setdefault(key, None)
+        action = event['Action']
+        if action == 'run' and prior is None:
+            completed[key] = 'run'
+        elif action == 'pass' and prior == 'run':
+            completed[key] = 'pass'
+        elif action in ('run', 'pass', 'skip', 'fail'):
+            raise ValueError('Darwin boundary did not run and pass exactly once: ' + '|'.join(key))
+    for key in expected | completed.keys():
+        if completed.get(key) != 'pass':
+            raise ValueError('Darwin boundary did not run and pass exactly once: ' + '|'.join(key))
     if complete_packages:
         packages = {p for p, _ in pairs}
         inventory = inspect(log)
