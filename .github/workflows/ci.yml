@@ -82,7 +82,7 @@ jobs:
         with:
           version: ${{ env.GODJ_UV_VERSION }}
           python-version: ${{ env.GODJ_REFERENCE_PYTHON }}
-          enable-cache: true
+          enable-cache: false
 
       - name: Select the pinned managed Python
         run: &select-reference-python |
@@ -92,14 +92,10 @@ jobs:
           "$interpreter" -c 'import os, platform, sysconfig; assert platform.python_version() == os.environ["GODJ_REFERENCE_PYTHON"] and not sysconfig.get_config_var("Py_GIL_DISABLED")'
           echo "UV_PYTHON=$interpreter" >> "$GITHUB_ENV"
 
-      - name: Install locked Python dependencies
+      - name: Select Python for the capture and generation tools
         run: |
-          uv sync --frozen
-          uv sync --project conformance/reference/drf --frozen
-
-      - name: Print non-authoritative CI fingerprint
-        run: |
-          uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
+          echo "$(dirname "$UV_PYTHON")" >> "$GITHUB_PATH"
+          "$UV_PYTHON" --version
           go version
 
       - name: Resolve successful capture producers from this run
