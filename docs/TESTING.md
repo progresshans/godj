@@ -60,7 +60,7 @@ runtime 작업은 소스에서 등록된 모든 case, 세 묶음의 중복 없�
 
 PostgreSQL normal의 core·operator-target 두 작업이 각각 시스템 상태와 운영자 증거를 생성한다. conformance는 이 두 작업이 끝나면 원본을 대조한다. 나머지 PostgreSQL 작업은 최종 CI 집계에 모두 필수다. 각 비교는 업로드 바로 다음 단계의 artifact ID·SHA-256, 실제 성공한 job ID·회차, 제출 소스와 checkout에 묶인다.
 
-생성 계정 fixture의 독립적인 DB 검사는 [backend별 대응 목록](../scripts/ci/account-database-owners.txt)에서 관리한다. 각 행의 SQLite 경로는 Linux 두 아키텍처 관계 검사의 같은 모드가, PostgreSQL 경로는 해당 PostgreSQL 분할이 맡는다. 계획은 두 실제 필수 목록과 대조하며 PostgreSQL 실행 원본에서 필수 자식의 정확히 한 번 실행·통과를 확인한다. 양 DB의 결과를 직접 대조하는 Django reference와 시스템·운영자 attestation은 해당 원래 작업에서 두 DB를 계속 실행한다.
+생성 계정 fixture의 독립적인 DB 검사는 [backend별 대응 목록](../scripts/ci/account-database-owners.txt)에서 관리한다. 18개 root에 속한 63쌍에는 FirstAccount 프로필 7종이 포함된다. 각 행의 SQLite 경로는 Linux 두 아키텍처 관계 검사의 같은 모드가, PostgreSQL 경로는 해당 PostgreSQL 분할이 맡는다. 계획은 두 실제 필수 목록과 대조하며 PostgreSQL 실행 원본에서 필수 자식의 정확히 한 번 실행·통과를 확인한다. 양 DB의 결과를 직접 대조하는 Django reference와 시스템·운영자 attestation은 해당 원래 작업에서 두 DB를 계속 실행한다.
 
 FirstAccount의 관찰용 관리 명령은 최종 생성 소스에서 fixture별로 한 번 빌드한다. 각 초기화·조회는 소스 지문을 다시 확인한 뒤 독립 프로세스에서 실행한다. 공개 첫 계정 명령의 선언·런타임 빌드, 호환성 검사, PTY 복구와 자식 회수는 각 시나리오에서 실행한다. 네이티브 원본에는 관찰 명령의 실제 빌드 좌표·지문, PID, 빌드·조회·공개 명령별 실행 시간이 남는다.
 

@@ -54,3 +54,10 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountSharedThro
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountSharedThroughTransition/{backend}/TestAccountSharedThroughTransition/unique/created
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransitionTargetReferences/required_cycle/{backend}
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransitionCatalogCycles/required_joint_cycle/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/default/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom_normalized/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom_without_last_login/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom_form_normalized/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom_short_login/{backend}
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountUsesRequiredProfiles/custom_text_login/{backend}

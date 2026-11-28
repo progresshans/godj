@@ -191,7 +191,11 @@ def account_database_pairs():
         raise ValueError('empty or duplicate account database coverage')
     pairs = {}
     for entry in rows:
-        if not entry.startswith(CONSUMER_PACKAGE + '|TestGeneratedAccount') or entry.split('/').count('{backend}') != 1:
+        package, _, path = entry.partition('|')
+        root = path.partition('/')[0]
+        if (package != CONSUMER_PACKAGE
+                or not (root.startswith('TestGeneratedAccount') or root == 'TestGeneratedFirstAccountUsesRequiredProfiles')
+                or path.split('/').count('{backend}') != 1):
             raise ValueError('invalid account database coverage: ' + entry)
         pairs[entry.replace('{backend}', 'postgres')] = entry.replace('{backend}', 'sqlite')
     return pairs

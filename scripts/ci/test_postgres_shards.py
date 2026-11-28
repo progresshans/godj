@@ -46,7 +46,10 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         pg = set(self.required)
         pairs = account_database_pairs()
         audit_database_owners(pg, linux, pairs)
-        self.assertEqual(56, len(pairs))
+        self.assertEqual(63, len(pairs))
+        first_account = {key.rsplit('/', 2)[-2] for key in pairs if '|TestGeneratedFirstAccountUsesRequiredProfiles/' in key}
+        self.assertEqual(first_account, {'default', 'custom', 'custom_normalized', 'custom_without_last_login',
+                                         'custom_form_normalized', 'custom_short_login', 'custom_text_login'})
         first = next(iter(pairs))
         sqlite = pairs[first]
         for p, l, m in [(pg-{first},linux,pairs), (pg,linux-{sqlite},pairs), (pg|{sqlite},linux,pairs),
@@ -55,10 +58,11 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 audit_database_owners(p, l, m)
         for mode in ('normal','race','cgo0'):
             all_roots = [r for part in partitions(mode) for r in plan(mode,part,self.required)['account_postgres_roots']]
+            self.assertEqual(len(all_roots), 18)
             self.assertCountEqual(all_roots, {e.partition('|')[2].split('/')[0] for e in pairs})
 
     def test_postgres_account_evidence_rejects_missing_duplicate_or_sqlite_execution(self):
-        required = next(iter(account_database_pairs()))
+        required = next(key for key in account_database_pairs() if '|TestGeneratedFirstAccountUsesRequiredProfiles/' in key)
         package, _, name = required.partition('|')
         roots = [name.split('/')[0]]
         with tempfile.TemporaryDirectory() as directory:
@@ -248,11 +252,8 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 pg = root + '/' + variant + '/postgres'
                 sqlite = root + '/' + variant + '/sqlite'
                 self.assertIn(pg, expected)
-                if owner == 'core-account-management':
-                    self.assertIn(sqlite, expected)
-                else:
-                    self.assertEqual(account_database_pairs()[pg], sqlite)
-                    self.assertNotIn(sqlite, expected)
+                self.assertEqual(account_database_pairs()[pg], sqlite)
+                self.assertNotIn(sqlite, expected)
             by_owner.setdefault(owner, set()).update(expected)
         for mode in ('normal', 'race', 'cgo0'):
             for shard in partitions(mode):
