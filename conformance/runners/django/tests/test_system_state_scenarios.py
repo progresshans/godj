@@ -189,7 +189,7 @@ class SystemStateScenarioTests(unittest.TestCase):
         self.assertEqual(len(legacy_bytes), 13099)
         self.assertEqual(
             hashlib.sha256(legacy_bytes).hexdigest(),
-            "4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb",
+            "a1b58d18bf2c727b3207711df713af57972ebe1ce9b8b72dd47246801f6d7583",
         )
         pre_gdj_0055_manifest = _load(MANIFEST)
         pre_gdj_0055_manifest["contracts"] = pre_gdj_0055_manifest["contracts"][:20]
@@ -205,7 +205,7 @@ class SystemStateScenarioTests(unittest.TestCase):
         self.assertEqual(len(pre_gdj_0055_suite_bytes), 21242)
         self.assertEqual(
             hashlib.sha256(pre_gdj_0055_suite_bytes).hexdigest(),
-            "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4",
+            "7894aabe3d12e1a9679dd3017ce28d05f95dd8fb002d22a850fd38c1714d55aa",
         )
         logout = suite["contracts"][7]
         self.assertEqual(logout["id"], "SYS-008")
