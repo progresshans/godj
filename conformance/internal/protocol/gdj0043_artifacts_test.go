@@ -128,7 +128,7 @@ func TestGDJ0043ProductManifestsPreserveLockedReferencesAndPayloadFreeBaselines(
 	if err != nil {
 		t.Fatal(err)
 	}
-	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Lock.ManagerVersion != "0.10.12" {
+	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Lock.ManagerVersion != "0.13.6" {
 		t.Fatalf("unexpected GDJ-0043 reference profile: %#v", profile)
 	}
 

@@ -2,7 +2,7 @@
 name = "godj-drf-reference"
 version = "0.0.0"
 description = "Pinned Django REST framework reference environment for GoDj conformance"
-requires-python = "==3.14.3"
+requires-python = "==3.14.10"
 dependencies = [
     "asgiref==3.12.1",
     "Django==6.1",

@@ -45,7 +45,7 @@ func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *te
 	t.Parallel()
 
 	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-status")
-	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.3" || profile.Lock.ManagerVersion != "0.10.12" {
+	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.10" || profile.Lock.ManagerVersion != "0.13.6" {
 		t.Fatalf("unexpected migration-status profile: %#v", profile)
 	}
 	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) || !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {

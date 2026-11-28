@@ -276,7 +276,7 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(legacyBaselineBytes) != 1527 || fmt.Sprintf("%x", sha256.Sum256(legacyBaselineBytes)) != "6b5549d00484c69ec8bf4186bf9a4b99ff5adf1b2040250159be49dc3f3f4533" {
+	if len(legacyBaselineBytes) != 1527 || fmt.Sprintf("%x", sha256.Sum256(legacyBaselineBytes)) != "b2de0643439c504d1a8aeb969ae04d3833f3e7dd2567282d31ed069d334f78d1" {
 		t.Fatalf("legacy SYS-001..012 NI canonical bytes drifted: size=%d sha256=%x", len(legacyBaselineBytes), sha256.Sum256(legacyBaselineBytes))
 	}
 	preGDJ0055Baseline := baseline
@@ -285,7 +285,7 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(preGDJ0055BaselineBytes) != 2026 || fmt.Sprintf("%x", sha256.Sum256(preGDJ0055BaselineBytes)) != "3a486bb24eddf660c9b10207031ed9d491f833fb2d18a02127b5260163ad7321" {
+	if len(preGDJ0055BaselineBytes) != 2026 || fmt.Sprintf("%x", sha256.Sum256(preGDJ0055BaselineBytes)) != "141013ac63ed4d4a608acd16149c45a7c9adf4edb2b431bc64fed04b618a8fab" {
 		t.Fatalf("pre-GDJ-0055 SYS-001..020 NI canonical bytes drifted: size=%d sha256=%x", len(preGDJ0055BaselineBytes), sha256.Sum256(preGDJ0055BaselineBytes))
 	}
 }

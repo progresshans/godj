@@ -96,7 +96,7 @@ func TestGDJ0044ExactDRFProfileAndProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if profile.ID != "drf-3.18.0-django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.3" || profile.Lock.File != "conformance/reference/drf/uv.lock" || profile.Lock.ManagerVersion != "0.10.12" {
+	if profile.ID != "drf-3.18.0-django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.10" || profile.Lock.File != "conformance/reference/drf/uv.lock" || profile.Lock.ManagerVersion != "0.13.6" {
 		t.Fatalf("unexpected GDJ-0044 profile: %#v", profile)
 	}
 	lock, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(profile.Lock.File)))

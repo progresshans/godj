@@ -2,7 +2,7 @@
 name = "godj-related-expression-reference"
 version = "0.0.0"
 description = "Pinned native Django relation-expression observations for GoDj"
-requires-python = "==3.14.3"
+requires-python = "==3.14.10"
 dependencies = [
     "asgiref==3.12.1",
     "Django==6.1",

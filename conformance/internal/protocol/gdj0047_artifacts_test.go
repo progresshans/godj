@@ -114,7 +114,7 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	if err := ValidateSuiteAgainst(profile, manifest, baseline); err != nil {
 		t.Fatalf("API authentication baseline does not validate: %v", err)
 	}
-	if profile.ID != "drf-3.18.0-django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.3" || profile.Lock.File != "conformance/reference/drf/uv.lock" || profile.Lock.ManagerVersion != "0.10.12" {
+	if profile.ID != "drf-3.18.0-django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.10" || profile.Lock.File != "conformance/reference/drf/uv.lock" || profile.Lock.ManagerVersion != "0.13.6" {
 		t.Fatalf("unexpected GDJ-0047 profile: %#v", profile)
 	}
 	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) || !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {

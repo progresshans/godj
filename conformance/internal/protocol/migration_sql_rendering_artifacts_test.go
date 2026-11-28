@@ -27,11 +27,11 @@ var migrationSQLRenderingArtifactLocks = map[string]migrationSQLRenderingArtifac
 	},
 	migrationSQLRenderingBaselineArtifact: {
 		size:   1727,
-		sha256: "217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144",
+		sha256: "81c09fcf387d0fa23ead2535a265a06141c695237aec62c07a166fd439454f98",
 	},
 	migrationSQLRenderingOracleArtifact: {
 		size:   48851,
-		sha256: "102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3",
+		sha256: "d59cff1aa58e4f8c485c3a7a087c839396626aabcddda5d9d687d4ad1c977617",
 	},
 }
 
@@ -95,9 +95,9 @@ func TestMigrationSQLRenderingPublishedArtifactsAreLockedAndProductEligible(t *t
 	if profile.ID != "django-6.1-sqlite-darwin-arm64" ||
 		profile.Fingerprint.DjangoVersion != "6.1" ||
 		profile.Fingerprint.DjangoCommit != "fe0a859f537d4238cf49fca39073513206f83122" ||
-		profile.Fingerprint.PythonVersion != "3.14.3" ||
-		profile.Fingerprint.SQLiteVersion != "3.50.4" ||
-		profile.Lock.ManagerVersion != "0.10.12" {
+		profile.Fingerprint.PythonVersion != "3.14.10" ||
+		profile.Fingerprint.SQLiteVersion != "3.53.1" ||
+		profile.Lock.ManagerVersion != "0.13.6" {
 		t.Fatalf("unexpected migration-sql-rendering profile: %#v", profile)
 	}
 	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) || !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {

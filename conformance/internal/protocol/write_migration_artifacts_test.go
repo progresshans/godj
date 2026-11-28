@@ -204,20 +204,20 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"migration-planning-oracle.json":      "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-		"oracle.json":                         "b0e1c178c3d8f999fa606d67eaadda178e910f62f3eb5fbf6b2cd881cafd5cd0",
-		"query-cache-oracle.json":             "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
-		"query-breadth-oracle.json":           "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94",
-		"query-expression-oracle.json":        "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
-		"template-form-oracle.json":           "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa",
-		"auth-session-oracle.json":            "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc",
-		"article-admin-oracle.json":           "112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf",
-		"system-state.json":                   "dca37020f09b0d1aea83dad6aca3cd44a1e2082517c9ca9eae6c9ac43fd48314",
-		"save-lifecycle-oracle.json":          "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
-		"write-migration-oracle.json":         "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
-		"migration-status-oracle.json":        "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f",
-		"migration-target-plan-oracle.json":   "d3859632c7f01e730cfd1459dd1c09b602540e58d56b5f86e8ab15be9b926b3c",
-		"migration-sql-rendering-oracle.json": "102cac5c85df9c177c32365fad5e959c0ba188f10058bf0c99030baf959d42c3",
+		"migration-planning-oracle.json":      "9586075f25edca8eb82ab553c09416060d992978f0282d730c9d4232178c6938",
+		"oracle.json":                         "ba99ad6b7c1ccf68c92e272caf717d56c6aec43c0ef0f8ee4903e85d2a6b74fd",
+		"query-cache-oracle.json":             "8887677d4b89cae722313d90542b0916b364bccf9c9031261ecbd71c12978104",
+		"query-breadth-oracle.json":           "b1b4a981a83df9705f60e2570847353f3f216e30dedc899b995cac0b76968141",
+		"query-expression-oracle.json":        "463b2b0619b6e0d19030285b2fe268877aec0693ec35ffdfb877adc4dabc634c",
+		"template-form-oracle.json":           "ec3fe1dc73f919387b718dd3ee0ffea3b3a2ab7215dda5827a579109b9c2a8ab",
+		"auth-session-oracle.json":            "90f8fe223bde62cc3959945cfbf00fd0df02a5d89da4026f28372e703c819d68",
+		"article-admin-oracle.json":           "e718f31177bfa81b4cfe810f7cc13633b5d3465094be33e412c5ba6c3c2a6c2e",
+		"system-state.json":                   "fb9370af22749c949e85b5929772144ecd03890653b76e440c56b0e459503959",
+		"save-lifecycle-oracle.json":          "3d2327edc32f83f740f9dd8b5e2f64b7887ad10f07a36e51ca860213be10a4b8",
+		"write-migration-oracle.json":         "04f398468251850059f85aa0550d03cd91d001056a33c2ad41e2d85361ba176f",
+		"migration-status-oracle.json":        "38e121058b00b6d28303d91bbf9f0d0a5efcd434c7c0dec6bf0e7d9d462f7d20",
+		"migration-target-plan-oracle.json":   "0c104b05d7882dc0d740b011b8a4e63de7cb22af6a9b0cce047cd380f2e37473",
+		"migration-sql-rendering-oracle.json": "d59cff1aa58e4f8c485c3a7a087c839396626aabcddda5d9d687d4ad1c977617",
 	} {
 		if entries[name] != want {
 			t.Fatalf("locked %s checksum changed to %q, want %q", name, entries[name], want)
