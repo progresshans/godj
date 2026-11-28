@@ -92,6 +92,9 @@ import json, os, pathlib, sys
 if sys.argv[1:] == ['env', 'GOOS']:
     print('darwin')
     sys.exit(0)
+if sys.argv[1:] == ['env', 'GOOS', 'GOARCH', 'CGO_ENABLED']:
+    print('darwin', 'arm64', os.environ['CGO_ENABLED'], sep=chr(10))
+    sys.exit(0)
 if sys.argv[1]=='list':
     pkg=pathlib.Path('db/sqlite').resolve()
     tests=sorted(f.name for f in pkg.glob('*_test.go'))
