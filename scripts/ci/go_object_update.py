@@ -37,9 +37,10 @@ def copy_object(source, destination):
         shutil.copyfile(source, destination)
 
 
-def apply(objects, update, index, budget):
+def apply(objects, update, index, budget, snapshot=True):
     # Snapshot the large seed before applying the previous small generation.
-    index.write_text(json.dumps(sorted(p.name for p in entries(objects))))
+    if snapshot:
+        index.write_text(json.dumps(sorted(p.name for p in entries(objects))))
     files = list(entries(update))
     size = sum(p.stat().st_size + 2048 for p in files)
     if size > budget:
@@ -103,11 +104,12 @@ def main():
             return
         try:
             if args.action == 'apply':
-                apply(args.objects, update, index, BUDGET[args.family] * MIB)
+                apply(args.objects, update, index, BUDGET[args.family] * MIB,
+                      snapshot=os.environ.get('GODJ_UPDATE_EXACT') != 'true')
             else:
                 ready = stage(args.objects, update, index, BUDGET[args.family] * MIB)
                 print('ready=' + str(ready).lower(), file=out)
-        except OSError as error:
+        except (OSError, ValueError) as error:
             print(f'Optional Go cache {args.action} unavailable: {error}')
 
 
