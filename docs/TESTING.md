@@ -284,7 +284,7 @@ artifact ID와 실제 normal producer job의 run·source·성공 상태를 확�
 검증한다. 새 attempt의 실패를 과거 성공 artifact로 숨기거나 checkout/payload 검사를 생략하지 않는다.
 Source API 관찰은 GoDj 자체를 현재 source로 type-check하고 외부 package는 현재 module의 native compiler export에서 읽는다.
 GOPATH나 과거 dependency 집합을 가정하지 않으며 native export 조회에도 context·timeout·출력 한도와 readonly/offline 조건을 적용한다.
-외부 CLI fixture의 module 준비는 제품 호출 이전에 수행한다. 실제 제품 명령의 private cache·readonly·무변경 검사는 그대로 유지한다.
+외부 CLI fixture의 module 준비는 제품 호출 이전에 수행한다. `cmd/godj`의 프로세스 fixture가 직접 호출하는 `go build`는 부모 패키지의 `-race`를 자동으로 상속하지 않는다. 이 경로에서 자식까지 계측했는지는 그 실행 파일의 build info로 판단한다. 실제 제품 명령의 private cache·readonly·무변경 검사는 그대로 유지한다.
 Python compatibility observer는 실제 실행 interpreter를 보고하고 고정 fixture의 runtime metadata와 구분한다.
 Linux 대표 작업은 uv 0.13.6의 CPython 3.14.10에서 normal suite를 한 번 실행한다. 같은 실행의 development/event 관측 로그와 플랫폼 실행 목록은 서로 다른 디렉터리에서 봉인하고 각각 업로드 영수증을 확인한다. PostgreSQL 캡처 소비자는 독립적으로 실행된다.
 고정 Mac은 macOS 26 ARM64에서 같은 interpreter와 oracle를 재생한다. 검토한 테스트 파일과 발견 ID, 공유 해석 helper·runner·프로필·잠금이 달라지면 해당 모듈 또는 전체 발견 목록을 Mac에서 직접 실행한다. 명시한 공유 입력 밖의 전이 의존성은 이 분류에 포함되지 않는다. 기준 이전 시에는 별도 **exact-all** 실행으로 모든 항목의 실행·종료와 skip 부재를 기록한다.

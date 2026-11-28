@@ -27884,3 +27884,13 @@ Hosted의 기존 외부 archive·생성물 consumer 검증과 구분한다.
 
 완료 상태를 기록한 후속 변경은 Markdown만 포함한다. 제품·workflow·lock을 바꾸지 않는 이 기록 때문에 전체 matrix를 반복하지 않는다.
 2026-09-06 완료 문서 6개에 `make docs-check`, `git diff --check`와 검증 source 이후 Markdown-only diff 검사를 실행해 PASS를 확인했다.
+
+## Python 3.14.10 기준 이전과 full CI
+
+비교 기준은 PR #1의 `1ef2a940`이다. full 141개가 통과한 이전 실행의 완료 시간은 1:15:55이고 Linux·Mac 점유 합계는 각각 34:19:59·3:48:58이다. 최종 집계 직전까지 남은 작업은 Linux ARM64 race의 2·8·11 묶음이었다. [기준 실행](https://github.com/progresshans/godj/actions/runs/46073634327)
+
+CPython 3.14.10 일반 빌드와 uv 0.13.6을 고정했다. 기존 Python 3.14.3 기준을 macOS 26으로 옮겨 먼저 재생했다. 새 환경은 Ubuntu 24.04 x86_64와 macOS 26.7.2 ARM64의 독립 작업에서 관측했다. 둘 다 SQLite 3.53.1이고 source ID는 `2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9`였다. 네 프로젝트의 새 lock에서 의존성·배포 파일이 그대로임을 대조했다. [기존 기준의 Mac 26 재생](https://github.com/progresshans/godj/actions/runs/46117519386/job/140894585759) · [Linux 새 환경](https://github.com/progresshans/godj/actions/runs/46117519430/job/140894552774) · [Mac 새 환경](https://github.com/progresshans/godj/actions/runs/46117519430/job/140894552926)
+
+Mac에서 oracle 27개를 임시 위치에 새로 생성한 뒤 다시 검증했다. 각 계약의 ID·순서·관측 의미가 일치했다. 두 호스트에서 직접 실행한 Django·DRF 311개 결과는 각각 1,083,882바이트이며 SHA-256은 `b0189a057b16e3f0e2a6dcdf050382412ed383a63724dac1acb472d9b5731a21`이다. 두 프로필, oracle 27개, 합성 baseline 27개 및 현재 byte lock에 새 환경을 반영했다. 과거 annotation 원본을 생성한 스크립트는 당시 SHA-256으로 보관하고, 기존 identity fixture의 당시 환경과 새 실행에서 관측한 환경을 각각 확인한다. [기준 반영](https://github.com/progresshans/godj/commit/682a96a9) · [관측기와 과거 출처](https://github.com/progresshans/godj/commit/e51ae67a)
+
+첫 통합 실행에서 compatibility 준비 단계의 옛 uv 버전 검사와 SYS 관측의 12·20개 prefix에 남은 환경 지문을 발견했다. 실제 Go 제품의 12개 출력은 12,944바이트였다. Python·SQLite·lock의 환경 필드를 이전 값으로 복원하면 기존 SHA-256이 정확히 재현됐다. Python 쪽 두 prefix는 독립 Mac 실행에서 수집한 oracle로 계산하고 이전 계약 전체와 대조했다. [최초 통합 실행](https://github.com/progresshans/godj/actions/runs/46118779507) · [Go prefix](https://github.com/progresshans/godj/commit/eca24aef) · [Python prefix](https://github.com/progresshans/godj/commit/82773615)
