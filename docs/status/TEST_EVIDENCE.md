@@ -27920,3 +27920,5 @@ Intel macOS 15에서 SQLite 컴파일은 일반 8.770초, CGO=0 8.020초였다(�
 상한 16에서 처음 배정된 PostgreSQL 16개는 선언 순서의 앞 16개와 정확히 일치했다. PG가 16개 실행되고 대기한 PG가 더 있으며 이 workflow의 전체 점유가 40개 미만인 구간은 총 4:17이었다. 다음 실험에서는 비캡처 상한 20개에 CGO=0 core와 race를 앞에 배치한다. 제품·part·서비스·시간 제한과 별도 캡처 둘은 그대로다. [실제 작업별 시각](https://github.com/progresshans/godj/actions/runs/46135600966/attempts/1)
 
 ARM64 race의 part별 발견 목록이 같은 다섯 실행에서 배치 가중치를 고정했다. 목록이 133개였던 실행은 제외했다. 새 상한 실험은 학습에서 뺐다. 이 실행에서 같은 21개 part의 실측 시간을 재배분하면 가장 긴 묶음의 step 합은 2,323초에서 2,184초가 된다. 139초는 배치 모델의 결과다. 실제 원격 경과는 러너 배정과 fixture 간 캐시 재사용까지 포함한다. [학습 마지막 실행](https://github.com/progresshans/godj/actions/runs/46129446781) · [학습에 쓰지 않은 실행](https://github.com/progresshans/godj/actions/runs/46135600966)
+
+상한 20과 새 배치를 처음 제출한 실행에서는 Go의 workflow 검증기가 PostgreSQL 캡처 소비자에 이전 Django 설치를 요구해 실패했다. 같은 실패를 로컬에서 재현했다. 고정 root·DRF 설치 의무는 실제 Linux normal과 Darwin exact 생산자에서 각각 검사하고, 캡처 소비자에서는 고정 Python·동일 실행 원본·문서·생성물·제품 검사를 확인하도록 수정했다. 실제 Go 검증 바이너리로 정상 workflow 전후 통과, 두 생산자의 잠금 설치 네 가지를 하나씩 제거한 경우와 캡처 소비자 검사 제거까지 다섯 변이의 거부를 확인했다. [실패한 작업](https://github.com/progresshans/godj/actions/runs/46141788426/job/140969168374)

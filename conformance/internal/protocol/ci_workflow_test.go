@@ -386,7 +386,8 @@ func TestNormalPythonOwnsTheSuiteSemanticsAndBothReceipts(t *testing.T) {
 	if !reflect.DeepEqual(ciNeeds(t, normal), []string{"validation-plan"}) {
 		t.Fatal("normal Python must be eligible after planning")
 	}
-	ciRequire(t, "normal Python", normal, "make python-test 2>&1", "conformance/reference/drf python scripts/ci/python_semantics.py",
+	ciRequire(t, "normal Python", normal, "uv sync --frozen", "uv sync --project conformance/reference/drf --frozen",
+		"make python-test 2>&1", "conformance/reference/drf python scripts/ci/python_semantics.py",
 		"python-semantics.txt", "GODJ_PYTHON_INVENTORY", "id: platform_upload", "id: project_upload")
 	if strings.Count(normal, "make python-test ") != 1 || strings.Contains(ciJob(t, jobs, "conformance-validation"), "python-test") {
 		t.Fatal("normal Python suite must run once")
@@ -400,12 +401,13 @@ func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
 	jobs := ciJobs(t)
 	for _, name := range []string{"conformance-validation", "exact-darwin-validation"} {
 		job := ciJob(t, jobs, name)
-		ciRequire(t, name, job, "uv sync --frozen", "git diff --exit-code --", "conformance/contracts", "conformance/profiles", "conformance/oracles")
+		ciRequire(t, name, job, "git diff --exit-code --", "conformance/contracts", "conformance/profiles", "conformance/oracles")
 		if strings.Contains(job, "oracle-regenerate") {
 			t.Fatalf("%s regenerates the reference authority", name)
 		}
 	}
-	ciRequire(t, "exact oracle validation", ciJob(t, jobs, "exact-darwin-validation"), "python-test-exact", "oracle-check")
+	ciRequire(t, "exact oracle validation", ciJob(t, jobs, "exact-darwin-validation"),
+		"uv sync --frozen", "uv sync --project conformance/reference/drf --frozen", "python-test-exact", "oracle-check")
 	postgres := ciJob(t, jobs, "postgresql-product")
 	reference := ciJob(t, jobs, "conformance-validation")
 	if !reflect.DeepEqual(ciNeeds(t, reference), []string{"postgresql-captures", "validation-plan"}) {
@@ -414,7 +416,9 @@ func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
 	ciRequire(t, "capture workflow", ciJob(t, jobs, "postgresql-captures"), "env: *postgres-environment", "services: *postgres-services", "steps: *postgres-steps")
 	ciRequire(t, "shared service execution", postgres, "env: &postgres-environment", "services: &postgres-services", "steps: &postgres-steps")
 	ciRequire(t, "PostgreSQL capture producer", postgres, "scripts/ci/capture_artifact.py pack", "actions/upload-artifact@", "if-no-files-found: error")
-	ciRequire(t, "current capture consumer", reference, "actions/download-artifact@", "scripts/ci/capture_artifact.py verify", "ATTESTATION_DIR:", "godj-conformance")
+	ciRequire(t, "current capture consumer", reference, "GODJ_REFERENCE_PYTHON", `"$UV_PYTHON" --version`,
+		"actions/download-artifact@", "scripts/ci/capture_artifact.py verify", "ATTESTATION_DIR:",
+		"docs-check format-check generate-check conformance-check godj-conformance")
 	for _, artifact := range []string{"systemstate-postgres", "operator-postgres"} {
 		ciRequire(t, "capture producer", postgres, "name: "+artifact+"-${{ github.run_attempt }}")
 	}
