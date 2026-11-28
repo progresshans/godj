@@ -1,4 +1,4 @@
-name: Collect Python migration candidates
+name: Audit Python classification on macOS 26
 on:
   pull_request:
     paths:
@@ -6,18 +6,15 @@ on:
 permissions:
   contents: read
 jobs:
-  observe:
-    strategy:
-      fail-fast: false
-      matrix:
-        host: [ubuntu-24.04, macos-26]
-    runs-on: ${{ matrix.host }}
-    timeout-minutes: 45
+  audit:
+    runs-on: macos-26
+    timeout-minutes: 50
     env:
       LC_ALL: C
       TZ: UTC
       PYTHONHASHSEED: "0"
       PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONWARNINGS: error::ResourceWarning
       GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,14 +24,34 @@ jobs:
         with:
           version: "0.13.6"
           enable-cache: false
-      - name: Observe independent reference candidates
+      - name: Audit every discovered case under the native reference
+        env:
+          GODJ_PYTHON_INVENTORY: ${{ runner.temp }}/python-classification/inventory.json
         run: |
+          test "$(uv --version | cut -d' ' -f2)" = 0.13.6
           uv python install 3.14.10
-          uv run --no-project --python 3.14.10 python scripts/ci/observe_python_migration.py "$RUNNER_TEMP/python-migration"
-      - name: Publish reference candidates
+          UV_PYTHON="$(uv python find --managed-python 3.14.10)"
+          export UV_PYTHON
+          uv sync --frozen
+          uv sync --project conformance/reference/drf --frozen
+          uv run --frozen --project conformance/reference/drf python -m scripts.ci.python_tests --profile exact-all
+          PYTHONPATH=scripts/ci python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from project_reference import seal, source_identity
+          p = Path(os.environ['GODJ_PYTHON_INVENTORY'])
+          inventory = json.loads(p.read_bytes())
+          assert inventory['profile'] == 'exact-all' and not inventory['skipped']
+          assert sorted(inventory['started']) == sorted(inventory['stopped']) == inventory['discovered']
+          (p.parent / 'source.json').write_text(json.dumps(source_identity(), sort_keys=True) + '\n')
+          seal(p.parent)
+          PY
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+      - name: Publish complete native classification audit
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: python-migration-${{ matrix.host }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/python-migration
+          name: python-classification-macos-26-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-classification
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90

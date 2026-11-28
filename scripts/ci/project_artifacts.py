@@ -6,11 +6,11 @@ from github_records import github_records
 from platform_policy import product_coordinates
 
 
-PYTHON = "python-project-reference-3.14.3"
+PYTHON = "python-project-reference-3.14.10"
 
 
 def producers(profile):
-    result = {PYTHON: ("Python compatibility (3.14.3)", "Publish Python project-reference evidence")}
+    result = {PYTHON: ("Python reference (Linux normal)", "Publish Python project-reference evidence")}
     for runner, system, arch, mode in product_coordinates(profile):
         suffix = f"{system}-{arch}-{mode}"
         result[f"project-check-{suffix}"] = (f"Product project check ({runner}, {mode})", "Publish project-check evidence")

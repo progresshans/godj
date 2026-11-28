@@ -298,7 +298,7 @@ func ciCheckFullPlatformRows(t *testing.T, jobName string, rows []map[string]str
 
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
-	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v4" {
+	if contract := ciPlan(t)["validation_contract"]; contract != "platform-obligations-v5" {
 		t.Fatalf("unexpected full CI contract %q", contract)
 	}
 	product := make(map[string]int)
@@ -378,6 +378,22 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		}
 	}
 
+}
+
+func TestNormalPythonOwnsTheSuiteSemanticsAndBothReceipts(t *testing.T) {
+	jobs := ciJobs(t)
+	normal := ciJob(t, jobs, "python-reference-validation")
+	if !reflect.DeepEqual(ciNeeds(t, normal), []string{"validation-plan"}) {
+		t.Fatal("normal Python must be eligible after planning")
+	}
+	ciRequire(t, "normal Python", normal, "make python-test 2>&1", "conformance/reference/drf python scripts/ci/python_semantics.py",
+		"python-semantics.txt", "GODJ_PYTHON_INVENTORY", "id: platform_upload", "id: project_upload")
+	if strings.Count(normal, "make python-test ") != 1 || strings.Contains(ciJob(t, jobs, "conformance-validation"), "python-test") {
+		t.Fatal("normal Python suite must run once")
+	}
+	if !containsString(ciNeeds(t, ciJob(t, jobs, "project-reference-comparison")), "python-reference-validation") {
+		t.Fatal("product comparison lost its Python producer")
+	}
 }
 
 func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {

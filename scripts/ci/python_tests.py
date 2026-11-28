@@ -10,6 +10,9 @@ from pathlib import Path
 import platform
 import re
 import sqlite3
+import subprocess
+import sysconfig
+from importlib.metadata import version
 import sys
 import unittest
 
@@ -19,6 +22,20 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 DJANGO_TESTS = ROOT / "conformance/runners/django/tests"
 PORTABLE = ROOT / "scripts/ci/python-portable-modules.txt"
+
+# These shared inputs affect the classification across test modules. Unreviewed
+# changes fall back to all discovered cases until a complete native audit.
+SHARED_INPUTS = (
+    '.python-version', 'uv.lock', 'conformance/reference/drf/uv.lock',
+    'conformance/reference/images/uv.lock', 'conformance/reference/related-expressions/uv.lock',
+    'conformance/profiles/django-6.1-sqlite-darwin-arm64.json',
+    'conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json',
+    'conformance/runners/django/tests/values.py', 'conformance/runners/django/normalizer.py',
+    'conformance/runners/django/runner.py',
+)
+REVIEWED_SHARED_INPUTS = '2ed6db5e75c29b49dae74372525bb36bd1fab2a088baf74f3b70c848b9e2ef0d'
+LINUX_SQLITE = ('3.53.1', '2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9')
+DEPENDENCIES = {'Django': '6.1', 'djangorestframework': '3.18.0', 'asgiref': '3.12.1', 'sqlparse': '0.5.5'}
 
 EXACT_PROFILE_TESTS = frozenset(
     "test_scenarios.ScenarioTests." + name
@@ -43,7 +60,17 @@ def test_ids(suite):
     return (test.id() for test in cases(suite))
 
 
-def exact_selection(discovered, *, directory=DJANGO_TESTS, manifest=PORTABLE):
+def shared_input_digest(repository):
+    material = hashlib.sha256()
+    for name in SHARED_INPUTS:
+        path = repository / name
+        if not path.is_file():
+            return None
+        material.update(name.encode() + bytes([0]) + hashlib.sha256(path.read_bytes()).digest())
+    return material.hexdigest()
+
+
+def exact_selection(discovered, *, directory=DJANGO_TESTS, manifest=PORTABLE, repository=ROOT):
     """New modules, edits and changes in discovered cases default to both hosts."""
     modules = defaultdict(list)
     for name in discovered:
@@ -62,6 +89,8 @@ def exact_selection(discovered, *, directory=DJANGO_TESTS, manifest=PORTABLE):
         if module in reviewed or not re.fullmatch(r'test_[a-z0-9_]+', module) or not re.fullmatch(r'[0-9a-f]{64}', digest):
             raise ValueError('invalid portable module entry: ' + line)
         reviewed[module] = digest
+    if shared_input_digest(repository) != REVIEWED_SHARED_INPUTS:
+        return set(discovered)
     selected = set(EXACT_PROFILE_TESTS)
     for module, names in modules.items():
         if module in reviewed:
@@ -80,7 +109,13 @@ def fingerprint():
     return {'platform': sys.platform, 'architecture': platform.machine(),
             'python_implementation': platform.python_implementation(), 'python_version': platform.python_version(),
             'django_version': django.get_version(), 'sqlite_version': sqlite3.sqlite_version,
-            'sqlite_source_id': sqlite_id}
+            'sqlite_source_id': sqlite_id, 'executable': sys.executable,
+            'os_version': platform.mac_ver()[0] if sys.platform == 'darwin' else platform.release(),
+            'free_threaded': bool(sysconfig.get_config_var('Py_GIL_DISABLED')),
+            'uv': subprocess.check_output(['uv', '--version'], text=True).split()[1],
+            'dependencies': {name: version(name) for name in DEPENDENCIES},
+            'locks': {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
+                      for p in ('uv.lock', 'conformance/reference/drf/uv.lock')}}
 
 
 def verify_owners(linux, darwin):
@@ -88,7 +123,10 @@ def verify_owners(linux, darwin):
     if not isinstance(discovered, list) or discovered != sorted(set(discovered)) or discovered != darwin['discovered']:
         raise ValueError('Python owners discovered different or duplicate tests')
     exact = exact_selection(discovered)
-    locked = json.loads((ROOT / 'conformance/profiles/django-6.1-sqlite-darwin-arm64.json').read_text())['fingerprint']
+    profiles = [json.loads((ROOT / f'conformance/profiles/{name}-sqlite-darwin-arm64.json').read_text())
+                for name in ('django-6.1', 'drf-3.18.0-django-6.1')]
+    locked = profiles[0]['fingerprint']
+    locks = {p['lock']['file']: p['lock']['sha256'] for p in profiles}
     for record, profile, membership, skips in (
         (linux, 'normal', set(discovered), EXACT_PROFILE_TESTS),
         (darwin, 'exact', exact, set()),
@@ -99,11 +137,19 @@ def verify_owners(linux, darwin):
         actual = record['fingerprint']
         if not isinstance(actual, dict) or not actual.get('sqlite_source_id') or not actual.get('sqlite_version'):
             raise ValueError('Python owner omitted SQLite fingerprint')
+        if (actual.get('uv') != profiles[0]['lock']['manager_version'] or actual.get('free_threaded') is not False
+                or actual.get('dependencies') != DEPENDENCIES or actual.get('locks') != locks
+                or not Path(actual.get('executable', '')).is_absolute() or not actual.get('os_version')):
+            raise ValueError('Python toolchain or dependency evidence differs: ' + profile)
         keys = ('python_implementation', 'python_version', 'django_version')
         if profile == 'exact':
+            if not actual['os_version'].startswith('26.'):
+                raise ValueError('exact Python owner requires macOS 26')
             keys += ('platform', 'architecture', 'sqlite_version', 'sqlite_source_id')
         elif (actual.get('platform'), actual.get('architecture')) != ('linux', 'x86_64'):
             raise ValueError('normal Python owner ran on the wrong platform')
+        elif (actual['sqlite_version'], actual['sqlite_source_id']) != LINUX_SQLITE:
+            raise ValueError('normal Python SQLite differs from its measured Linux distribution')
         if any(actual.get(key) != locked[key] for key in keys):
             raise ValueError('Python runtime differs from its profile: ' + profile)
     return {'discovered': len(discovered), 'linux_passed': len(discovered) - len(EXACT_PROFILE_TESTS),
@@ -151,7 +197,7 @@ def run_suite(suite, allowed_skips, stream, evidence=None):
 
 
 def configure_profile(profile):
-    if profile == "exact":
+    if profile in ("exact", "exact-all"):
         os.environ["GODJ_EXACT_PROFILE"] = "1"
         return frozenset()
     if profile not in {"normal", "compatibility", "tools"}:
@@ -162,7 +208,7 @@ def configure_profile(profile):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=("normal", "exact", "compatibility", "tools"), required=True)
+    parser.add_argument("--profile", choices=("normal", "exact", "exact-all", "compatibility", "tools"), required=True)
     args = parser.parse_args()
     allowed_skips = configure_profile(args.profile)
     directory = "scripts/ci" if args.profile == "tools" else "conformance/runners/django/tests"
@@ -176,7 +222,7 @@ def main():
         evidence = {} if receipt else None
         count, skipped = run_suite(suite, allowed_skips, sys.stderr, evidence)
         if receipt:
-            if args.profile not in ('normal', 'exact'):
+            if args.profile not in ('normal', 'exact', 'exact-all'):
                 raise ValueError('unexpected profile for Python ownership evidence')
             evidence.update(profile=args.profile, discovered=discovered, fingerprint=fingerprint())
             path = Path(receipt)

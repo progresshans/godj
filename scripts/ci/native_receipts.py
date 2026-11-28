@@ -20,7 +20,7 @@ FAMILY = 'platform-obligations'
 def contracts(profile):
     result = {'darwin-compile-only': ('Compile Darwin targets on Linux', 'darwin-compile-only', None)}
     result.update({
-        'python-ownership-linux': ('Validate references and current product captures', 'python', 'normal'),
+        'python-ownership-linux': ('Python reference (Linux normal)', 'python', 'normal'),
         'python-ownership-darwin': ('Validate exact darwin/arm64 profile and SQLite lifecycle', 'python', 'exact'),
     })
     for row in intel_matrix(profile)['include']:

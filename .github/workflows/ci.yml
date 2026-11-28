@@ -17,6 +17,8 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
+  GODJ_REFERENCE_PYTHON: "3.14.10"
+  GODJ_UV_VERSION: "0.13.6"
   GODJ_GO_CACHE_INPUTS: |
     go.mod
     go.sum
@@ -78,9 +80,17 @@ jobs:
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.12.3"
-          python-version: "3.14.3"
+          version: ${{ env.GODJ_UV_VERSION }}
+          python-version: ${{ env.GODJ_REFERENCE_PYTHON }}
           enable-cache: true
+
+      - name: Select the pinned managed Python
+        run: &select-reference-python |
+          test "$(uv --version | cut -d' ' -f2)" = "$GODJ_UV_VERSION"
+          uv python install "$GODJ_REFERENCE_PYTHON"
+          interpreter="$(uv python find --managed-python "$GODJ_REFERENCE_PYTHON")"
+          "$interpreter" -c 'import os, platform, sysconfig; assert platform.python_version() == os.environ["GODJ_REFERENCE_PYTHON"] and not sysconfig.get_config_var("Py_GIL_DISABLED")'
+          echo "UV_PYTHON=$interpreter" >> "$GITHUB_ENV"
 
       - name: Install locked Python dependencies
         run: |
@@ -122,14 +132,13 @@ jobs:
 
       - name: Verify same-run capture provenance and execute conformance
         env:
-          GODJ_PYTHON_INVENTORY: ${{ runner.temp }}/platform-python/inventory.json
           ATTESTATION_DIR: ${{ runner.temp }}/godj-evidence
           SYSTEMSTATE_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.systemstate_producer_attempt }}
           OPERATOR_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.operator_producer_attempt }}
         run: |
           python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/systemstate" postgresql-17.10-two-process-v1.json --producer-attempt "$SYSTEMSTATE_PRODUCER_ATTEMPT"
           python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/operator" postgresql-17.10-sqlite-external-operator-v1.json --producer-attempt "$OPERATOR_PRODUCER_ATTEMPT"
-          make docs-check format-check generate-check python-test conformance-check godj-conformance
+          make docs-check format-check generate-check conformance-check godj-conformance
 
       - name: Verify stored oracle checksum
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
@@ -162,6 +171,56 @@ jobs:
           conformance/oracles
           conformance/reference/drf
 
+  python-reference-validation:
+    name: Python reference (Linux normal)
+    needs: validation-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      LC_ALL: C
+      TZ: UTC
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: ${{ env.GODJ_UV_VERSION }}
+          python-version: ${{ env.GODJ_REFERENCE_PYTHON }}
+          enable-cache: true
+
+      - name: Select the pinned managed Python
+        run: *select-reference-python
+
+      - name: Install locked Python dependencies
+        run: |
+          uv sync --frozen
+          uv sync --project conformance/reference/drf --frozen
+
+      - name: Initialize Python project-reference evidence
+        id: python-reference
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_PYTHON: ${{ env.GODJ_REFERENCE_PYTHON }}
+        run: python3 scripts/ci/project_reference.py initialize-python "$RUNNER_TEMP/python-reference-evidence"
+
+      - name: Run the normal suite and record both observation families
+        env:
+          GODJ_PYTHON_INVENTORY: ${{ runner.temp }}/platform-python/inventory.json
+        run: |
+          set -o pipefail
+          make python-test 2>&1 | tee "$RUNNER_TEMP/python-reference-evidence/python-tests.txt"
+
+      - name: Verify the complete Django and DRF scenario inventory
+        run: |
+          set -o pipefail
+          uv run --frozen --project conformance/reference/drf python scripts/ci/python_semantics.py |
+            tee "$RUNNER_TEMP/python-reference-evidence/python-semantics.txt"
+
       - name: Seal Python execution inventory
         run: python3 scripts/ci/native_receipts.py seal-python "$RUNNER_TEMP/platform-python"
 
@@ -176,6 +235,32 @@ jobs:
 
       - name: Platform artifact ${{ steps.platform_upload.outputs.artifact-id }} ${{ steps.platform_upload.outputs.artifact-digest }}
         run: test -n "${{ steps.platform_upload.outputs.artifact-id }}" && test -n "${{ steps.platform_upload.outputs.artifact-digest }}"
+
+      - name: Seal Python project-reference evidence
+        if: always() && steps.python-reference.outcome == 'success'
+        run: python3 scripts/ci/project_reference.py seal "$RUNNER_TEMP/python-reference-evidence"
+
+      - name: Publish Python project-reference evidence
+        id: project_upload
+        if: always() && steps.python-reference.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-project-reference-${{ env.GODJ_REFERENCE_PYTHON }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-reference-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Project artifact ${{ steps.project_upload.outputs.artifact-id }} ${{ steps.project_upload.outputs.artifact-digest }}
+        if: success() && steps.project_upload.outcome == 'success'
+        env:
+          ARCHIVE_ID: ${{ steps.project_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.project_upload.outputs.artifact-digest }}
+        run: '[[ "$ARCHIVE_ID" =~ ^[1-9][0-9]*$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]'
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
 
   portable-go-matrix:
     needs: validation-plan
@@ -466,9 +551,12 @@ jobs:
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.10.12"
-          python-version: "3.14.3"
+          version: ${{ env.GODJ_UV_VERSION }}
+          python-version: ${{ env.GODJ_REFERENCE_PYTHON }}
           enable-cache: true
+
+      - name: Select the pinned managed Python
+        run: *select-reference-python
 
       - name: Install locked Python dependencies
         run: |
@@ -1325,7 +1413,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.12.3"
+          version: ${{ env.GODJ_UV_VERSION }}
           enable-cache: true
 
       - name: Assert isolated compatibility runtime
@@ -1408,7 +1496,7 @@ jobs:
           test -z "$(git status --porcelain=v1)"
 
   project-reference-comparison:
-    needs: [validation-plan, python-compatibility-matrix, product-project-check-matrix, product-reload-matrix]
+    needs: [validation-plan, python-reference-validation, product-project-check-matrix, product-reload-matrix]
     name: Compare independent project and event observations
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -1502,9 +1590,13 @@ jobs:
         if: matrix.shard == 'core' || matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2' || (matrix.mode == 'normal' && matrix.shard == 'core-account-management')
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.12.3"
-          python-version: "3.14.3"
+          version: ${{ env.GODJ_UV_VERSION }}
+          python-version: ${{ env.GODJ_REFERENCE_PYTHON }}
           enable-cache: true
+
+      - name: Select the pinned managed Python
+        if: matrix.shard == 'core' || matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2' || (matrix.mode == 'normal' && matrix.shard == 'core-account-management')
+        run: *select-reference-python
 
       - name: Observe historical Django data migrations on both native databases
         if: matrix.mode == 'normal' && matrix.shard == 'core'
@@ -1799,6 +1891,7 @@ jobs:
       - product-reload-matrix
       - command-product-matrix
       - python-compatibility-matrix
+      - python-reference-validation
       - project-reference-comparison
       - postgresql-product
       - postgresql-captures

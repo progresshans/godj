@@ -344,7 +344,10 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
 
     python_directory, python_source = producer_input(PYTHON)
     python_seal = verify_seal(python_directory)
-    require(document(python_directory / "source.json") == {**python_source, "python_version": "3.14.3"}, "Python evidence source/run differs")
+    from python_semantics import expected_report
+    semantics = (python_directory / "python-semantics.txt").read_text()
+    require(semantics == expected_report() + "\n", "Python semantic digest differs from the sealed source oracles")
+    require(document(python_directory / "source.json") == {**python_source, "python_version": "3.14.10"}, "Python evidence source/run differs")
     log = python_directory / "python-tests.txt"
     with log.open() as stream:
         completed = sum(bool(re.fullmatch(r"PYTHON_SUITE_VERIFIED tests=[1-9][0-9]* skips=[0-9]+\n?", line)) for line in stream)
@@ -353,7 +356,7 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
     for name in ("development", "event"):
         found = tagged_documents(log, "DJANGO_" + name.upper() + "_OBSERVATION")
         require(len(found) == 1, "Python observation missing or duplicated: " + name)
-        verify_reference(found[0], name, "3.14.3")
+        verify_reference(found[0], name, "3.14.10")
         observed[name] = found[0]
     outputs = []
     for _, system, arch, mode in product_coordinates(profile):
@@ -392,7 +395,7 @@ def verify_all(directory, expected_source, selection, repository_id, profile):
             require(actual.get("executed_roots") and actual["required"] == obligation["required"],
                     "delegated product obligation lacks its same-mode execution")
     return {"kind": "project-reference-comparison-v5", "validation_contract": CONTRACT, "source": expected_source, "repository_id": repository_id, "profile": profile,
-            "producers": selected, "python_seal": python_seal,
+            "producers": selected, "python_seal": python_seal, "python_semantics": semantics.strip(),
             "inputs": {name: value["input_sha256"] for name, value in observed.items()}, "coordinates": outputs}
 
 

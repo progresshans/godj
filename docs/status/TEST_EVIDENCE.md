@@ -3,6 +3,16 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## Python 3.14.10 기준 이전
+
+검토 당시 Mac race 작업의 정상 platform.json은 이전·새 판독기가 모두 통과했다. 선택된 PTY 테스트의 새 하위 항목을 run→skip으로 바꾼 복사본은 이전 판독기가 받아들였고 새 판독기는 해당 항목 이름을 보고하며 거부했다. [원본 제품 작업](https://github.com/progresshans/godj/actions/runs/46073634327/job/140756222841)
+
+같은 macOS 26에서 기존 Python 3.14.3·uv 0.10.12·고정 oracle 재생도 먼저 통과했다. [이전 환경 대조](https://github.com/progresshans/godj/actions/runs/46117519386/job/140894585759)
+
+제출 `ebc0857f`의 원격 이전 작업에서 macOS 26.7.2 ARM64와 Ubuntu 24.04 x64에 uv 0.13.6의 표준 CPython 3.14.10을 설치했다. 두 배포에서 SQLite 3.53.1과 source ID `2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9`를 관측했다. Django 6.1, DRF 3.18.0, asgiref 3.12.1, sqlparse 0.5.5, psycopg 3.3.6, Pillow 12.3.0을 유지했다. 네 프로젝트에서 실제 frozen 설치를 확인했고, 두 호스트의 각 잠금 파일은 바이트 단위로 같았다. [Linux 환경과 잠금](https://github.com/progresshans/godj/actions/runs/46117519430/artifacts/15252057604) · [Darwin 환경과 후보 원본](https://github.com/progresshans/godj/actions/runs/46117519430/artifacts/15252302632)
+
+기존 `1ef2a940`의 봉인된 profile·oracle·manifest를 대조했다. 새 Mac에서 Django 24개·DRF 3개 oracle를 별도 디렉터리에 생성하고 다시 `--check`로 확인했다. 두 호스트의 311개 의미 관측은 1,083,882바이트이고 SHA-256은 `b0189a057b16e3f0e2a6dcdf050382412ed383a63724dac1acb472d9b5731a21`이다. 계약 ID·순서·phase·status·결과·오류·DB 상태·metrics는 기존 관측과 같았다. 승격한 현재 관측과 합성 baseline은 환경 및 잠금 envelope만 바뀌었다. annotation의 과거 observer와 fixture, Django 원본 출처와 기존 실행 기록은 당시의 해시를 사용한다. [이전 실행](https://github.com/progresshans/godj/actions/runs/46117519430)
+
 ## PR 1 full CI 후속 최적화
 
 같은 PR의 자동 full 실행을 제출 head·실제 checkout·트리와 대조했다. 러너 시간은 GitHub job의 시작부터 완료까지를 합산했다. 전체 경과 시간에는 대기가 포함된다.

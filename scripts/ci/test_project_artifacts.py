@@ -120,7 +120,7 @@ class ProjectArtifactTests(unittest.TestCase):
     def test_receipt_is_published_by_the_pinned_action_on_the_same_job(self):
         workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/ci.yml").read_text()
         expected = "Project artifact ${{ steps.project_upload.outputs.artifact-id }} ${{ steps.project_upload.outputs.artifact-digest }}"
-        for job in ("product-project-check-matrix", "product-reload-matrix", "python-compatibility-matrix"):
+        for job in ("product-project-check-matrix", "product-reload-matrix", "python-reference-validation", "python-compatibility-matrix"):
             section = re.split(r"^  [\w-]+:\s*$", workflow.split("\n  " + job + ":\n", 1)[1], maxsplit=1, flags=re.M)[0]
             steps = section.split("\n      - ")
             indexes = [i for i, step in enumerate(steps) if "id: project_upload\n" in step]

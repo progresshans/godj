@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from python_tests import EXACT_PROFILE_TESTS, ROOT, configure_profile, exact_selection, run_suite, verify_owners
+from python_tests import DEPENDENCIES, EXACT_PROFILE_TESTS, LINUX_SQLITE, ROOT, SHARED_INPUTS, configure_profile, exact_selection, run_suite, verify_owners
 
 
 class PythonSuiteTests(unittest.TestCase):
@@ -101,10 +101,43 @@ class PythonSuiteTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     select(bad)
 
+    def test_shared_runtime_and_helper_changes_restore_full_native_discovery(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            for name in SHARED_INPUTS:
+                target = directory / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / name).read_bytes())
+            entry = 'test_common.Common.test_case'
+            (directory / 'test_common.py').write_bytes(b'audited')
+            digest = hashlib.sha256(b'audited' + bytes([0]) + (entry + '\n').encode()).hexdigest()
+            manifest = directory / 'portable.txt'
+            manifest.write_text('test_common ' + digest + '\n')
+            names = sorted(EXACT_PROFILE_TESTS | {entry})
+
+            def selection():
+                return exact_selection(names, repository=directory, directory=directory, manifest=manifest)
+
+            self.assertEqual(selection(), EXACT_PROFILE_TESTS)
+            for name in ('.python-version', 'conformance/runners/django/tests/values.py'):
+                target = directory / name
+                before = target.read_bytes()
+                target.write_bytes(before + b'\n')
+                self.assertEqual(selection(), set(names))
+                target.unlink()
+                self.assertEqual(selection(), set(names))
+                target.write_bytes(before)
+            self.assertEqual(selection(), EXACT_PROFILE_TESTS)
+
     def test_gate_rejects_missing_duplicate_skipped_or_wrong_host_python_results(self):
         ids = sorted(EXACT_PROFILE_TESTS | {"test_new.Case.test_boundary"})
         locked = json.loads((ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json").read_text())["fingerprint"]
-        linux = dict(profile="normal", fingerprint={**locked, "platform": "linux", "architecture": "x86_64"},
+        locks = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                 for name in ('uv.lock', 'conformance/reference/drf/uv.lock')}
+        locked.update(uv="0.13.6", free_threaded=False, executable="/sandbox/python", os_version="26.7.2",
+                      dependencies=DEPENDENCIES, locks=locks)
+        linux = dict(profile="normal", fingerprint={**locked, "platform": "linux", "architecture": "x86_64",
+                     "os_version": "linux", "sqlite_version": LINUX_SQLITE[0], "sqlite_source_id": LINUX_SQLITE[1]},
                      discovered=ids, started=ids, stopped=ids, skipped=sorted(EXACT_PROFILE_TESTS))
         exact = dict(profile="exact", fingerprint=locked, discovered=ids, started=ids, stopped=ids, skipped=[])
         self.assertEqual(verify_owners(linux, exact)["darwin_passed"], len(ids))
@@ -113,6 +146,10 @@ class PythonSuiteTests(unittest.TestCase):
             ("exact", "discovered", ids[:-1]), ("exact", "stopped", ids + [ids[0]]),
             ("exact", "skipped", ids[:1]), ("exact", "fingerprint", linux["fingerprint"]),
             ("exact", "fingerprint", {**locked, "sqlite_source_id": "different"}),
+            ("exact", "fingerprint", {**locked, "os_version": "15.0"}),
+            ("normal", "fingerprint", {**linux["fingerprint"], "python_version": "3.14.3"}),
+            ("normal", "fingerprint", {**linux["fingerprint"], "sqlite_source_id": "different"}),
+            ("normal", "fingerprint", {**linux["fingerprint"], "locks": {}}),
         ):
             records = copy.deepcopy([linux, exact])
             records[owner == "exact"][field] = mutation

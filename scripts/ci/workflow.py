@@ -23,6 +23,7 @@ JOBS = frozenset({
     'product-reload-matrix',
     'command-product-matrix',
     'python-compatibility-matrix',
+    'python-reference-validation',
     'project-reference-comparison',
     'postgresql-product',
     'postgresql-captures',

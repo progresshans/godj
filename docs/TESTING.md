@@ -38,7 +38,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 일반 PR과 Draft PR은 생성·갱신·재개할 때 Linux amd64·arm64의 기존 제품 검사를 모두 실행한다. SQLite·PostgreSQL, 생성물 drift, race·CGO=0, 격리된 cold build, 브라우저와 독립 Django 대조가 여기에 포함된다.
 일반 PR은 Apple Silicon 일반 모드의 프로젝트·reload·명령, Apple Silicon race·CGO=0의 네이티브 필수 검사, Intel 일반 호환성, 고정 Darwin 참조를 실행한다. 공용 `*_unix.go` 변경은 Apple Silicon 제품을 세 모드로 확대하고 Intel CGO=0 호환성을 추가한다. 이때 필수 네이티브 검사는 같은 모드의 Apple Silicon project-check와 reload가 나누어 실행한다.
 
-`platform-obligations-v4`의 full은 다음 실행을 요구한다. [실행 계획](../scripts/ci/workflow.py) · [네이티브 선택 목록](../scripts/ci/native_suites.py)
+`platform-obligations-v5`의 full은 다음 실행을 요구한다. [실행 계획](../scripts/ci/workflow.py) · [네이티브 선택 목록](../scripts/ci/native_suites.py)
 
 | 기존 검사와 책임 | full에서 실제 실행하는 곳 |
 |---|---|
@@ -286,6 +286,8 @@ Source API 관찰은 GoDj 자체를 현재 source로 type-check하고 외부 pac
 GOPATH나 과거 dependency 집합을 가정하지 않으며 native export 조회에도 context·timeout·출력 한도와 readonly/offline 조건을 적용한다.
 외부 CLI fixture의 module 준비는 제품 호출 이전에 수행한다. 실제 제품 명령의 private cache·readonly·무변경 검사는 그대로 유지한다.
 Python compatibility observer는 실제 실행 interpreter를 보고하고 고정 fixture의 runtime metadata와 구분한다.
+Linux 대표 작업은 uv 0.13.6의 CPython 3.14.10에서 normal suite를 한 번 실행한다. 같은 실행의 development/event 관측 로그와 플랫폼 실행 목록은 서로 다른 디렉터리에서 봉인하고 각각 업로드 영수증을 확인한다. PostgreSQL 캡처 소비자는 독립적으로 실행된다.
+고정 Mac은 macOS 26 ARM64에서 같은 interpreter와 oracle를 재생한다. 검토한 테스트 파일과 발견 ID, 공유 해석 helper·runner·프로필·잠금이 달라지면 해당 모듈 또는 전체 발견 목록을 Mac에서 직접 실행한다. 명시한 공유 입력 밖의 전이 의존성은 이 분류에 포함되지 않는다. 기준 이전 시에는 별도 **exact-all** 실행으로 모든 항목의 실행·종료와 skip 부재를 기록한다.
 각 지원 Python에서 311개 시나리오를 실행한다. 비교기는 Django·DRF 원본의 체크섬과 프로필, manifest의 계약 ID·순서를 확인한다. 호출자가 지정한 ID를 포함한 각 결과를 저장된 관측과 바이트 단위로 대조하고, 전체 크기와 SHA-256을 출력한다. [비교기](../scripts/ci/python_semantics.py)
 고정 Django source hash·관찰 동작과 부정 대조는 각 지원 interpreter에서 유지하며 고정 reference fixture를 다시 쓰지 않는다.
 관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.

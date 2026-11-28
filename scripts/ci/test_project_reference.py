@@ -20,7 +20,7 @@ def reference(name):
     inputs = document(directory / "input.json")
     source = document(directory / "source-verification.json")
     value = {"kind": "django-" + name + "-observations-v1", "django_commit": source["django_commit"],
-             "profile": {"django": "6.1", "python": "3.14.3"}, "sources": source["sources"],
+             "profile": {"django": "6.1", "python": "3.14.10"}, "sources": source["sources"],
              "input_sha256": digest(directory / "input.json"), "observer_sha256": digest(directory / "observe.py"),
              "cases": copy.deepcopy(inputs["cases"])}
     if name == "development":
@@ -79,7 +79,9 @@ class ProjectReferenceReaderTests(unittest.TestCase):
     def fixture(self, profile="full"):
         python = self.directory / (PYTHON + "-2")
         python.mkdir()
-        self.write_json(python / "source.json", {**self.source, "python_version": "3.14.3"})
+        from python_semantics import expected_report
+        (python / "python-semantics.txt").write_text(expected_report() + "\n")
+        self.write_json(python / "source.json", {**self.source, "python_version": "3.14.10"})
         (python / "python-tests.txt").write_text(
             "test_observe ... DJANGO_DEVELOPMENT_OBSERVATION " + json.dumps(self.development) + "\nok\n"
             "DJANGO_EVENT_OBSERVATION " + json.dumps(self.event_reference) + "\n"
@@ -204,6 +206,26 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         execution.append(self.event('pass',Package=check))
         self.write_events(target / 'platform.json', execution)
 
+    def test_python_reference_rejects_resealed_foreign_patch_or_semantics(self):
+        self.fixture()
+        self.verify()
+        directory = self.directory / (PYTHON + "-2")
+        source = document(directory / "source.json")
+        for filename, data, reason in (
+            ("source.json", json.dumps(source | {"python_version": "3.14.3"}), "source/run"),
+            ("python-semantics.txt", "Verified 311 scenarios, 0 bytes, SHA-256 " + "0" * 64, "semantic digest"),
+        ):
+            path = directory / filename
+            before = path.read_bytes()
+            (directory / "SHA256SUMS").unlink()
+            path.write_text(data)
+            seal(directory)
+            with self.subTest(filename=filename), self.assertRaisesRegex(ValueError, reason):
+                self.verify()
+            (directory / "SHA256SUMS").unlink()
+            path.write_bytes(before)
+            seal(directory)
+
     def test_delegated_product_requires_the_proven_same_mode_owner(self):
         self.fixture()
         summary = self.verify()
@@ -283,6 +305,13 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                 observe(actions)
         with self.assertRaisesRegex(ValueError, 'exactly once'):
             observe(['run', 'pass'], remove_required=True)
+        obligation = 'TestRunserverPublicationReadsRetirementReplyAfterChildExit/acknowledged'
+        required_skip = [event | {'Action': 'skip'} if event.get('Test') == obligation and event['Action'] == 'pass'
+                         else event for event in values]
+        self.write_events(log, required_skip)
+        with self.assertRaisesRegex(ValueError, obligation):
+            darwin_boundary.verify(target, 'project-check', 'race')
+
 
     def test_native_boundary_requires_each_delegated_event_and_unchanged_sqlite_sources(self):
         self.fixture()
@@ -413,7 +442,7 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         self.assertEqual([stem for stem, row in report["producers"].items() if row["producer_attempt"] == 2], [rerun])
         python = self.directory / (PYTHON + "-1")
         (python / "SHA256SUMS").unlink()
-        self.write_json(python / "source.json", self.source | {"python_version": "3.14.3"})
+        self.write_json(python / "source.json", self.source | {"python_version": "3.14.10"})
         seal(python)
         with self.assertRaisesRegex(ValueError, "Python evidence source/run differs"):
             self.verify()
