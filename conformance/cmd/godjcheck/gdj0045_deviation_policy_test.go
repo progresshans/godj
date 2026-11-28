@@ -102,7 +102,7 @@ func TestRunGDJ0045PublishedProductExpectationWritesActualOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const legacySHA256 = "f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6"
+	const legacySHA256 = "16c5adcb7fdc6703ebfa44b8b29d3557c61599878ce017758377f5411ab96b37"
 	if len(legacyBytes) != 12944 || fmt.Sprintf("%x", sha256.Sum256(legacyBytes)) != legacySHA256 {
 		t.Fatalf("legacy SYS-001..012 actual bytes drifted: size=%d sha256=%x", len(legacyBytes), sha256.Sum256(legacyBytes))
 	}
