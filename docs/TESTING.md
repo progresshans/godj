@@ -68,7 +68,7 @@ Intel 일반·CGO=0과 Apple Silicon race·CGO=0에서는 원래 SQLite 테스�
 
 Linux의 Darwin 교차 컴파일은 두 대상의 패키지를 발견하고 실제 Mach-O 링크와 빌드 정보를 검증한다. 호스트는 모듈 전용 캐시를 복원한다. Darwin 대상은 자체 GOCACHE에 러너·Go 도구 버전별 객체 캐시를 복원하고, 같은 계열의 저장본이 없을 때만 새로 저장한다. Go는 입력이 바뀐 객체를 다시 빌드한다. 링크된 테스트 파일은 검증 후 폐기하고 별도 cold-build 제품 테스트는 자체 임시 캐시를 사용한다.
 
-Linux ARM64 race는 catalog와 FirstAccount 프로필을 실행하는 두 작업이 각각 객체 캐시를 쓴다. Apple Silicon 일반 runtime과 Linux의 Darwin 교차 컴파일에도 담당 작업이 하나씩 있다. 모듈과 전체 빌드 seed를 구분하며, Linux ARM64의 모듈은 catalog 작업만 저장한다. 전체 seed를 복원한 작업은 14일 단위로 같은 의존성·도구·대상의 이번 또는 직전 추가 객체를 읽는다. 해당 세대에 처음 성공한 담당자만 새 action/output 객체를 저장한다. 원래 seed의 객체를 복제하지 않는다. 추가 archive의 비압축 예산은 FirstAccount 160 MiB, catalog 128 MiB, Mac runtime 96 MiB, 교차 컴파일 192 MiB이다. 한 세대 합계는 576 MiB이고 최대 두 세대를 읽는다. 저장소 설정은 10 GB, 미사용 7일이다. 실제 테스트·재링크·증거 검증은 매번 수행하며, archive가 없으면 Go가 현재 입력에서 생성한다. [객체 선택](../scripts/ci/go_object_update.py)
+Linux ARM64 race는 catalog와 FirstAccount 프로필을 실행하는 두 작업이 각각 객체 캐시를 쓴다. Apple Silicon 일반 runtime과 Linux의 Darwin 교차 컴파일에도 담당 작업이 하나씩 있다. 모듈과 전체 빌드 seed를 구분하며, Linux ARM64의 모듈은 catalog 작업만 저장한다. 전체 seed를 복원한 작업은 14일 단위로 같은 의존성·도구·대상의 이번 또는 직전 추가 객체를 읽는다. 해당 세대에 처음 성공한 담당자만 새 action/output 객체를 저장한다. 원래 seed의 객체를 복제하지 않는다. 추가 archive의 비압축 예산은 FirstAccount 160 MiB, catalog 128 MiB, Mac runtime 96 MiB, 교차 컴파일 192 MiB이다. 같은 PR 캐시 범위와 의존성 집합에서 한 세대 합계는 576 MiB이고 최대 두 세대를 읽는다. 저장소 설정은 10 GB, 미사용 7일이다. 실제 테스트·재링크·증거 검증은 매번 수행하며, archive가 없으면 Go가 현재 입력에서 생성한다. [객체 선택](../scripts/ci/go_object_update.py)
 
 Mac에서 생략되는 조합은 Intel race, 두 Mac에서 공통 생성 기능 전수의 교차 조합, Apple Silicon race·CGO=0의 runtime 전수다. Go 런타임·링커·DB 드라이버의 해당 조합에서만 나타나는 결함은 남을 수 있다. 해당 플랫폼 재현이나 아키텍처별 코드·의존성 변경의 구체적 위험이 있을 때 필요한 조합을 별도로 진단한다. 동적으로 생성하는 외부 모듈은 대표 네이티브 실행이 검증한다.
 
