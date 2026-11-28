@@ -1613,7 +1613,7 @@ jobs:
           - 5432
     strategy:
       fail-fast: false
-      max-parallel: 16
+      max-parallel: 20
       matrix: ${{ fromJSON(needs.validation-plan.outputs.postgres_matrix) }}
 
     steps: &postgres-steps

@@ -361,6 +361,8 @@ core에 유지한다. 필수 목록의 각 검사는 모드마다 한 작업에 
 생성 소비자, normal/CGO-disabled의 core, native PostgreSQL credential 검사를 맡은 작업의 Go 패키지 제한은 30분이고
 나머지는 18분이다. 모든 작업이 필수 테스트의 실행·통과와 skip 유무를 확인한다. 일반 생성 소비자 패키지의 vet는 normal/core-consumers가 맡는다.
 
+비캡처 PostgreSQL 작업은 최대 20개를 동시에 실행한다. 넓은 패키지 집합을 맡는 CGO=0 core와 race 작업을 앞에 제출한다. 일반 모드의 core·operator-target 캡처 둘은 별도 matrix에서 시작하고 소비자는 두 캡처를 확인한 뒤 실행한다.
+
 계정 소비자 여러 묶음이 한 러너의 PostgreSQL 서비스를 공유할 때는 각 묶음 전용 DB를 `template0`으로 생성한다. Go는 묶음마다 필수 목록을 읽어 독립 프로세스로 실행하며, 생성 앱 진단과 테스트 로그도 따로 보관한다. Django 대조, S3 참조 서비스, DB 재기동과 실행 증거 생산 작업은 각각 전용 서비스에서 실행한다. [PostgreSQL 실행기](../scripts/ci/postgres-product.sh)
 
 normal/core-account-management에서 [Django 계정 관측기 실행 도구](../scripts/ci/identity_reference.py)가 모델 권한·관리·카탈로그,

@@ -335,6 +335,12 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         self.assertFalse({(r['mode'],r['shard']) for r in capture} & {(r['mode'],r['shard']) for r in product})
         rows = product + capture
         self.assertCountEqual(rows, matrix()['include'])
+        ordinary = next(i for i, row in enumerate(product) if row['mode'] == 'normal')
+        self.assertEqual((product[0]['mode'], product[0]['shard']), ('cgo0', 'core'))
+        self.assertEqual(
+            product[1:ordinary],
+            [r for r in product if r['mode'] == 'race'],
+        )
         for mode in ('normal', 'race', 'cgo0'):
             scheduled = [row for row in rows if row['mode'] == mode]
             self.assertCountEqual([part for row in scheduled for part in row['parts']], [*partitions(mode), 'operator-target'])

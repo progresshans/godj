@@ -157,6 +157,15 @@ def workflow_matrices():
     for row in matrix()['include']:
         owner = captures if row['mode'] == 'normal' and row['shard'] in ('core', 'operator-target') else products
         owner.append(row)
+    # In run 46135600966 GitHub admitted the first 16 declared rows as a
+    # cohort. The race account workers and the full CGO-disabled core were
+    # still queued after shorter jobs started. Keep captures independent.
+    def priority(row):
+        if (row['mode'], row['shard']) == ('cgo0', 'core'):
+            return 0
+        return 1 if row['mode'] == 'race' else 2
+
+    products.sort(key=priority)
     return {'postgres_matrix': {'include': products}, 'postgres_capture_matrix': {'include': captures}}
 
 
