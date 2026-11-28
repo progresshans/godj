@@ -335,7 +335,7 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		t.Fatalf("unexpected full Intel compatibility modes %v", intelModes)
 	}
 	ciRequire(t, "Darwin cross-compile", ciJob(t, jobs, "darwin-compile-only"), "runs-on: ubuntu-24.04", "scripts/ci/darwin_compile.py")
-	ciRequire(t, "exact Darwin reference", ciJob(t, jobs, "exact-darwin-validation"), "runs-on: macos-15")
+	ciRequire(t, "exact Darwin reference", ciJob(t, jobs, "exact-darwin-validation"), "runs-on: macos-26")
 	ciRequire(t, "platform evidence", ciJob(t, jobs, "required-ci"), "scripts/ci/native_receipts.py resolve", "scripts/ci/native_receipts.py verify")
 	commands := ciJob(t, jobs, "command-product-matrix")
 	for _, product := range []string{"operator", "targeted"} {

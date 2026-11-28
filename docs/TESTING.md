@@ -51,7 +51,7 @@ Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래�
 | PTY·FD·파일 공개·잠금·취소·다중 프로세스 SQLite | Apple Silicon의 기존 13개 root. 일반 PR의 race·CGO=0은 독립 작업이 전부 실행한다. native·full에서는 같은 모드의 project-check가 8개, reload가 5개를 맡고 제품 비교기가 두 봉인 원본의 합집합을 검증한다. Intel 일반 모드는 기존 집합과 파일 handle·pipe·잠금 경계를 실행 |
 | Intel 설치와 호환성 | 일반은 한 버전 공개 설치·첫 계정·HTTP 쓰기·재시작·reload 거부·정리, CGO=0은 CLI와 실제 생성 runner·server·command, SQLite 저장·재접속 |
 | Darwin 빌드 태그·타입·링크 | Linux 작업이 Darwin amd64·arm64 CGO=0 환경에서 각각 패키지를 발견하고 체크인된 코드와 패키지별 테스트 실행 파일을 컴파일 |
-| 고정 Python·SQLite·Django 관측 | macOS 15 Apple Silicon exact에서 oracle·고정 전용·호스트 민감·미분류 검사를 실행한다. 공통 case의 Linux 실행은 두 호스트의 실제 발견·실행 목록으로 대조 |
+| 고정 Python·SQLite·Django 관측 | macOS 26 Apple Silicon exact에서 oracle·고정 전용·호스트 민감·미분류 검사를 실행한다. 공통 case의 Linux 실행은 두 호스트의 실제 발견·실행 목록으로 대조 |
 
 두 버전의 호환성 거부와 Darwin race·CGO=0가 겹칠 때만 나타나는 결함, 같은 소스 선택에서만 드러나는 공통 runner의 Mac 고유 동작은 기본 full에서 직접 발견하기 어렵다. 제품 비교 결과의 `product_coverage`에 각 검사의 실제 담당 좌표·발견 root 또는 이관한 필수 목록을 남긴다.
 

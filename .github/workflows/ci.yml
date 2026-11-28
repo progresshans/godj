@@ -440,7 +440,7 @@ jobs:
   exact-darwin-validation:
     needs: validation-plan
     name: Validate exact darwin/arm64 profile and SQLite lifecycle
-    runs-on: macos-15
+    runs-on: macos-26
     # The locked oracle, host-sensitive tests and unclassified changes run natively.
     timeout-minutes: 30
     env:
