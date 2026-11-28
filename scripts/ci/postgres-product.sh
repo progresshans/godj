@@ -2,6 +2,9 @@
 set -euo pipefail
 mode="$MODE"
 shard="$PART"
+if [[ "$mode" == cgo0 && ( "$shard" == core-account-catalog || "$shard" == core-account-consumers ) ]]; then
+  export GODJ_CAPTURE_GO_TOOL_TIMES=1
+fi
 database=postgres
 evidence="$RUNNER_TEMP"
 if [ "$PRIVATE_DATABASE" = true ]; then

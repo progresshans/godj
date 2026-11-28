@@ -151,14 +151,17 @@ def matrix(profile='full'):
             for parts in pack(weights, 3):
                 rows.append({**common, 'worker':'parts-'+'-'.join(map(str, parts)), 'parts':parts,
                              'sqlite_timeout':'', 'step_minutes':45, 'job_timeout':len(parts)*45+15})
-    # These two executions own the pilot archives; every other worker uses
+    # These executions own the measured object archives; other workers use
     # the dependency cache. Select the Linux worker by its actual fixture.
     catalog_part = ISOLATED_ACCOUNT_ROOTS.index('TestGeneratedAccountCatalogTransition') + 1
+    profile_part = ISOLATED_ACCOUNT_ROOTS.index('TestGeneratedFirstAccountUsesRequiredProfiles') + 1
     for row in rows:
         if row['scope'] == 'darwin-runtime':
             row['cache_family'] = 'darwin-runtime-normal'
         elif row.get('consumer_layout') == 'linux-arm64-race' and catalog_part in row['parts']:
             row['cache_family'] = 'linux-account-race'
+        elif row.get('consumer_layout') == 'linux-arm64-race' and profile_part in row['parts']:
+            row['cache_family'] = 'linux-first-account-race'
     # Submit the two Linux SQLite race owners, slow ARM race groups and Mac
     # runtime owners first within their respective runner pools.
     rows.sort(key=lambda r: (not r.get('sqlite_timeout'), r.get('consumer_layout') != 'linux-arm64-race',

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -41,6 +42,15 @@ func captureGeneratedCommand(t *testing.T, command *exec.Cmd) (io.Writer, io.Wri
 			t.Fatal(err)
 		}
 	}
+	// Go's pinned action graph separates real compiler, vet and linker
+	// invocations from cache lookups. Keep command lines in the private temp
+	// directory; publish durations only. The test result still comes from Go.
+	var actionGraph string
+	if os.Getenv("GODJ_CAPTURE_GO_TOOL_TIMES") == "1" && filepath.Base(command.Path) == "go" &&
+		len(command.Args) > 1 && command.Args[1] == "test" {
+		actionGraph = filepath.Join(t.TempDir(), "actions.json")
+		command.Args = slices.Insert(command.Args, 2, "-debug-actiongraph="+actionGraph)
+	}
 	writeJSON("started.json", struct {
 		Test      string    `json:"test"`
 		Arguments []string  `json:"arguments"`
@@ -71,6 +81,33 @@ func captureGeneratedCommand(t *testing.T, command *exec.Cmd) (io.Writer, io.Wri
 			Stdout   int       `json:"stdout_bytes"`
 			Stderr   int       `json:"stderr_bytes"`
 		}{time.Now().UTC(), runErr != nil, stdout.total, stderr.total})
+		if actionGraph != "" && runErr == nil {
+			var actions []struct {
+				Mode    string
+				CmdReal time.Duration
+			}
+			data, err := os.ReadFile(actionGraph)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(data, &actions); err != nil {
+				t.Fatal(err)
+			}
+			type cost struct {
+				Calls  int           `json:"calls"`
+				ToolNS time.Duration `json:"tool_ns"`
+			}
+			tools := map[string]cost{"build": {}, "vet": {}, "link": {}}
+			for _, action := range actions {
+				row, selected := tools[action.Mode]
+				if selected && action.CmdReal > 0 {
+					row.Calls++
+					row.ToolNS += action.CmdReal
+					tools[action.Mode] = row
+				}
+			}
+			writeJSON("go-tool-times.json", tools)
+		}
 	}
 }
 
@@ -98,6 +135,7 @@ func (capture *generatedArtifactWriter) Write(data []byte) (int, error) {
 func TestGeneratedCommandCaptureSurvivesBeforeCompletionAndBoundsOutput(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GODJ_GENERATED_CONSUMER_CAPTURE_DIR", root)
+	t.Setenv("GODJ_CAPTURE_GO_TOOL_TIMES", "")
 	command := exec.Command("go", "test", "-json", "./consumer")
 	stdout, stderr, finish := captureGeneratedCommand(t, command)
 	record := []byte("{\"Action\":\"run\",\"Test\":\"TestPending\"}\n")

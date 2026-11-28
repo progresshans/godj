@@ -65,12 +65,14 @@ class RelationShardTest(unittest.TestCase):
         from relation_shards import ISOLATED_ACCOUNT_ROOTS, matrix
         for profile in ('pr', 'native', 'full'):
             pilots = [r for r in matrix(profile)['include'] if r.get('cache_family')]
-            families = ['linux-account-race'] + (['darwin-runtime-normal'] if profile == 'full' else [])
+            families = ['linux-account-race', 'linux-first-account-race'] + (['darwin-runtime-normal'] if profile == 'full' else [])
             self.assertCountEqual([r['cache_family'] for r in pilots], families)
             for row in pilots:
-                if row['cache_family'] == 'linux-account-race':
+                if row['cache_family'] in ('linux-account-race', 'linux-first-account-race'):
                     self.assertEqual((row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode']), ('linux', 'arm64', 'race'))
-                    self.assertIn(ISOLATED_ACCOUNT_ROOTS.index('TestGeneratedAccountCatalogTransition')+1, row['parts'])
+                    root = ('TestGeneratedAccountCatalogTransition' if row['cache_family'] == 'linux-account-race'
+                            else 'TestGeneratedFirstAccountUsesRequiredProfiles')
+                    self.assertIn(ISOLATED_ACCOUNT_ROOTS.index(root)+1, row['parts'])
                 else:
                     self.assertEqual((row['scope'],row['mode']), ('darwin-runtime','normal'))
 
